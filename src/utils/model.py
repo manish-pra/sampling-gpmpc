@@ -459,35 +459,3 @@ def export_bicycle_model(name):
     model.u = u
     model.name = name
     return model
-
-
-##############################Lipchitz constant#############################################
-def export_unicycle_model_with_discrete_rk4_LC(name):
-    model = export_unicycle_model(name)
-    dT = ca.SX.sym('dt', 1)
-    z = ca.SX.sym('z', 2) # z = [x,y]
-    T = ca.SX.sym('T', 1)
-    x = model.x
-    u = model.u
-    model.x = ca.vertcat(x, T)
-    model.u = ca.vertcat(u, dT, z)
-    x = model.x
-    u = model.u
-    xdot = ca.vertcat(model.xdot, 1)
-    f_expl = ca.vertcat(model.f_expl_expr, 1)
-    model.f_expl_expr = f_expl
-    model.f_impl_expr = xdot - f_expl
-
-    ode = ca.Function('ode', [x, u], [model.f_expl_expr])
-    # set up RK4
-    k1 = ode(x,       u)
-    k2 = ode(x+dT/2*k1, u)
-    k3 = ode(x+dT/2*k2, u)
-    k4 = ode(x+dT*k3,  u)
-    xf = x + dT/6 * (k1 + 2*k2 + 2*k3 + k4)
-
-    model.xdot = xdot
-    model.disc_dyn_expr = xf
-    # print("built RK4 for pendulum model with dT = ", dT)
-    # print(xf)
-    return model

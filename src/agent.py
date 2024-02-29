@@ -31,8 +31,8 @@ import matplotlib.pyplot as plt
 
 
 class Agent(object):
-    def __init__(self, my_key, params) -> None:
-        self.my_key = my_key
+    def __init__(self, params) -> None:
+        self.my_key = 0
         self.params = params
         self.env_dim = params["common"]["dim"]
         self.in_dim = len(self.params["optimizer"]["x_min"]) + len(self.params["optimizer"]["u_min"])

@@ -10,8 +10,7 @@ from src.utils.model import (export_integrator_model,
                              export_NH_integrator_ode_model_with_discrete_rk4,
                              export_robot_model_with_discrete_rk4,
                              export_bicycle_model_with_discrete_rk4,
-                             export_unicycle_model_with_discrete_rk4,
-                             export_unicycle_model_with_discrete_rk4_LC)
+                             export_unicycle_model_with_discrete_rk4)
 
 # control a model whose dynamics is known but with a GP model
 # Make that GP trained with pendulum data 
