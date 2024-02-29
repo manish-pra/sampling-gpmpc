@@ -1,0 +1,9 @@
+botorch==0.6.0
+casadi==3.6.4
+dill==0.3.7
+gpytorch==1.6.0
+matplotlib==3.8.1
+networkx==3.2.1
+numpy==1.26.4
+PyYAML==6.0.1
+torch==2.1.0
