@@ -1,1 +1,1 @@
-# safeGPMPC
+# SafeGPMPC
