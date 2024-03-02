@@ -18,7 +18,7 @@ from gpytorch.kernels import (LinearKernel, MaternKernel,
                               RBFKernel, ScaleKernel)
 from gpytorch.mlls.exact_marginal_log_likelihood import \
     ExactMarginalLogLikelihood
-from src.GP_model import GPModelWithDerivatives
+from src.GP_model import BatchMultitaskGPModelWithDerivatives, GPModelWithDerivatives
 import matplotlib.pyplot as plt
 
 # from utils.agent_helper import greedy_algorithm, coverage_oracle, greedy_algorithm_opti, apply_goose, greedy_algorithm_opti_cov
@@ -216,7 +216,9 @@ class Agent(object):
             for out in ['y1','y2']:
                 data_Y = torch.vstack([self.Dyn_gp_Y_train[out], self.Hallcinated_Y_train[out][i]]).reshape(-1,1 + self.in_dim)                
                 likelihood[out] = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4,noise_constraint=gpytorch.constraints.GreaterThan(0.0))  # Value + Derivative
-                model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
+                # model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
+                # model_i[out] = BatchIndependentMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out],1)
+                self.Dyn_gp_model['y1'] = BatchMultitaskGPModelWithDerivatives(self.Dyn_gp_X_train, self.Dyn_gp_Y_train['y1'], likelihood['y1'], 2)
                 model_i[out].likelihood.noise = torch.ones(1)*self.Dyn_gp_noise*0.0001
                 model_i[out].likelihood.task_noises=torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
                 model_i[out].covar_module.base_kernel.lengthscale = torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"][out])
