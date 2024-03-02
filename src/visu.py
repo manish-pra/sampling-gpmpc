@@ -49,8 +49,8 @@ class Visualizer:
         x1_list.append(X1_k.item())
         x2_list.append(X2_k.item())
         for ele in range(U.shape[0]):
-            y1 = self.Dyn_gp_model['y1'](torch.Tensor([[X1_k, X2_k, U[ele]]])).mean.detach()[0]
-            y2 = self.Dyn_gp_model['y2'](torch.Tensor([[X1_k, X2_k, U[ele]]])).mean.detach()[0]
+            y1 = self.Dyn_gp_model['y1'](torch.Tensor([[X1_k, X2_k, U[ele]]]).cuda()).mean.detach()[0]
+            y2 = self.Dyn_gp_model['y2'](torch.Tensor([[X1_k, X2_k, U[ele]]]).cuda()).mean.detach()[0]
             X1_kp1, X2_kp1 = y1[0], y2[0]
             x1_list.append(X1_kp1.item())
             x2_list.append(X2_kp1.item())

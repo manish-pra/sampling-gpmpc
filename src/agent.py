@@ -80,6 +80,11 @@ class Agent(object):
                 base_kernel=PiecewisePolynomialKernel())  # ard_num_dims=self.env_dim
             self.Fx_covar_module = ScaleKernel(
                 base_kernel=PiecewisePolynomialKernel())  # ard_num_dims=self.env_dim
+        
+        if self.params["common"]["use_cuda"] and torch.cuda.is_available():
+            self.use_cuda = True
+        else:
+            self.use_cuda = False
 
         # Initialize model
         x1 = torch.linspace(-3.14,3.14,11)
@@ -164,6 +169,10 @@ class Agent(object):
         self.Dyn_gp_model['y2'].covar_module.outputscale = torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"]["y2"]])
         # mll = ExactMarginalLogLikelihood(model.likelihood, model)
         # fit_gpytorch_model(mll)
+        if self.use_cuda:
+            for out in ['y1','y2']:
+                self.Dyn_gp_model[out] = self.Dyn_gp_model[out].cuda()
+
         return self.Dyn_gp_model
     
     # def __update_Dyn(self):
@@ -190,6 +199,9 @@ class Agent(object):
         self.Dyn_gp_X_train = torch.cat(
             [self.Dyn_gp_X_train, newX]).reshape(-1, self.in_dim)
         self.Dyn_gp_Y_train = torch.cat([self.Dyn_gp_Y_train, newY]).reshape(-1, 1)
+        if self.use_cuda:
+            self.Dyn_gp_X_train = self.Dyn_gp_X_train.cuda()
+            self.Dyn_gp_Y_train = self.Dyn_gp_Y_train.cuda()
     
     #gp_val, y_grad, u_grad,
     def update_hallucinated_Dyn_dataset(self, newX, newY):
@@ -211,6 +223,10 @@ class Agent(object):
         for out in ['y1','y2']:
             a, b = self.Dyn_gp_Y_train[out].shape
             self.Dyn_gp_Y_train_batch[out] = torch.ones((self.eff_dyn_samples, a, b))*self.Dyn_gp_Y_train[out]
+        if self.use_cuda:
+            self.Dyn_gp_X_train_batch = self.Dyn_gp_X_train_batch.cuda()
+            self.Dyn_gp_Y_train_batch['y1'] = self.Dyn_gp_Y_train_batch['y1'].cuda()
+            self.Dyn_gp_Y_train_batch['y2'] = self.Dyn_gp_Y_train_batch['y2'].cuda()
     
     def train_hallucinated_dynGP(self, sqp_iter):
         n_sample = self.eff_dyn_samples
@@ -220,6 +236,10 @@ class Agent(object):
             self.Hallcinated_X_train = torch.empty(n_sample,0,self.in_dim)
             self.Hallcinated_Y_train['y1'] = torch.empty(n_sample,0,1+self.in_dim)
             self.Hallcinated_Y_train['y2'] = torch.empty(n_sample,0,1+self.in_dim)
+            if self.use_cuda:
+                self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
+                self.Hallcinated_Y_train['y1'] = self.Hallcinated_Y_train['y1'].cuda()
+                self.Hallcinated_Y_train['y2'] = self.Hallcinated_Y_train['y2'].cuda()
         likelihood = {}
         self.model_i = {}
         data_X = torch.concat([self.Dyn_gp_X_train_batch, self.Hallcinated_X_train],dim=1)
@@ -229,16 +249,20 @@ class Agent(object):
             # model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
             # model_i[out] = BatchIndependentMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out],1)
             self.model_i[out] = BatchMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out], n_sample)
-            self.model_i[out].likelihood.noise = torch.ones(1)*self.Dyn_gp_noise*0.0001
-            self.model_i[out].likelihood.task_noises=torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
-            self.model_i[out].covar_module.base_kernel.lengthscale = torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"][out])
-            self.model_i[out].covar_module.outputscale = torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"][out]])
+            self.model_i[out].likelihood.noise = torch.ones(n_sample,1)*self.Dyn_gp_noise*0.0001
+            self.model_i[out].likelihood.task_noises= torch.ones(n_sample,1)*torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
+            self.model_i[out].covar_module.base_kernel.lengthscale = torch.ones(n_sample,1)*torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"][out])
+            self.model_i[out].covar_module.outputscale = torch.ones(n_sample,1)*torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"][out]])
             # model_i.covar_module.task_covar_module.var
             # model_i.covar_module.lengthscale =  torch.Tensor([[1.2241]]) #torch.Tensor([[self.Dyn_gp_lengthscale]])
             # model_i.covar_module.outputscale = torch.Tensor([[2.4601]]) #torch.Tensor([[self.Dyn_gp_outputscale]])
             # model_i = self.fit_i_model(self.Dyn_gp_X_range, sample_i)
             # model_i.eval()
             # model_i(torch.rand(5,2)).sample()
+            if self.use_cuda:
+                self.model_i[out] = self.model_i[out].cuda()
+                data_X = data_X.cuda()
+                data_Y = data_Y.cuda()
 
     def get_next_to_go_loc(self):
         return self.planned_measure_loc
@@ -262,16 +286,19 @@ class Agent(object):
     def get_true_gradient(self, x_hat):
         l=1
         g=10
-        ret = np.zeros((2,x_hat.shape[0],3))
-        ret[1,:,0] = -g*np.cos(x_hat[:,0])/l
-        ret[0,:,1] = np.ones(x_hat.shape[0])
-        ret[1,:,2] = np.ones(x_hat.shape[0])/l
-        A = np.array([[0.0, 1.0],
-                      [g*np.cos(x_hat[0])/l,0.0]])
-        B = np.array([[0.0],
-                      [1/l]])
-        val = self.pendulum_dyn(torch.from_numpy(x_hat[:,0]), torch.from_numpy(x_hat[:,1]), torch.from_numpy(x_hat[:,2]))
-        return val.numpy().transpose(), ret
+        ret = torch.zeros((2,x_hat.shape[0],3))
+        ret[1,:,0] = -g*torch.cos(x_hat[:,0])/l
+        ret[0,:,1] = torch.ones(x_hat.shape[0])
+        ret[1,:,2] = torch.ones(x_hat.shape[0])/l
+        # A = np.array([[0.0, 1.0],
+        #               [g*np.cos(x_hat[0])/l,0.0]])
+        # B = np.array([[0.0],
+        #               [1/l]])
+        # val = self.pendulum_dyn(torch.from_numpy(x_hat[:,0]), torch.from_numpy(x_hat[:,1]), torch.from_numpy(x_hat[:,2]))
+        # return val.numpy().transpose(), ret
+        val = self.pendulum_dyn(x_hat[:,0], x_hat[:,1], x_hat[:,2])
+        # return val, ret
+        return torch.hstack([val[:,0].reshape(-1,1),ret[0,:,:]]), torch.hstack([val[:,1].reshape(-1,1),ret[1,:,:]])
     
     def pendulum_discrete_dyn(self, X1_k, X2_k, U_k):
         """_summary_
@@ -347,7 +374,10 @@ class Agent(object):
         u_h = torch.from_numpy(u_h).float()
         x_h_batch = x_h.transpose(0,1).view(self.params["agent"]["num_dyn_samples"],self.x_dim,self.params["optimizer"]["H"]).transpose(1,2)
         u_h_batch = torch.ones(self.params["agent"]["num_dyn_samples"],self.params["optimizer"]["H"],1)*u_h
-        return torch.concat([x_h_batch, u_h_batch],2)
+        ret = torch.cat([x_h_batch, u_h_batch],2)
+        if self.use_cuda:
+            ret = ret.cuda()
+        return ret
         
 
     def get_batch_gp_sensitivities(self, x_hat):
@@ -365,7 +395,10 @@ class Agent(object):
         batch_idx = 1
         if self.params["agent"]["true_dyn_as_sample"]:
             y_mean_dyn = {}
-            y_mean_dyn['y1'], y_mean_dyn['y2'] = self.get_true_gradient(x_hat[0])
+            y_mean_dyn['y1'], y_mean_dyn['y2'] = self.get_true_gradient(x_hat[0].cpu())
+            if self.use_cuda:
+                y_mean_dyn['y1'] = y_mean_dyn['y1'].cuda()
+                y_mean_dyn['y2'] = y_mean_dyn['y2'].cuda()
         elif self.params["agent"]["mean_as_dyn_sample"]:
             y_mean_dyn = {}
             for out in ['y1','y2']:
@@ -388,11 +421,11 @@ class Agent(object):
         if y_mean_dyn is not None:
             for out in ['y1','y2']:
                 y_sample[out] = torch.cat([y_mean_dyn[out].unsqueeze(0),y_sample[out]],0)
-        gp_val = torch.cat([y_sample['y1'][:,:,0].unsqueeze(2),y_sample['y2'][:,:,0].unsqueeze(2)],2).numpy()
+        gp_val = torch.cat([y_sample['y1'][:,:,0].unsqueeze(2),y_sample['y2'][:,:,0].unsqueeze(2)],2).cpu().numpy()
         y_grad = {}
-        y_grad['y1'] = y_sample['y1'][:,:,1:3].numpy()
-        y_grad['y2'] = y_sample['y2'][:,:,1:3].numpy()
-        u_grad = torch.cat([y_sample['y1'][:,:,-1].unsqueeze(2),y_sample['y2'][:,:,-1].unsqueeze(2)],2).numpy()
+        y_grad['y1'] = y_sample['y1'][:,:,1:3].cpu().numpy()
+        y_grad['y2'] = y_sample['y2'][:,:,1:3].cpu().numpy()
+        u_grad = torch.cat([y_sample['y1'][:,:,-1].unsqueeze(2),y_sample['y2'][:,:,-1].unsqueeze(2)],2).cpu().numpy()
         return gp_val, y_grad, u_grad # y, dy/dx1, dy/dx2, dy/du
 
 
