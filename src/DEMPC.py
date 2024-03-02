@@ -222,7 +222,7 @@ class DEMPC():
         if torch.is_tensor(x_curr):
             x_curr = x_curr.numpy()
         # st_curr = np.zeros(self.state_dim)
-        st_curr = np.array(x_curr.tolist()*self.params["agent"]["num_dyn_samples"]) #(self.state_dim)*x_curr.tolist()
+        st_curr = np.array(x_curr.tolist()*self.params["agent"]["num_dyn_samples"]) - 0.2 #(self.state_dim)*x_curr.tolist()
         self.dempc_solver.ocp_solver.set(0, "lbx", st_curr)
         self.dempc_solver.ocp_solver.set(0, "ubx", st_curr)
         # if self.params["algo"]["type"] == "MPC_Xn":
