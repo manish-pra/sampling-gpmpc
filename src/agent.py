@@ -61,6 +61,10 @@ class Agent(object):
         self.counter=11
         self.goal_in_pessi = False
         self.param = params
+        if self.params["agent"]["true_dyn_as_sample"] or self.params["agent"]["mean_as_dyn_sample"]:
+            self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]-1
+        else:
+            self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]
         if params["env"]["cov_module"] == 'Sq_exp':
             self.Cx_covar_module = ScaleKernel(
                 base_kernel=RBFKernel(),)  # ard_num_dims=self.env_dim
@@ -188,48 +192,53 @@ class Agent(object):
         self.Dyn_gp_Y_train = torch.cat([self.Dyn_gp_Y_train, newY]).reshape(-1, 1)
     
     #gp_val, y_grad, u_grad,
-    def update_hallucinated_Dyn_dataset(self, newX, newY, sample_idx):
-        newX = newX.reshape(-1, self.in_dim)
-        newY['y1'] = newY['y1'].reshape(-1, 1 + self.in_dim)
-        newY['y2'] = newY['y2'].reshape(-1, 1 + self.in_dim)
-        self.Hallcinated_X_train[sample_idx] = torch.cat(
-            [self.Hallcinated_X_train[sample_idx], newX]).reshape(-1, self.in_dim)
-        self.Hallcinated_Y_train['y1'][sample_idx] = torch.cat([self.Hallcinated_Y_train['y1'][sample_idx], newY['y1']])
-        self.Hallcinated_Y_train['y2'][sample_idx] = torch.cat([self.Hallcinated_Y_train['y2'][sample_idx], newY['y2']])
+    def update_hallucinated_Dyn_dataset(self, newX, newY):
+        # if self.params["agent"]["true_dyn_as_sample"] or self.params["agent"]["mean_dyn_as_sample"]:
+        #     newX = newX[1:]
+        #     for out in ['y1','y2']:
+        #         newY[out] = newY[out][1:]
+        # newX = newX.reshape(-1, ,self.in_dim)
+        # newY['y1'] = newY['y1'].reshape(-1, 1 + self.in_dim)
+        # newY['y2'] = newY['y2'].reshape(-1, 1 + self.in_dim)
+        self.Hallcinated_X_train = torch.cat([self.Hallcinated_X_train, newX], 1)
+        self.Hallcinated_Y_train['y1'] = torch.cat([self.Hallcinated_Y_train['y1'], newY['y1']], 1)
+        self.Hallcinated_Y_train['y2'] = torch.cat([self.Hallcinated_Y_train['y2'], newY['y2']], 1)
+    
+    def real_data_batch(self):
+        a, b = self.Dyn_gp_X_train.shape
+        self.Dyn_gp_X_train_batch = torch.ones((self.eff_dyn_samples, a, b))*self.Dyn_gp_X_train
+        self.Dyn_gp_Y_train_batch = {}
+        for out in ['y1','y2']:
+            a, b = self.Dyn_gp_Y_train[out].shape
+            self.Dyn_gp_Y_train_batch[out] = torch.ones((self.eff_dyn_samples, a, b))*self.Dyn_gp_Y_train[out]
     
     def train_hallucinated_dynGP(self, sqp_iter):
+        n_sample = self.eff_dyn_samples
         if sqp_iter==0:
+            self.real_data_batch()
             self.Hallcinated_Y_train = {}
-            self.Hallcinated_X_train = [torch.empty(0,self.in_dim) for i in range(self.params["agent"]["num_dyn_samples"]-1)]
-            self.Hallcinated_Y_train['y1'] = [torch.empty(0, 1 + self.in_dim) for i in range(self.params["agent"]["num_dyn_samples"]-1)]
-            self.Hallcinated_Y_train['y2'] = [torch.empty(0, 1 + self.in_dim) for i in range(self.params["agent"]["num_dyn_samples"]-1)]
-        self.Dyn_model_list = []
-        self.Dyn_gp_model['y1'].eval() # GP model trained with real data
-        self.Dyn_gp_model['y2'].eval()
-        for i in range(self.params["agent"]["num_dyn_samples"]-1):
-            # Copy of the dynamics model. 
-            # Update each model with its own sampled dynamics and gradient
-            # 
-            likelihood = {}
-            model_i = {}
-            data_X = torch.vstack([self.Dyn_gp_X_train, self.Hallcinated_X_train[i]]).reshape(-1,self.in_dim)
-            for out in ['y1','y2']:
-                data_Y = torch.vstack([self.Dyn_gp_Y_train[out], self.Hallcinated_Y_train[out][i]]).reshape(-1,1 + self.in_dim)                
-                likelihood[out] = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4,noise_constraint=gpytorch.constraints.GreaterThan(0.0))  # Value + Derivative
-                # model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
-                # model_i[out] = BatchIndependentMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out],1)
-                self.Dyn_gp_model['y1'] = BatchMultitaskGPModelWithDerivatives(self.Dyn_gp_X_train, self.Dyn_gp_Y_train['y1'], likelihood['y1'], 2)
-                model_i[out].likelihood.noise = torch.ones(1)*self.Dyn_gp_noise*0.0001
-                model_i[out].likelihood.task_noises=torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
-                model_i[out].covar_module.base_kernel.lengthscale = torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"][out])
-                model_i[out].covar_module.outputscale = torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"][out]])
-                # model_i.covar_module.task_covar_module.var
-                # model_i.covar_module.lengthscale =  torch.Tensor([[1.2241]]) #torch.Tensor([[self.Dyn_gp_lengthscale]])
-                # model_i.covar_module.outputscale = torch.Tensor([[2.4601]]) #torch.Tensor([[self.Dyn_gp_outputscale]])
-                # model_i = self.fit_i_model(self.Dyn_gp_X_range, sample_i)
-                # model_i.eval()
-                # model_i(torch.rand(5,2)).sample()
-            self.Dyn_model_list.append(model_i)
+            self.Hallcinated_X_train = torch.empty(n_sample,0,self.in_dim)
+            self.Hallcinated_Y_train['y1'] = torch.empty(n_sample,0,1+self.in_dim)
+            self.Hallcinated_Y_train['y2'] = torch.empty(n_sample,0,1+self.in_dim)
+        likelihood = {}
+        self.model_i = {}
+        data_X = torch.concat([self.Dyn_gp_X_train_batch, self.Hallcinated_X_train],dim=1)
+        for out in ['y1','y2']:
+            data_Y = torch.concat([self.Dyn_gp_Y_train_batch[out], self.Hallcinated_Y_train[out]],dim=1)               
+            likelihood[out] = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4,noise_constraint=gpytorch.constraints.GreaterThan(0.0), batch_shape=torch.Size([n_sample]))  # Value + Derivative
+            # model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
+            # model_i[out] = BatchIndependentMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out],1)
+            self.model_i[out] = BatchMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out], n_sample)
+            self.model_i[out].likelihood.noise = torch.ones(1)*self.Dyn_gp_noise*0.0001
+            self.model_i[out].likelihood.task_noises=torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
+            self.model_i[out].covar_module.base_kernel.lengthscale = torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"][out])
+            self.model_i[out].covar_module.outputscale = torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"][out]])
+            # model_i.covar_module.task_covar_module.var
+            # model_i.covar_module.lengthscale =  torch.Tensor([[1.2241]]) #torch.Tensor([[self.Dyn_gp_lengthscale]])
+            # model_i.covar_module.outputscale = torch.Tensor([[2.4601]]) #torch.Tensor([[self.Dyn_gp_outputscale]])
+            # model_i = self.fit_i_model(self.Dyn_gp_X_range, sample_i)
+            # model_i.eval()
+            # model_i(torch.rand(5,2)).sample()
 
     def get_next_to_go_loc(self):
         return self.planned_measure_loc
@@ -332,6 +341,60 @@ class Agent(object):
         # B = np.array([[0.0],
         #               [1/l]])
         return y1_ret, y2_ret
+    
+    def get_batch_x_hat(self, x_h, u_h):
+        x_h = torch.from_numpy(x_h).float()
+        u_h = torch.from_numpy(u_h).float()
+        x_h_batch = x_h.transpose(0,1).view(self.params["agent"]["num_dyn_samples"],self.x_dim,self.params["optimizer"]["H"]).transpose(1,2)
+        u_h_batch = torch.ones(self.params["agent"]["num_dyn_samples"],self.params["optimizer"]["H"],1)*u_h
+        return torch.concat([x_h_batch, u_h_batch],2)
+        
+
+    def get_batch_gp_sensitivities(self, x_hat):
+        """_summaary_ Derivatives are obtained by sampling from the GP directly. Record those derivatives.
+
+        Args:
+            x_hat (_type_): states to evaluate the GP and its gradients
+            sample_idx (_type_): _description_
+
+        Returns:
+            _type_: in numpy format
+        """
+        
+        y_mean_dyn = None
+        batch_idx = 1
+        if self.params["agent"]["true_dyn_as_sample"]:
+            y_mean_dyn = {}
+            y_mean_dyn['y1'], y_mean_dyn['y2'] = self.get_true_gradient(x_hat[0])
+        elif self.params["agent"]["mean_as_dyn_sample"]:
+            y_mean_dyn = {}
+            for out in ['y1','y2']:
+                with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(50):
+                    self.Dyn_gp_model[out].eval()
+                    y_mean_dyn[out] = self.Dyn_gp_model[out](x_hat[0]).mean.detach()
+        else:
+            batch_idx = 0
+        
+        y_sample = {}
+        for out in ['y1','y2']:
+            with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(50):
+                self.model_i[out].eval()
+                # likelihood(self.Dyn_model_list[self.sample_idx](x_hat)) for sampling with noise
+                y_sample[out] = self.model_i[out](x_hat[batch_idx:]).sample() 
+                # mean = self.Dyn_model_list[self.sample_idx-1][out](x_hat).mean
+                # y_sample[out] = sample
+        self.update_hallucinated_Dyn_dataset(x_hat[batch_idx:], y_sample)
+        
+        if y_mean_dyn is not None:
+            for out in ['y1','y2']:
+                y_sample[out] = torch.cat([y_mean_dyn[out].unsqueeze(0),y_sample[out]],0)
+        gp_val = torch.cat([y_sample['y1'][:,:,0].unsqueeze(2),y_sample['y2'][:,:,0].unsqueeze(2)],2).numpy()
+        y_grad = {}
+        y_grad['y1'] = y_sample['y1'][:,:,1:3].numpy()
+        y_grad['y2'] = y_sample['y2'][:,:,1:3].numpy()
+        u_grad = torch.cat([y_sample['y1'][:,:,-1].unsqueeze(2),y_sample['y2'][:,:,-1].unsqueeze(2)],2).numpy()
+        return gp_val, y_grad, u_grad # y, dy/dx1, dy/dx2, dy/du
+
 
     def get_gp_sensitivities(self, x_hat, bound, sample_idx):
         """_summaary_ Derivatives are obtained by sampling from the GP directly. Record those derivatives.

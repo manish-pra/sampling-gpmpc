@@ -40,6 +40,8 @@ class Visualizer:
         return x1_list, x2_list
     
     def propagate_mean_dyn(self, x_init, U):
+        self.Dyn_gp_model['y1'].eval()
+        self.Dyn_gp_model['y2'].eval()
         x1_list = []
         x2_list = []
         X1_k = x_init[0]

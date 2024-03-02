@@ -136,14 +136,8 @@ class DEMPC_solver(object):
             # x_h[self.H, :] = self.ocp_solver.get(self.H, "x")
 
             player.train_hallucinated_dynGP(sqp_iter)
-            gp_val_list = []
-            y_grad_list = []
-            u_grad_list = []
-            for i in range(self.params["agent"]["num_dyn_samples"]):
-                gp_val, y_grad, u_grad = player.get_gp_sensitivities(np.hstack([x_h[:,i*2: 2*(i+1)], u_h]), "mean", i)
-                gp_val_list.append(gp_val)
-                y_grad_list.append(y_grad)
-                u_grad_list.append(u_grad)
+            batch_x_hat = player.get_batch_x_hat(x_h, u_h)
+            gp_val, y_grad, u_grad = player.get_batch_gp_sensitivities(batch_x_hat)
             
             # gp_val, gp_grad = player.get_gp_sensitivities(np.hstack([x_h, u_h]), "mean", 0)
             # gp_val, gp_grad = player.get_true_gradient(np.hstack([x_h,u_h]))
@@ -151,10 +145,10 @@ class DEMPC_solver(object):
                 p_lin = np.empty(0)
                 for i in range(self.params["agent"]["num_dyn_samples"]):
                     p_lin = np.concatenate([p_lin,
-                                            y_grad_list[i]['y1'][stage].reshape(-1),
-                                            y_grad_list[i]['y2'][stage].reshape(-1),
-                                            u_grad_list[i][stage].reshape(-1),
-                                            x_h[stage,i*2: 2*(i+1)], gp_val_list[i][stage]])
+                                            y_grad['y1'][i,stage,:].reshape(-1),
+                                            y_grad['y2'][i,stage,:].reshape(-1),
+                                            u_grad[i,stage,:].reshape(-1),
+                                            x_h[stage,i*2: 2*(i+1)], gp_val[i,stage,:].reshape(-1)])
                 p_lin = np.hstack([p_lin, u_h[stage], xg[stage], w[stage]])
                 self.ocp_solver.set(stage, "p", p_lin)
                 # self.ocp_solver.set(stage, "p", np.hstack(

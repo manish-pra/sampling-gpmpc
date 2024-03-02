@@ -44,7 +44,7 @@ class GPModelWithDerivatives(gpytorch.models.ExactGP):
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
     
 
-class BatchIndependentMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
+class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, nout):
         super().__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMeanGrad(batch_shape=torch.Size([nout])) #(prior=gpytorch.priors.NormalPrior(4.9132,0.01))
