@@ -101,13 +101,16 @@ class DEMPC_solver(object):
             self.ocp_solver.set(stage, "x", x_init)
 
     def solve(self, player):
+        # self.ocp_solver.store_iterate(self.name_prefix + 'ocp_initialization.json', overwrite=True)
         x_h = np.zeros((self.H, (self.pos_dim+1)*self.params["agent"]["num_dyn_samples"]))
         u_h = np.zeros((self.H, self.pos_dim)) # u_dim
-        w = 1e-3*np.ones(self.H+1)
+        # w = 1e-3*np.ones(self.H+1)
+        # w[int(self.H - 1)] = self.params["optimizer"]["w"]
+        w = np.ones(self.H+1)*self.params["optimizer"]["w"]
         # we = 1e-8*np.ones(self.H+1)
         # we[int(self.H-1)] = 10000
         # w[:int(self.Hm)] = 1e-1*np.ones(self.Hm)
-        w[int(self.H - 1)] = self.params["optimizer"]["w"]
+        
         # cw = 1e+3*np.ones(self.H+1)
         # if not player.goal_in_pessi:
         #     cw[int(self.Hm)] = 1
@@ -138,7 +141,7 @@ class DEMPC_solver(object):
             player.train_hallucinated_dynGP(sqp_iter)
             batch_x_hat = player.get_batch_x_hat(x_h, u_h)
             gp_val, y_grad, u_grad = player.get_batch_gp_sensitivities(batch_x_hat)
-            
+            del batch_x_hat
             # gp_val, gp_grad = player.get_gp_sensitivities(np.hstack([x_h, u_h]), "mean", 0)
             # gp_val, gp_grad = player.get_true_gradient(np.hstack([x_h,u_h]))
             for stage in range(self.H):
@@ -155,7 +158,7 @@ class DEMPC_solver(object):
                 #     (gp_grad[:,stage,:][:,:2].transpose().reshape(-1), gp_grad[:,stage,:][:,-1].reshape(-1), x_h[stage], 
                 #      u_h[stage], gp_val[:,stage], xg[stage], w[stage])))
             status = self.ocp_solver.solve()
-
+            
             self.ocp_solver.options_set('rti_phase', 2)
             t_0 = timeit.default_timer()
             status = self.ocp_solver.solve()

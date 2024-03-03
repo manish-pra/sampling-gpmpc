@@ -6,7 +6,7 @@ import torch
 from src.solver import DEMPC_solver
 from src.utils.initializer import get_players_initialized
 from src.utils.termcolor import bcolors
-
+import timeit
 
 class DEMPC():
     def __init__(self, params, env, visu, agent) -> None:
@@ -34,116 +34,30 @@ class DEMPC():
     def dempc_main(self):
         """_summary_ Responsible for initialization, logic for when to collect sample vs explore
         """
-        # if self.params["algo"]["strategy"] == "SEpessi" or "SEopti" or "goose":
-        w=100
         # while not self.agent.infeasible:
-        running_condition_true= True
-        self.agent.feasible = True
-        while running_condition_true:
-            self.not_reached_and_prob_feasible()
+        run = True
+        # self.agent.feasible = True
+        while run:
+            run = self.receding_horizon()
+            print("while loop")
+        # print("Number of samples", self.agent.Cx_X_train.shape)
 
-            if w < self.params["common"]["epsilon"]:
-                self.agent.feasible = False
-            else:
-                w = self.set_next_goal()
+    def receding_horizon(self):
+        print("Receding Horizon")
+        for i in range(90):
+            torch.cuda.empty_cache()
+            x_curr = self.agent.current_state[:self.state_dim].reshape(self.state_dim)
+            if torch.is_tensor(x_curr):
+                x_curr = x_curr.numpy()
+            st_curr = np.array(x_curr.tolist()*self.params["agent"]["num_dyn_samples"])
+            X, U = self.one_step_planner(st_curr)
+            X1_kp1, X2_kp1 = self.agent.pendulum_discrete_dyn(X[0][0], X[0][1], U[0])
+            self.agent.update_current_state(torch.Tensor([X1_kp1, X2_kp1]))
+            # propagate the agent to the next state
+            print(bcolors.green + "Reached:", i, " ", X1_kp1," ", X2_kp1 , " ", U[0],  bcolors.ENDC)
+        return False
 
-            if self.params["algo"]["objective"] == "GO":
-                running_condition_true = (not np.linalg.norm(self.visu.utility_minimizer-self.agent.current_location) < 0.025)
-            elif self.params["algo"]["objective"] == "SE":
-                running_condition_true = self.agent.feasible
-            else:
-                raise NameError("Objective is not clear")
-        print("Number of samples", self.agent.Cx_X_train.shape)
-
-    def dempc_initialization(self):
-        """_summary_ Everything before the looping for gp-measurements
-        """
-        # 1) Initialize players to safe location in the environment
-        # print("initialized location", self.env.get_safe_init())
-        # TODO: Remove dependence of player on visu grid
-
-
-        for it, player in enumerate(self.players):
-            # player.update_Cx_gp_with_current_data()
-            # player.update_Fx_gp_with_current_data()
-            # player.save_posterior_normalization_const()
-            # init = self.env.get_safe_init()["Cx_X"][it].reshape(-1, 2).numpy()
-            # state = np.zeros(self.state_dim+1)
-            # state[:self.x_dim] = init
-            player.update_current_state(np.array(self.params["env"]["start"]))
-
-        # associate_dict = {}
-        # associate_dict[0] = []
-        # for idx in range(self.params["env"]["n_players"]):
-        #     associate_dict[0].append(idx)
-
-        # # 3) Set termination criteria
-        # self.max_density_sigma = sum(
-        #     [player.max_density_sigma for player in self.players])
-        # self.data["sum_max_density_sigma"] = []
-        # self.data["sum_max_density_sigma"].append(self.max_density_sigma)
-        # print(self.iter, self.max_density_sigma)
-
-    def oracle(self):
-        """_summary_ Setup and solve the oracle MPC problem
-
-        Args:
-            players (_type_): _description_
-            init_safe (_type_): _description_
-
-        Returns:
-            _type_: Goal location for the agent
-        """
-        # x_curr = self.agent.current_location[0][0].reshape(
-        #     1).numpy()
-        # x_origin = self.agent.origin[:self.x_dim].numpy()
-        # lbx = np.zeros(self.state_dim+1)
-        # # lbx[:self.x_dim] = np.ones(self.x_dim)*x_origin
-        # lbx[:self.x_dim] = np.ones(self.x_dim)*self.agent.current_location.reshape(-1)
-        # ubx = lbx.copy()
-        # self.oracle_solver.ocp_solver.set(0, "lbx", lbx.copy())
-        # self.oracle_solver.ocp_solver.set(0, "ubx", ubx.copy())
-        # # self.oracle_solver.ocp_solver.set(self.H, "lbx", lbx.copy() - 1)
-        # # self.oracle_solver.ocp_solver.set(self.H, "ubx", ubx.copy() + 1)
-
-        # Write in MPC style to reach the goal. The main loop is outside
-        # reachability constraint
-        x_curr = self.agent.current_state[:self.x_dim*2].reshape(4)
-        x_origin = self.agent.origin[:self.x_dim].numpy()
-        if torch.is_tensor(x_curr):
-            x_curr = x_curr.numpy()
-        st_curr = np.zeros(self.state_dim+1)
-        st_curr[:self.x_dim*2] = np.ones(self.x_dim*2)*x_curr
-        self.oracle_solver.ocp_solver.set(0, "lbx", st_curr)
-        self.oracle_solver.ocp_solver.set(0, "ubx", st_curr)
-        
-        # returnability constraint
-        st_origin = np.zeros(self.state_dim+1)
-        st_origin[:self.x_dim] = np.ones(self.x_dim)*x_origin
-        st_origin[-1] = 1.0
-        self.oracle_solver.ocp_solver.set(self.H, "lbx", st_origin)
-        self.oracle_solver.ocp_solver.set(self.H, "ubx", st_origin)
-
-        self.oracle_solver.solve(self.agent)
-        # highest uncertainity location in safe
-        X, U = self.oracle_solver.get_solution()
-        # print(X, U)
-        self.agent.update_oracle_XU(X, U)
-        xi_star = X[int(self.H/2), :self.x_dim]
-        if self.x_dim == 1:
-            xi_star = torch.Tensor([xi_star.item(), -2.0]).reshape(2)
-        # self.agent.set_maximizer_goal(xi_star)
-        # print(bcolors.green + "Goal:", xi_star ,  bcolors.ENDC)
-
-        # plt.plot(X[:,0],X[:,1])
-        # plt.savefig("temp.png")
-        # save status to the player also its goal location, may be ignote the dict concept now
-        # associate_dict, pessi_associate_dict, acq_density = oracle(
-        #     self, players, init_safe, self.params)
-        # return associate_dict, pessi_associate_dict, acq_density
-        return xi_star
-
-    def receding_horizon(self, player):
+    def receding_horizon_old(self, player):
         # diff = (player.planned_measure_loc[0] -
         #         player.current_location[0][0]).numpy()
         diff = np.array([100])
@@ -205,7 +119,7 @@ class DEMPC():
         self.prev
         # apply this input to your environment
 
-    def one_step_planner(self):
+    def one_step_planner(self, st_curr):
         """_summary_: Plans going and coming back all in one trajectory plan
         Input: current location, end location, dyn, etc.
         Process: Solve the NLP and simulate the system until the measurement collection point
@@ -215,14 +129,6 @@ class DEMPC():
 
         # self.visu.UpdateIter(self.iter, -1)
         print(bcolors.OKCYAN + "Solving Constrints" + bcolors.ENDC)
-
-        # Write in MPC style to reach the goal. The main loop is outside
-        x_curr = self.agent.current_state[:self.state_dim].reshape(self.state_dim)
-        # x_origin = self.agent.origin[:self.x_dim].numpy()
-        if torch.is_tensor(x_curr):
-            x_curr = x_curr.numpy()
-        # st_curr = np.zeros(self.state_dim)
-        st_curr = np.array(x_curr.tolist()*self.params["agent"]["num_dyn_samples"]) - 0.2 #(self.state_dim)*x_curr.tolist()
         self.dempc_solver.ocp_solver.set(0, "lbx", st_curr)
         self.dempc_solver.ocp_solver.set(0, "ubx", st_curr)
         # if self.params["algo"]["type"] == "MPC_Xn":
@@ -271,16 +177,23 @@ class DEMPC():
         #     self.dempc_solver.ocp_solver.set(self.H, "ubx", st_origin)
 
         # set objective as per desired goal
+        t_0 = timeit.default_timer()
         self.dempc_solver.solve(self.agent)
+        t_1 = timeit.default_timer()
+        print("Time to solve", t_1-t_0)
         X, U, Sl = self.dempc_solver.get_solution()
-        print(X,U)
-        self.visu.Dyn_gp_model = self.agent.Dyn_gp_model
-        self.visu.plot_pendulum_traj(X,U)
-        exit()
-        val= 2*self.agent.Cx_beta*2*torch.sqrt(self.agent.Cx_model(torch.from_numpy(X[self.Hm, :self.x_dim]).reshape(-1,2).float()).variance).detach().item()
-        # print("slack", Sl, "uncertainity", X[self.Hm], val)#, "z-x",np.linalg.norm(X[:-1,0:2] - U[:,3:5]))
-        # self.visu.record(X, U, X[self.Hm], self.pl_idx, self.players)
+        # self.visu.Dyn_gp_model = self.agent.Dyn_gp_model
+        self.visu.record(st_curr, X, U)
+        # print(X,U)
+        
+        # self.visu.plot_pendulum_traj(X,U)
+        return torch.from_numpy(X).float(), torch.from_numpy(U).float()
+
+        # val= 2*self.agent.Cx_beta*2*torch.sqrt(self.agent.Cx_model(torch.from_numpy(X[self.Hm, :self.x_dim]).reshape(-1,2).float()).variance).detach().item()
+        # # print("slack", Sl, "uncertainity", X[self.Hm], val)#, "z-x",np.linalg.norm(X[:-1,0:2] - U[:,3:5]))
+        # # self.visu.record(X, U, X[self.Hm], self.pl_idx, self.players)
         self.visu.record(X, U, self.agent.get_next_to_go_loc(), self.pl_idx, self.players)
+
 
         # Environement simulation
         # x_curr = X[0]
@@ -298,8 +211,9 @@ class DEMPC():
             if self.goal_in_pessi:
                 # if np.linalg.norm(self.visu.utility_minimizer-self.agent.safe_meas_loc) < 0.025:
                 self.agent.update_current_state(X[self.Hm])
-        else:
-            self.agent.update_current_state(X[self.Hm])
+            else:
+                pass
+            
         # assert np.isclose(x_curr,X[self.Hm]).all()
             # self.visu.UpdateIter(self.iter+i, -1)
             # self.visu.UpdateSafeVisu(0, self.players, self.env)
@@ -308,7 +222,7 @@ class DEMPC():
             # self.visu.f_handle["dyn"].savefig("temp1D.png")
             # self.visu.f_handle["gp"].savefig(
             #     str(self.iter) + 'temp in prog2.png')
-        print(bcolors.green + "Reached:", x_curr ,  bcolors.ENDC)
+        
         # set current location as the location to be measured
         
         goal_dist = np.linalg.norm(self.agent.planned_measure_loc -
