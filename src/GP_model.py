@@ -42,3 +42,24 @@ class GPModelWithDerivatives(gpytorch.models.ExactGP):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
+    
+
+class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
+    def __init__(self, train_x, train_y, likelihood, nout):
+        super().__init__(train_x, train_y, likelihood)
+        self.mean_module = gpytorch.means.ConstantMeanGrad(batch_shape=torch.Size([nout])) #(prior=gpytorch.priors.NormalPrior(4.9132,0.01))
+        self.base_kernel = gpytorch.kernels.RBFKernelGrad(ard_num_dims=3, batch_shape=torch.Size([nout]))
+        self.covar_module = gpytorch.kernels.ScaleKernel(self.base_kernel, batch_shape=torch.Size([nout]))
+        # self.mean_module = gpytorch.means.ZeroMean(batch_shape=torch.Size([nout]))
+        # self.covar_module = gpytorch.kernels.ScaleKernel(
+        #     gpytorch.kernels.RBFKernel(batch_shape=torch.Size([nout])),
+        #     batch_shape=torch.Size([nout])
+        # )
+
+    def forward(self, x):
+        mean_x = self.mean_module(x)
+        covar_x = self.covar_module(x)
+        # return gpytorch.distributions.MultitaskMultivariateNormal.from_batch_mvn(
+        #     gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
+        # )
+        return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)

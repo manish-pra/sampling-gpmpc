@@ -5,14 +5,13 @@ import warnings
 
 import matplotlib.pyplot as plt
 import yaml
-
+import dill as pickle
 from src.environment import ContiWorld
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
 import numpy as np
-import torch
-import pickle
+
 warnings.filterwarnings('ignore')
 plt.rcParams['figure.figsize'] = [12, 6]
 
@@ -43,8 +42,6 @@ env_load_path = (
     + "/"
 )
 
-# torch.cuda.memory._record_memory_history(enabled=True)
-
 save_path = env_load_path + "/" + args.param + "/"
 
 if not os.path.exists(save_path):
@@ -65,17 +62,39 @@ if args.i != -1:
 if not os.path.exists(save_path + str(traj_iter)):
     os.makedirs(save_path + str(traj_iter))
 
-agent = Agent(params)
-visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
+a_file = open(save_path + str(traj_iter) + "/data.pkl", "rb")
+data_dict = pickle.load(a_file)
+state_traj = data_dict["state_traj"]
+input_traj = data_dict["input_traj"]
+mean_state_traj = data_dict["mean_state_traj"]
+true_state_traj = data_dict["true_state_traj"]
+physical_state_traj = data_dict["physical_state_traj"]
+a_file.close()
 
-# 4) Set the initial state
-agent.update_current_state(np.array(params["env"]["start"]))
+params["visu"]["show"] = True
+visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
+# agent = Agent(params)
+# visu.extract_data()
 
-de_mpc = DEMPC(params, env, visu, agent)
-de_mpc.dempc_main()
-visu.save_data()
-# dict_file = torch.cuda.memory._snapshot()
-# pickle.dump(dict_file, open(save_path + str(traj_iter) + "/memory_snapshot_1.pickle", "wb"))
-exit()
+# physical_state_traj = np.vstack(visu.physical_state_traj)
+# plt.plot(physical_state_traj[:,0], physical_state_traj[:,1])
+# plt.show()
+# load data)
 
-
+for i in range(0, len(state_traj)):
+    mean_state_traj = state_traj[i][:,:2]
+    visu.record_out(physical_state_traj[i], state_traj[i], input_traj[i], true_state_traj[i], mean_state_traj)
+    temp_obj = visu.plot_receding_pendulum_traj()
+    # X = visu.state_traj[i]
+    # U = visu.input_traj[i]
+    # visu.plot_pendulum_traj(X, U)
+    # visu.record(physical_state_traj[i], X, U)
+    # visu.save_data()
+    # plt.show()
+    # plt.pause(0.1)
+    # plt.close()
+    visu.writer_gp.grab_frame()
+    visu.remove_temp_objects(temp_obj)
+    # plt.show()
+    # plt.pause(0.1)
+    # plt.close()

@@ -105,9 +105,17 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     ocp.cost.cost_type = 'EXTERNAL'
     ocp.cost.cost_type_e = 'EXTERNAL'
     # either w_max can be decided here or outside 
-    ocp.model.cost_expr_ext_cost =  w * \
-        (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg) + model_u.T @ (q) @ model_u
-    ocp.model.cost_expr_ext_cost_e =  w * (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg)
+    # ocp.model.cost_expr_ext_cost =  w * \
+    #     (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg) + model_u.T @ (q) @ model_u
+    # ocp.model.cost_expr_ext_cost_e =  w * (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg)
+    if params["optimizer"]["cost"] == "mean":
+        ocp.model.cost_expr_ext_cost =  w * \
+            (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg) + model_u.T @ (q) @ model_u
+        ocp.model.cost_expr_ext_cost_e =  w * (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg)
+    else:
+        ocp.model.cost_expr_ext_cost =  w * \
+            (model_x[::2] - xg).T @ qx @ (model_x[::2] - xg) + model_u.T @ (q) @ model_u
+        ocp.model.cost_expr_ext_cost_e =  w * (model_x[::2] - xg).T @ qx @ (model_x[::2] - xg)
     
     # if params["algo"]["type"] == "ret_expander" or params["algo"]["type"] == "MPC_expander":
     #     ocp.constraints.idxsh = np.array([1,2])

@@ -18,7 +18,7 @@ from gpytorch.kernels import (LinearKernel, MaternKernel,
                               RBFKernel, ScaleKernel)
 from gpytorch.mlls.exact_marginal_log_likelihood import \
     ExactMarginalLogLikelihood
-from src.GP_model import GPModelWithDerivatives
+from src.GP_model import BatchMultitaskGPModelWithDerivatives, GPModelWithDerivatives
 import matplotlib.pyplot as plt
 
 # from utils.agent_helper import greedy_algorithm, coverage_oracle, greedy_algorithm_opti, apply_goose, greedy_algorithm_opti_cov
@@ -61,6 +61,10 @@ class Agent(object):
         self.counter=11
         self.goal_in_pessi = False
         self.param = params
+        if self.params["agent"]["true_dyn_as_sample"] or self.params["agent"]["mean_as_dyn_sample"]:
+            self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]-1
+        else:
+            self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]
         if params["env"]["cov_module"] == 'Sq_exp':
             self.Cx_covar_module = ScaleKernel(
                 base_kernel=RBFKernel(),)  # ard_num_dims=self.env_dim
@@ -76,6 +80,14 @@ class Agent(object):
                 base_kernel=PiecewisePolynomialKernel())  # ard_num_dims=self.env_dim
             self.Fx_covar_module = ScaleKernel(
                 base_kernel=PiecewisePolynomialKernel())  # ard_num_dims=self.env_dim
+        
+        if self.params["common"]["use_cuda"] and torch.cuda.is_available():
+            self.use_cuda = True
+        else:
+            self.use_cuda = False
+        self.Hallcinated_X_train = None
+        self.Hallcinated_Y_train = None
+        self.model_i = None
 
         # Initialize model
         x1 = torch.linspace(-3.14,3.14,11)
@@ -84,9 +96,10 @@ class Agent(object):
         X1, X2, U  = torch.meshgrid(x1,x2,u)
         self.Dyn_gp_X_range = torch.hstack([X1.reshape(-1,1), X2.reshape(-1,1), U.reshape(-1,1)])
         if params["agent"]["prior_dyn_meas"]:
-            x1 = torch.linspace(-1.14,1.14,5)
-            x2 = torch.linspace(-0.4,0.4,5)
-            u = torch.linspace(-3,3,5)
+            x1 = torch.linspace(-2.14,2.14,3)
+            # x1 = torch.linspace(-0.57,1.14,5)
+            x2 = torch.linspace(-2.5,2.5,3)
+            u = torch.linspace(-8,8,5)
             X1, X2, U  = torch.meshgrid(x1,x2,u)
             self.Dyn_gp_X_train = torch.hstack([X1.reshape(-1,1), X2.reshape(-1,1), U.reshape(-1,1)])
             self.Dyn_gp_Y_train = {}
@@ -101,6 +114,7 @@ class Agent(object):
             self.Dyn_gp_Y_train['y1'] = torch.rand(1, 1 + self.in_dim)
             self.Dyn_gp_Y_train['y2'] = torch.rand(1, 1 + self.in_dim)
         self.Dyn_gp_model = self.__update_Dyn()
+        self.real_data_batch()
         # self.visu()
         # self.sample_dyn()
         # self.env_start = params["env"]["shape"]["lx"] + params["env"]["start"]
@@ -160,6 +174,10 @@ class Agent(object):
         self.Dyn_gp_model['y2'].covar_module.outputscale = torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"]["y2"]])
         # mll = ExactMarginalLogLikelihood(model.likelihood, model)
         # fit_gpytorch_model(mll)
+        if self.use_cuda:
+            for out in ['y1','y2']:
+                self.Dyn_gp_model[out] = self.Dyn_gp_model[out].cuda()
+
         return self.Dyn_gp_model
     
     # def __update_Dyn(self):
@@ -186,48 +204,81 @@ class Agent(object):
         self.Dyn_gp_X_train = torch.cat(
             [self.Dyn_gp_X_train, newX]).reshape(-1, self.in_dim)
         self.Dyn_gp_Y_train = torch.cat([self.Dyn_gp_Y_train, newY]).reshape(-1, 1)
+        if self.use_cuda:
+            self.Dyn_gp_X_train = self.Dyn_gp_X_train.cuda()
+            self.Dyn_gp_Y_train = self.Dyn_gp_Y_train.cuda()
     
     #gp_val, y_grad, u_grad,
-    def update_hallucinated_Dyn_dataset(self, newX, newY, sample_idx):
-        newX = newX.reshape(-1, self.in_dim)
-        newY['y1'] = newY['y1'].reshape(-1, 1 + self.in_dim)
-        newY['y2'] = newY['y2'].reshape(-1, 1 + self.in_dim)
-        self.Hallcinated_X_train[sample_idx] = torch.cat(
-            [self.Hallcinated_X_train[sample_idx], newX]).reshape(-1, self.in_dim)
-        self.Hallcinated_Y_train['y1'][sample_idx] = torch.cat([self.Hallcinated_Y_train['y1'][sample_idx], newY['y1']])
-        self.Hallcinated_Y_train['y2'][sample_idx] = torch.cat([self.Hallcinated_Y_train['y2'][sample_idx], newY['y2']])
+    def update_hallucinated_Dyn_dataset(self, newX, newY):
+        # if self.params["agent"]["true_dyn_as_sample"] or self.params["agent"]["mean_dyn_as_sample"]:
+        #     newX = newX[1:]
+        #     for out in ['y1','y2']:
+        #         newY[out] = newY[out][1:]
+        # newX = newX.reshape(-1, ,self.in_dim)
+        # newY['y1'] = newY['y1'].reshape(-1, 1 + self.in_dim)
+        # newY['y2'] = newY['y2'].reshape(-1, 1 + self.in_dim)
+        self.Hallcinated_X_train = torch.cat([self.Hallcinated_X_train, newX], 1)
+        self.Hallcinated_Y_train['y1'] = torch.cat([self.Hallcinated_Y_train['y1'], newY['y1']], 1)
+        self.Hallcinated_Y_train['y2'] = torch.cat([self.Hallcinated_Y_train['y2'], newY['y2']], 1)
+    
+    def real_data_batch(self):
+        a, b = self.Dyn_gp_X_train.shape
+        self.Dyn_gp_X_train_batch = torch.ones((self.eff_dyn_samples, a, b))*self.Dyn_gp_X_train
+        self.Dyn_gp_Y_train_batch = {}
+        for out in ['y1','y2']:
+            a, b = self.Dyn_gp_Y_train[out].shape
+            self.Dyn_gp_Y_train_batch[out] = torch.ones((self.eff_dyn_samples, a, b))*self.Dyn_gp_Y_train[out]
+        if self.use_cuda:
+            self.Dyn_gp_X_train_batch = self.Dyn_gp_X_train_batch.cuda()
+            self.Dyn_gp_Y_train_batch['y1'] = self.Dyn_gp_Y_train_batch['y1'].cuda()
+            self.Dyn_gp_Y_train_batch['y2'] = self.Dyn_gp_Y_train_batch['y2'].cuda()
     
     def train_hallucinated_dynGP(self, sqp_iter):
+        n_sample = self.eff_dyn_samples
         if sqp_iter==0:
+            
+            if self.Hallcinated_X_train is not None:
+                del self.Hallcinated_X_train
+                del self.Hallcinated_Y_train['y1']
+                del self.Hallcinated_Y_train['y2']
+                del self.Hallcinated_Y_train
             self.Hallcinated_Y_train = {}
-            self.Hallcinated_X_train = [torch.empty(0,self.in_dim) for i in range(self.params["agent"]["num_dyn_samples"]-1)]
-            self.Hallcinated_Y_train['y1'] = [torch.empty(0, 1 + self.in_dim) for i in range(self.params["agent"]["num_dyn_samples"]-1)]
-            self.Hallcinated_Y_train['y2'] = [torch.empty(0, 1 + self.in_dim) for i in range(self.params["agent"]["num_dyn_samples"]-1)]
-        self.Dyn_model_list = []
-        self.Dyn_gp_model['y1'].eval() # GP model trained with real data
-        self.Dyn_gp_model['y2'].eval()
-        for i in range(self.params["agent"]["num_dyn_samples"]-1):
-            # Copy of the dynamics model. 
-            # Update each model with its own sampled dynamics and gradient
-            # 
-            likelihood = {}
-            model_i = {}
-            data_X = torch.vstack([self.Dyn_gp_X_train, self.Hallcinated_X_train[i]]).reshape(-1,self.in_dim)
-            for out in ['y1','y2']:
-                data_Y = torch.vstack([self.Dyn_gp_Y_train[out], self.Hallcinated_Y_train[out][i]]).reshape(-1,1 + self.in_dim)                
-                likelihood[out] = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4,noise_constraint=gpytorch.constraints.GreaterThan(0.0))  # Value + Derivative
-                model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
-                model_i[out].likelihood.noise = torch.ones(1)*self.Dyn_gp_noise*0.0001
-                model_i[out].likelihood.task_noises=torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
-                model_i[out].covar_module.base_kernel.lengthscale = torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"][out])
-                model_i[out].covar_module.outputscale = torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"][out]])
-                # model_i.covar_module.task_covar_module.var
-                # model_i.covar_module.lengthscale =  torch.Tensor([[1.2241]]) #torch.Tensor([[self.Dyn_gp_lengthscale]])
-                # model_i.covar_module.outputscale = torch.Tensor([[2.4601]]) #torch.Tensor([[self.Dyn_gp_outputscale]])
-                # model_i = self.fit_i_model(self.Dyn_gp_X_range, sample_i)
-                # model_i.eval()
-                # model_i(torch.rand(5,2)).sample()
-            self.Dyn_model_list.append(model_i)
+            self.Hallcinated_X_train = torch.empty(n_sample,0,self.in_dim)
+            self.Hallcinated_Y_train['y1'] = torch.empty(n_sample,0,1+self.in_dim)
+            self.Hallcinated_Y_train['y2'] = torch.empty(n_sample,0,1+self.in_dim)
+            if self.use_cuda:
+                self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
+                self.Hallcinated_Y_train['y1'] = self.Hallcinated_Y_train['y1'].cuda()
+                self.Hallcinated_Y_train['y2'] = self.Hallcinated_Y_train['y2'].cuda()
+        if self.model_i is not None:
+            del self.model_i['y1']
+            del self.model_i['y2']
+            del self.model_i
+        likelihood = {}
+        self.model_i = {}
+        data_X = torch.concat([self.Dyn_gp_X_train_batch, self.Hallcinated_X_train],dim=1)
+        for out in ['y1','y2']:
+            data_Y = torch.concat([self.Dyn_gp_Y_train_batch[out], self.Hallcinated_Y_train[out]],dim=1)               
+            likelihood[out] = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4,noise_constraint=gpytorch.constraints.GreaterThan(0.0), batch_shape=torch.Size([n_sample]))  # Value + Derivative
+            # model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
+            # model_i[out] = BatchIndependentMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out],1)
+            self.model_i[out] = BatchMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out], n_sample)
+            self.model_i[out].likelihood.noise = torch.ones(n_sample,1)*self.Dyn_gp_noise*0.0001
+            self.model_i[out].likelihood.task_noises= torch.ones(n_sample,1)*torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
+            self.model_i[out].covar_module.base_kernel.lengthscale = torch.ones(n_sample,1)*torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"][out])
+            self.model_i[out].covar_module.outputscale = torch.ones(n_sample,1)*torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"][out]])
+            # model_i.covar_module.task_covar_module.var
+            # model_i.covar_module.lengthscale =  torch.Tensor([[1.2241]]) #torch.Tensor([[self.Dyn_gp_lengthscale]])
+            # model_i.covar_module.outputscale = torch.Tensor([[2.4601]]) #torch.Tensor([[self.Dyn_gp_outputscale]])
+            # model_i = self.fit_i_model(self.Dyn_gp_X_range, sample_i)
+            # model_i.eval()
+            # model_i(torch.rand(5,2)).sample()
+            del data_Y
+            del likelihood[out]
+            if self.use_cuda:
+                self.model_i[out] = self.model_i[out].cuda()
+        del data_X
+        del likelihood
 
     def get_next_to_go_loc(self):
         return self.planned_measure_loc
@@ -251,16 +302,19 @@ class Agent(object):
     def get_true_gradient(self, x_hat):
         l=1
         g=10
-        ret = np.zeros((2,x_hat.shape[0],3))
-        ret[1,:,0] = -g*np.cos(x_hat[:,0])/l
-        ret[0,:,1] = np.ones(x_hat.shape[0])
-        ret[1,:,2] = np.ones(x_hat.shape[0])/l
-        A = np.array([[0.0, 1.0],
-                      [g*np.cos(x_hat[0])/l,0.0]])
-        B = np.array([[0.0],
-                      [1/l]])
-        val = self.pendulum_dyn(torch.from_numpy(x_hat[:,0]), torch.from_numpy(x_hat[:,1]), torch.from_numpy(x_hat[:,2]))
-        return val.numpy().transpose(), ret
+        ret = torch.zeros((2,x_hat.shape[0],3))
+        ret[1,:,0] = -g*torch.cos(x_hat[:,0])/l
+        ret[0,:,1] = torch.ones(x_hat.shape[0])
+        ret[1,:,2] = torch.ones(x_hat.shape[0])/l
+        # A = np.array([[0.0, 1.0],
+        #               [g*np.cos(x_hat[0])/l,0.0]])
+        # B = np.array([[0.0],
+        #               [1/l]])
+        # val = self.pendulum_dyn(torch.from_numpy(x_hat[:,0]), torch.from_numpy(x_hat[:,1]), torch.from_numpy(x_hat[:,2]))
+        # return val.numpy().transpose(), ret
+        val = self.pendulum_dyn(x_hat[:,0], x_hat[:,1], x_hat[:,2])
+        # return val, ret
+        return torch.hstack([val[:,0].reshape(-1,1),ret[0,:,:]]), torch.hstack([val[:,1].reshape(-1,1),ret[1,:,:]])
     
     def pendulum_discrete_dyn(self, X1_k, X2_k, U_k):
         """_summary_
@@ -330,6 +384,83 @@ class Agent(object):
         # B = np.array([[0.0],
         #               [1/l]])
         return y1_ret, y2_ret
+    
+    def get_batch_x_hat(self, x_h, u_h):
+        x_h = torch.from_numpy(x_h).float()
+        u_h = torch.from_numpy(u_h).float()
+        x_h_batch = x_h.transpose(0,1).view(self.params["agent"]["num_dyn_samples"],self.x_dim,self.params["optimizer"]["H"]).transpose(1,2)
+        u_h_batch = torch.ones(self.params["agent"]["num_dyn_samples"],self.params["optimizer"]["H"],1)*u_h
+        ret = torch.cat([x_h_batch, u_h_batch],2)
+        if self.use_cuda:
+            ret = ret.cuda()
+        return ret
+        
+
+    def get_batch_gp_sensitivities(self, x_hat):
+        """_summaary_ Derivatives are obtained by sampling from the GP directly. Record those derivatives.
+
+        Args:
+            x_hat (_type_): states to evaluate the GP and its gradients
+            sample_idx (_type_): _description_
+
+        Returns:
+            _type_: in numpy format
+        """
+        
+        y_mean_dyn = None
+        batch_idx = 1
+        if self.params["agent"]["true_dyn_as_sample"]:
+            y_mean_dyn = {}
+            y_mean_dyn['y1'], y_mean_dyn['y2'] = self.get_true_gradient(x_hat[0].cpu())
+            if self.use_cuda:
+                y_mean_dyn['y1'] = y_mean_dyn['y1'].cuda()
+                y_mean_dyn['y2'] = y_mean_dyn['y2'].cuda()
+        elif self.params["agent"]["mean_as_dyn_sample"]:
+            y_mean_dyn = {}
+            for out in ['y1','y2']:
+                with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(50):
+                    self.Dyn_gp_model[out].eval()
+                    y_mean_dyn[out] = self.Dyn_gp_model[out](x_hat[0]).mean.detach()
+        else:
+            batch_idx = 0
+        
+        y_sample = {}
+        for out in ['y1','y2']:
+            with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(50):
+                self.model_i[out].eval()
+                # likelihood(self.Dyn_model_list[self.sample_idx](x_hat)) for sampling with noise
+                # lower, upper = self.model_i[out](x_hat[batch_idx:]).confidence_region()
+                # lower, upper = self.scale_with_beta(lower, upper, 16)
+                # while True:
+                #     sample = self.model_i[out](x_hat[batch_idx:]).sample()
+                #     if (sample>=lower).all() and (sample<=upper).all():
+                #         break
+                #     del sample
+                # y_sample[out] = sample
+                # del lower, upper
+                y_sample[out] = self.model_i[out](x_hat[batch_idx:]).sample() 
+
+                # mean = self.Dyn_model_list[self.sample_idx-1][out](x_hat).mean
+                # y_sample[out] = sample
+        self.update_hallucinated_Dyn_dataset(x_hat[batch_idx:], y_sample)
+        
+        if y_mean_dyn is not None:
+            for out in ['y1','y2']:
+                y_sample[out] = torch.cat([y_mean_dyn[out].unsqueeze(0),y_sample[out]],0)
+        gp_val = torch.cat([y_sample['y1'][:,:,0].unsqueeze(2),y_sample['y2'][:,:,0].unsqueeze(2)],2).cpu().numpy()
+        y_grad = {}
+        y_grad['y1'] = y_sample['y1'][:,:,1:3].cpu().numpy()
+        y_grad['y2'] = y_sample['y2'][:,:,1:3].cpu().numpy()
+        u_grad = torch.cat([y_sample['y1'][:,:,-1].unsqueeze(2),y_sample['y2'][:,:,-1].unsqueeze(2)],2).cpu().numpy()
+        del y_sample['y1'], y_sample['y2']
+        del x_hat
+        return gp_val, y_grad, u_grad # y, dy/dx1, dy/dx2, dy/du
+
+    def scale_with_beta(self, lower, upper, beta):
+        temp = lower*(1+beta)/2 + upper*(1-beta)/2
+        upper = upper*(1+beta)/2 + lower*(1-beta)/2
+        lower = temp
+        return lower, upper
 
     def get_gp_sensitivities(self, x_hat, bound, sample_idx):
         """_summaary_ Derivatives are obtained by sampling from the GP directly. Record those derivatives.

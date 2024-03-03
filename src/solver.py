@@ -101,13 +101,16 @@ class DEMPC_solver(object):
             self.ocp_solver.set(stage, "x", x_init)
 
     def solve(self, player):
+        # self.ocp_solver.store_iterate(self.name_prefix + 'ocp_initialization.json', overwrite=True)
         x_h = np.zeros((self.H, (self.pos_dim+1)*self.params["agent"]["num_dyn_samples"]))
         u_h = np.zeros((self.H, self.pos_dim)) # u_dim
-        w = 1e-3*np.ones(self.H+1)
+        # w = 1e-3*np.ones(self.H+1)
+        # w[int(self.H - 1)] = self.params["optimizer"]["w"]
+        w = np.ones(self.H+1)*self.params["optimizer"]["w"]
         # we = 1e-8*np.ones(self.H+1)
         # we[int(self.H-1)] = 10000
         # w[:int(self.Hm)] = 1e-1*np.ones(self.Hm)
-        w[int(self.H - 1)] = self.params["optimizer"]["w"]
+        
         # cw = 1e+3*np.ones(self.H+1)
         # if not player.goal_in_pessi:
         #     cw[int(self.Hm)] = 1
@@ -136,36 +139,31 @@ class DEMPC_solver(object):
             # x_h[self.H, :] = self.ocp_solver.get(self.H, "x")
 
             player.train_hallucinated_dynGP(sqp_iter)
-            gp_val_list = []
-            y_grad_list = []
-            u_grad_list = []
-            for i in range(self.params["agent"]["num_dyn_samples"]):
-                gp_val, y_grad, u_grad = player.get_gp_sensitivities(np.hstack([x_h[:,i*2: 2*(i+1)], u_h]), "mean", i)
-                gp_val_list.append(gp_val)
-                y_grad_list.append(y_grad)
-                u_grad_list.append(u_grad)
-            
+            batch_x_hat = player.get_batch_x_hat(x_h, u_h)
+            gp_val, y_grad, u_grad = player.get_batch_gp_sensitivities(batch_x_hat)
+            del batch_x_hat
             # gp_val, gp_grad = player.get_gp_sensitivities(np.hstack([x_h, u_h]), "mean", 0)
             # gp_val, gp_grad = player.get_true_gradient(np.hstack([x_h,u_h]))
             for stage in range(self.H):
                 p_lin = np.empty(0)
                 for i in range(self.params["agent"]["num_dyn_samples"]):
                     p_lin = np.concatenate([p_lin,
-                                            y_grad_list[i]['y1'][stage].reshape(-1),
-                                            y_grad_list[i]['y2'][stage].reshape(-1),
-                                            u_grad_list[i][stage].reshape(-1),
-                                            x_h[stage,i*2: 2*(i+1)], gp_val_list[i][stage]])
+                                            y_grad['y1'][i,stage,:].reshape(-1),
+                                            y_grad['y2'][i,stage,:].reshape(-1),
+                                            u_grad[i,stage,:].reshape(-1),
+                                            x_h[stage,i*2: 2*(i+1)], gp_val[i,stage,:].reshape(-1)])
                 p_lin = np.hstack([p_lin, u_h[stage], xg[stage], w[stage]])
                 self.ocp_solver.set(stage, "p", p_lin)
                 # self.ocp_solver.set(stage, "p", np.hstack(
                 #     (gp_grad[:,stage,:][:,:2].transpose().reshape(-1), gp_grad[:,stage,:][:,-1].reshape(-1), x_h[stage], 
                 #      u_h[stage], gp_val[:,stage], xg[stage], w[stage])))
             status = self.ocp_solver.solve()
-
+            
             self.ocp_solver.options_set('rti_phase', 2)
             t_0 = timeit.default_timer()
             status = self.ocp_solver.solve()
             t_1 = timeit.default_timer()
+            print("Time taken for SQP iteration", t_1-t_0)
             # self.ocp_solver.print_statistics()
             print("cost", self.ocp_solver.get_cost())
             residuals = self.ocp_solver.get_residuals()
