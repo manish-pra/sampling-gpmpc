@@ -44,7 +44,7 @@ class DEMPC():
 
     def receding_horizon(self):
         print("Receding Horizon")
-        for i in range(90):
+        for i in range(100):
             torch.cuda.empty_cache()
             x_curr = self.agent.current_state[:self.state_dim].reshape(self.state_dim)
             if torch.is_tensor(x_curr):

@@ -89,6 +89,15 @@ class Agent(object):
         self.Hallcinated_Y_train = None
         self.model_i = None
 
+        self.Hallcinated_Y_train = {}
+        self.Hallcinated_X_train = torch.empty(self.eff_dyn_samples,0,self.in_dim)
+        self.Hallcinated_Y_train['y1'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
+        self.Hallcinated_Y_train['y2'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
+        if self.use_cuda:
+            self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
+            self.Hallcinated_Y_train['y1'] = self.Hallcinated_Y_train['y1'].cuda()
+            self.Hallcinated_Y_train['y2'] = self.Hallcinated_Y_train['y2'].cuda()
+
         # Initialize model
         x1 = torch.linspace(-3.14,3.14,11)
         x2 = torch.linspace(-10,10,11)
@@ -235,21 +244,6 @@ class Agent(object):
     
     def train_hallucinated_dynGP(self, sqp_iter):
         n_sample = self.eff_dyn_samples
-        if sqp_iter==0:
-            
-            if self.Hallcinated_X_train is not None:
-                del self.Hallcinated_X_train
-                del self.Hallcinated_Y_train['y1']
-                del self.Hallcinated_Y_train['y2']
-                del self.Hallcinated_Y_train
-            self.Hallcinated_Y_train = {}
-            self.Hallcinated_X_train = torch.empty(n_sample,0,self.in_dim)
-            self.Hallcinated_Y_train['y1'] = torch.empty(n_sample,0,1+self.in_dim)
-            self.Hallcinated_Y_train['y2'] = torch.empty(n_sample,0,1+self.in_dim)
-            if self.use_cuda:
-                self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
-                self.Hallcinated_Y_train['y1'] = self.Hallcinated_Y_train['y1'].cuda()
-                self.Hallcinated_Y_train['y2'] = self.Hallcinated_Y_train['y2'].cuda()
         if self.model_i is not None:
             del self.model_i['y1']
             del self.model_i['y2']
@@ -279,6 +273,22 @@ class Agent(object):
                 self.model_i[out] = self.model_i[out].cuda()
         del data_X
         del likelihood
+        if sqp_iter==0:   
+            if self.Hallcinated_X_train is not None:
+                del self.Hallcinated_X_train
+                del self.Hallcinated_Y_train['y1']
+                del self.Hallcinated_Y_train['y2']
+                del self.Hallcinated_Y_train
+            self.Hallcinated_Y_train = {}
+            self.Hallcinated_X_train = torch.empty(n_sample,0,self.in_dim)
+            self.Hallcinated_Y_train['y1'] = torch.empty(n_sample,0,1+self.in_dim)
+            self.Hallcinated_Y_train['y2'] = torch.empty(n_sample,0,1+self.in_dim)
+            if self.use_cuda:
+                self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
+                self.Hallcinated_Y_train['y1'] = self.Hallcinated_Y_train['y1'].cuda()
+                self.Hallcinated_Y_train['y2'] = self.Hallcinated_Y_train['y2'].cuda()
+
+
 
     def get_next_to_go_loc(self):
         return self.planned_measure_loc
