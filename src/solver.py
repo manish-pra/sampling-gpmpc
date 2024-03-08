@@ -138,8 +138,10 @@ class DEMPC_solver(object):
                 u_h[stage, :] = self.ocp_solver.get(stage, "u")
             # x_h[self.H, :] = self.ocp_solver.get(self.H, "x")
 
+            # create model with updated data
             player.train_hallucinated_dynGP(sqp_iter)
             batch_x_hat = player.get_batch_x_hat(x_h, u_h)
+            #sample the gradients
             gp_val, y_grad, u_grad = player.get_batch_gp_sensitivities(batch_x_hat)
             del batch_x_hat
             # gp_val, gp_grad = player.get_gp_sensitivities(np.hstack([x_h, u_h]), "mean", 0)
