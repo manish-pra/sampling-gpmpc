@@ -90,7 +90,7 @@ class Agent(object):
         self.Hallcinated_Y_train = None
         self.model_i = None
 
-        self.Hallcinated_X_train = torch.empty(self.eff_dyn_samples,0,self.in_dim)
+        self.Hallcinated_X_train = torch.empty(self.eff_dyn_samples,2,0,self.in_dim)
         self.Hallcinated_Y_train = torch.empty(self.eff_dyn_samples,2,0,self.in_dim+1) # NOTE(amon): added+1 to in_dim
         # self.Hallcinated_Y_train['y1'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
         # self.Hallcinated_Y_train['y2'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
@@ -241,8 +241,9 @@ class Agent(object):
     
     def real_data_batch(self):
         n_pnts, n_dims = self.Dyn_gp_X_train.shape
-        self.Dyn_gp_X_train_batch = torch.stack([self.Dyn_gp_X_train]*self.eff_dyn_samples, dim=0)
-        self.Dyn_gp_Y_train_batch = torch.stack([self.Dyn_gp_Y_train]*self.eff_dyn_samples, dim=0)
+        self.Dyn_gp_X_train_batch = torch.tile(self.Dyn_gp_X_train, dims=(self.eff_dyn_samples,2,1,1))
+        self.Dyn_gp_Y_train_batch = torch.tile(self.Dyn_gp_Y_train, dims=(self.eff_dyn_samples,1,1,1))
+        # self.Dyn_gp_Y_train_batch = torch.stack([self.Dyn_gp_Y_train]*self.eff_dyn_samples, dim=0)
         # for out in ['y1','y2']:
         #     a, b = self.Dyn_gp_Y_train[out].shape
         #     self.Dyn_gp_Y_train_batch[out] = torch.ones((self.eff_dyn_samples, a, b))*self.Dyn_gp_Y_train[out]
@@ -260,8 +261,8 @@ class Agent(object):
             del self.model_i
         # likelihood = {}
         # self.model_i = {}
-        data_X = torch.concat([self.Dyn_gp_X_train_batch, self.Hallcinated_X_train],dim=1)
-        data_X = torch.stack([data_X]*2, dim=1)
+        data_X = torch.concat([self.Dyn_gp_X_train_batch, self.Hallcinated_X_train],dim=2)
+        # data_X = torch.stack([data_X]*2, dim=1)
 
         # for out in ['y1','y2']:
         data_Y = torch.concat([self.Dyn_gp_Y_train_batch, self.Hallcinated_Y_train],dim=2)               
@@ -481,7 +482,8 @@ class Agent(object):
         # y_grad['y2'] = y_sample['y2'][:,:,1:3].cpu().numpy()
         y_grad = y_sample[:,:,:,1:3].cpu().numpy()
         # u_grad = torch.cat([y_sample['y1'][:,:,-1].unsqueeze(2),y_sample['y2'][:,:,-1].unsqueeze(2)],2).cpu().numpy()
-        u_grad = y_sample[:,:,:,[3]].cpu().numpy()
+        # u_grad = torch.cat([y_sample[:,0,:,-1].unsqueeze(1).unsqueeze(3),y_sample[:,1,:,-1].unsqueeze(1).unsqueeze(3)],1).cpu().numpy()
+        u_grad = y_sample[:,:,:,[-1]].cpu().numpy()
         del y_sample
         del x_hat
         return gp_val, y_grad, u_grad # y, dy/dx1, dy/dx2, dy/du
