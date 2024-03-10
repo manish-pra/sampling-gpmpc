@@ -113,7 +113,7 @@ class Agent(object):
             u = torch.linspace(-8,8,5)
             X1, X2, U  = torch.meshgrid(x1,x2,u)
             self.Dyn_gp_X_train = torch.hstack([X1.reshape(-1,1), X2.reshape(-1,1), U.reshape(-1,1)])
-            self.Dyn_gp_Y_train = {}
+            # self.Dyn_gp_Y_train = {}
             y1, y2 = self.get_prior_data(self.Dyn_gp_X_train)
             self.Dyn_gp_Y_train = torch.stack((y1,y2),dim=0)
             # self.Dyn_gp_Y_train['y1'] = y1
@@ -176,8 +176,10 @@ class Agent(object):
         self.Dyn_gp_model = BatchMultitaskGPModelWithDerivatives(self.Dyn_gp_X_train, self.Dyn_gp_Y_train, likelihood, batch_shape=self.batch_shape)
         # likelihood['y1'] = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4,noise_constraint=gpytorch.constraints.GreaterThan(0.0))  # Value + Derivative
         # self.Dyn_gp_model['y1'] = GPModelWithDerivatives(self.Dyn_gp_X_train, self.Dyn_gp_Y_train['y1'], likelihood['y1'])
-        self.Dyn_gp_model.likelihood.noise = torch.ones(self.batch_shape)*self.Dyn_gp_noise
-        self.Dyn_gp_model.likelihood.task_noises=torch.Tensor([3.8,1.27, 3.8,1.27])*0.00001
+        self.Dyn_gp_model.likelihood.noise = torch.tile(torch.Tensor([self.Dyn_gp_noise]), dims=(self.batch_shape[0],self.batch_shape[1],1))
+        # self.Dyn_gp_model.likelihood.noise = torch.ones(self.batch_shape)*self.Dyn_gp_noise
+        self.Dyn_gp_model.likelihood.task_noises=torch.tile(torch.Tensor([3.8,1.27, 3.8,1.27])*0.00001, dims=(self.batch_shape[0],self.batch_shape[1],1))
+        # self.Dyn_gp_model.likelihood.task_noises=torch.Tensor([3.8,1.27, 3.8,1.27])*0.00001
 
         # likelihood['y2'] = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4,noise_constraint=gpytorch.constraints.GreaterThan(0.0))  # Value + Derivative
         # self.Dyn_gp_model['y2'] = GPModelWithDerivatives(self.Dyn_gp_X_train, self.Dyn_gp_Y_train['y2'], likelihood['y2'])
@@ -185,8 +187,8 @@ class Agent(object):
         # self.Dyn_gp_model['y2'].likelihood.task_noises=torch.Tensor([3.8,1.27, 3.8,1.27])*0.00001
 
         # TODO: (amon) check if multiple length scales can be set, differently for y1, y2
-        self.Dyn_gp_model.covar_module.base_kernel.lengthscale = torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"]["y1"])
-        self.Dyn_gp_model.covar_module.outputscale = torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"]["y1"]])
+        self.Dyn_gp_model.covar_module.base_kernel.lengthscale = torch.tile(torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"]["both"]), dims=(self.batch_shape[0],1,1,1))
+        self.Dyn_gp_model.covar_module.outputscale = torch.tile(torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"]["both"]]), dims=(self.batch_shape[0],1))
         # self.Dyn_gp_model['y1'].covar_module.base_kernel.lengthscale = torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"]["y1"])
         # self.Dyn_gp_model['y1'].covar_module.outputscale = torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"]["y1"]])
         # self.Dyn_gp_model['y2'].covar_module.base_kernel.lengthscale = torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"]["y2"])
@@ -270,13 +272,13 @@ class Agent(object):
         # model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
         # model_i[out] = BatchIndependentMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out],1)
         self.model_i = BatchMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood, self.batch_shape)
-        self.model_i.likelihood.noise = torch.ones(self.batch_shape)*self.Dyn_gp_noise*0.0001
+        self.model_i.likelihood.noise = torch.tile(torch.Tensor([self.Dyn_gp_noise*0.0001]), dims=(self.batch_shape[0],self.batch_shape[1],1))
         # self.model_i.likelihood.task_noises= torch.ones(self.batch_shape)*torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
-        self.model_i.likelihood.task_noises = torch.tile(torch.Tensor([3.8,1.27,1.27,1.27]),(self.batch_shape[0],self.batch_shape[1],1))
+        self.model_i.likelihood.task_noises = torch.tile(torch.Tensor([3.8,1.27,1.27,1.27]), dims=(self.batch_shape[0],self.batch_shape[1],1))
         # self.model_i.covar_module.base_kernel.lengthscale = torch.ones(self.batch_shape)*torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"]["both"])
-        self.model_i.covar_module.base_kernel.lengthscale = torch.tile(torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"]["both"]), (self.batch_shape[0],1,1,1))
+        self.model_i.covar_module.base_kernel.lengthscale = torch.tile(torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"]["both"]), dims=(self.batch_shape[0],1,1,1))
         # self.model_i.covar_module.outputscale = torch.ones(self.batch_shape)*torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"][out]])
-        self.model_i.covar_module.outputscale = torch.tile(torch.Tensor(self.params["agent"]["Dyn_gp_outputscale"]["both"]), (self.batch_shape[0],1))
+        self.model_i.covar_module.outputscale = torch.tile(torch.Tensor(self.params["agent"]["Dyn_gp_outputscale"]["both"]), dims=(self.batch_shape[0],1))
         # model_i.covar_module.task_covar_module.var
         # model_i.covar_module.lengthscale =  torch.Tensor([[1.2241]]) #torch.Tensor([[self.Dyn_gp_lengthscale]])
         # model_i.covar_module.outputscale = torch.Tensor([[2.4601]]) #torch.Tensor([[self.Dyn_gp_outputscale]])
