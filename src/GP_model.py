@@ -50,6 +50,7 @@ class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
         self.mean_module = gpytorch.means.ConstantMeanGrad(batch_shape=batch_shape) #(prior=gpytorch.priors.NormalPrior(4.9132,0.01))
         self.base_kernel = gpytorch.kernels.RBFKernelGrad(ard_num_dims=3, batch_shape=batch_shape)
         self.covar_module = gpytorch.kernels.ScaleKernel(self.base_kernel, batch_shape=batch_shape)
+        # self.covar_module = gpytorch.kernels.ScaleKernel(self.base_kernel)
         # self.mean_module = gpytorch.means.ZeroMean(batch_shape=torch.Size([nout]))
         # self.covar_module = gpytorch.kernels.ScaleKernel(
         #     gpytorch.kernels.RBFKernel(batch_shape=torch.Size([nout])),

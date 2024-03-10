@@ -149,11 +149,18 @@ class DEMPC_solver(object):
             for stage in range(self.H):
                 p_lin = np.empty(0)
                 for i in range(self.params["agent"]["num_dyn_samples"]):
-                    p_lin = np.concatenate([p_lin,
-                                            y_grad['y1'][i,stage,:].reshape(-1),
-                                            y_grad['y2'][i,stage,:].reshape(-1),
-                                            u_grad[i,stage,:].reshape(-1),
-                                            x_h[stage,i*2: 2*(i+1)], gp_val[i,stage,:].reshape(-1)])
+                    p_lin = np.concatenate([
+                        p_lin,
+                        y_grad[i,0,stage,:].reshape(-1),
+                        y_grad[i,1,stage,:].reshape(-1),
+                        # y_grad['y1'][i,stage,:].reshape(-1),
+                        # y_grad['y2'][i,stage,:].reshape(-1),
+                        u_grad[i,:,stage,:].reshape(-1),
+                        # u_grad[i,stage,:].reshape(-1),
+                        x_h[stage,i*2: 2*(i+1)], 
+                        gp_val[i,:,stage,:].reshape(-1)
+                        # gp_val[i,stage,:].reshape(-1)
+                    ])
                 p_lin = np.hstack([p_lin, u_h[stage], xg[stage], w[stage]])
                 self.ocp_solver.set(stage, "p", p_lin)
                 # self.ocp_solver.set(stage, "p", np.hstack(
