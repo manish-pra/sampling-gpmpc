@@ -89,14 +89,15 @@ class Agent(object):
         self.Hallcinated_Y_train = None
         self.model_i = None
 
-        self.Hallcinated_Y_train = {}
         self.Hallcinated_X_train = torch.empty(self.eff_dyn_samples,0,self.in_dim)
-        self.Hallcinated_Y_train['y1'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
-        self.Hallcinated_Y_train['y2'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
+        self.Hallcinated_Y_train = torch.empty(self.eff_dyn_samples,0,self.in_dim,2)
+        # self.Hallcinated_Y_train['y1'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
+        # self.Hallcinated_Y_train['y2'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
         if self.use_cuda:
             self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
-            self.Hallcinated_Y_train['y1'] = self.Hallcinated_Y_train['y1'].cuda()
-            self.Hallcinated_Y_train['y2'] = self.Hallcinated_Y_train['y2'].cuda()
+            self.Hallcinated_Y_train = self.Hallcinated_Y_train.cuda()
+            # self.Hallcinated_Y_train['y1'] = self.Hallcinated_Y_train['y1'].cuda()
+            # self.Hallcinated_Y_train['y2'] = self.Hallcinated_Y_train['y2'].cuda()
 
         # Initialize model
         x1 = torch.linspace(-3.14,3.14,11)
@@ -113,15 +114,17 @@ class Agent(object):
             self.Dyn_gp_X_train = torch.hstack([X1.reshape(-1,1), X2.reshape(-1,1), U.reshape(-1,1)])
             self.Dyn_gp_Y_train = {}
             y1, y2 = self.get_prior_data(self.Dyn_gp_X_train)
-            self.Dyn_gp_Y_train['y1'] = y1
-            self.Dyn_gp_Y_train['y2'] = y2
+            self.Dyn_gp_Y_train = torch.stack((y1,y2),dim=0)
+            # self.Dyn_gp_Y_train['y1'] = y1
+            # self.Dyn_gp_Y_train['y2'] = y2
         else:
             # self.Dyn_gp_X_train = torch.from_numpy(np.hstack([0.0, 0.0, 0.0])).reshape(-1,3)
             # self.Dyn_gp_Y_train = torch.from_numpy(np.hstack([0.0, 0.0])).reshape(-1,2)
-            self.Dyn_gp_Y_train = {}
             self.Dyn_gp_X_train = torch.rand(1,self.in_dim)
-            self.Dyn_gp_Y_train['y1'] = torch.rand(1, 1 + self.in_dim)
-            self.Dyn_gp_Y_train['y2'] = torch.rand(1, 1 + self.in_dim)
+            self.Dyn_gp_Y_train = torch.rand(2, 1, 1 + self.in_dim)
+            # self.Dyn_gp_Y_train = {}
+            # self.Dyn_gp_Y_train['y1'] = torch.rand(1, 1 + self.in_dim)
+            # self.Dyn_gp_Y_train['y2'] = torch.rand(1, 1 + self.in_dim)
         self.Dyn_gp_model = self.__update_Dyn()
         self.real_data_batch()
         # self.visu()
@@ -245,50 +248,52 @@ class Agent(object):
     def train_hallucinated_dynGP(self, sqp_iter):
         n_sample = self.eff_dyn_samples
         if self.model_i is not None:
-            del self.model_i['y1']
-            del self.model_i['y2']
+            # del self.model_i['y1']
+            # del self.model_i['y2']
             del self.model_i
-        likelihood = {}
-        self.model_i = {}
+        # likelihood = {}
+        # self.model_i = {}
         data_X = torch.concat([self.Dyn_gp_X_train_batch, self.Hallcinated_X_train],dim=1)
-        for out in ['y1','y2']:
-            data_Y = torch.concat([self.Dyn_gp_Y_train_batch[out], self.Hallcinated_Y_train[out]],dim=1)               
-            likelihood[out] = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4,noise_constraint=gpytorch.constraints.GreaterThan(0.0), batch_shape=torch.Size([n_sample]))  # Value + Derivative
-            # model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
-            # model_i[out] = BatchIndependentMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out],1)
-            self.model_i[out] = BatchMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out], n_sample)
-            self.model_i[out].likelihood.noise = torch.ones(n_sample,1)*self.Dyn_gp_noise*0.0001
-            self.model_i[out].likelihood.task_noises= torch.ones(n_sample,1)*torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
-            self.model_i[out].covar_module.base_kernel.lengthscale = torch.ones(n_sample,1)*torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"][out])
-            self.model_i[out].covar_module.outputscale = torch.ones(n_sample,1)*torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"][out]])
-            # model_i.covar_module.task_covar_module.var
-            # model_i.covar_module.lengthscale =  torch.Tensor([[1.2241]]) #torch.Tensor([[self.Dyn_gp_lengthscale]])
-            # model_i.covar_module.outputscale = torch.Tensor([[2.4601]]) #torch.Tensor([[self.Dyn_gp_outputscale]])
-            # model_i = self.fit_i_model(self.Dyn_gp_X_range, sample_i)
-            # model_i.eval()
-            # model_i(torch.rand(5,2)).sample()
-            del data_Y
-            del likelihood[out]
-            if self.use_cuda:
-                self.model_i[out] = self.model_i[out].cuda()
+
+        batch_shape = torch.Size([n_sample, 2])
+        # for out in ['y1','y2']:
+        data_Y = torch.concat([self.Dyn_gp_Y_train_batch[out], self.Hallcinated_Y_train[out]],dim=1)               
+        likelihood[out] = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4,noise_constraint=gpytorch.constraints.GreaterThan(0.0), batch_shape=batch_shape)  # Value + Derivative
+        # model_i[out] = GPModelWithDerivatives(data_X, data_Y, likelihood[out])
+        # model_i[out] = BatchIndependentMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood[out],1)
+        self.model_i = BatchMultitaskGPModelWithDerivatives(data_X, data_Y, likelihood, batch_shape)
+        self.model_i.likelihood.noise = torch.ones(batch_shape)*self.Dyn_gp_noise*0.0001
+        self.model_i.likelihood.task_noises= torch.ones(batch_shape)*torch.Tensor([3.8,1.27,1.27,1.27])*0.0000003
+        self.model_i.covar_module.base_kernel.lengthscale = torch.ones(batch_shape)*torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"])
+        self.model_i.covar_module.outputscale = torch.ones(batch_shape)*torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"][out]])
+        # model_i.covar_module.task_covar_module.var
+        # model_i.covar_module.lengthscale =  torch.Tensor([[1.2241]]) #torch.Tensor([[self.Dyn_gp_lengthscale]])
+        # model_i.covar_module.outputscale = torch.Tensor([[2.4601]]) #torch.Tensor([[self.Dyn_gp_outputscale]])
+        # model_i = self.fit_i_model(self.Dyn_gp_X_range, sample_i)
+        # model_i.eval()
+        # model_i(torch.rand(5,2)).sample()
+        if self.use_cuda:
+            self.model_i = self.model_i.cuda()
+
         del data_X
+        del data_Y
         del likelihood
         if sqp_iter==0:   
             if self.Hallcinated_X_train is not None:
                 del self.Hallcinated_X_train
-                del self.Hallcinated_Y_train['y1']
-                del self.Hallcinated_Y_train['y2']
+                # del self.Hallcinated_Y_train['y1']
+                # del self.Hallcinated_Y_train['y2']
                 del self.Hallcinated_Y_train
-            self.Hallcinated_Y_train = {}
+
             self.Hallcinated_X_train = torch.empty(n_sample,0,self.in_dim)
-            self.Hallcinated_Y_train['y1'] = torch.empty(n_sample,0,1+self.in_dim)
-            self.Hallcinated_Y_train['y2'] = torch.empty(n_sample,0,1+self.in_dim)
+            self.Hallcinated_Y_train = torch.empty(n_sample,0,1+self.in_dim,2)
+            # self.Hallcinated_Y_train['y1'] = torch.empty(n_sample,0,1+self.in_dim)
+            # self.Hallcinated_Y_train['y2'] = torch.empty(n_sample,0,1+self.in_dim)
             if self.use_cuda:
                 self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
-                self.Hallcinated_Y_train['y1'] = self.Hallcinated_Y_train['y1'].cuda()
-                self.Hallcinated_Y_train['y2'] = self.Hallcinated_Y_train['y2'].cuda()
-
-
+                self.Hallcinated_Y_train = self.Hallcinated_Y_train.cuda()
+                # self.Hallcinated_Y_train['y1'] = self.Hallcinated_Y_train['y1'].cuda()
+                # self.Hallcinated_Y_train['y2'] = self.Hallcinated_Y_train['y2'].cuda()
 
     def get_next_to_go_loc(self):
         return self.planned_measure_loc

@@ -45,11 +45,11 @@ class GPModelWithDerivatives(gpytorch.models.ExactGP):
     
 
 class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, nout):
+    def __init__(self, train_x, train_y, likelihood, batch_shape):
         super().__init__(train_x, train_y, likelihood)
-        self.mean_module = gpytorch.means.ConstantMeanGrad(batch_shape=torch.Size([nout])) #(prior=gpytorch.priors.NormalPrior(4.9132,0.01))
-        self.base_kernel = gpytorch.kernels.RBFKernelGrad(ard_num_dims=3, batch_shape=torch.Size([nout]))
-        self.covar_module = gpytorch.kernels.ScaleKernel(self.base_kernel, batch_shape=torch.Size([nout]))
+        self.mean_module = gpytorch.means.ConstantMeanGrad(batch_shape=batch_shape) #(prior=gpytorch.priors.NormalPrior(4.9132,0.01))
+        self.base_kernel = gpytorch.kernels.RBFKernelGrad(ard_num_dims=3, batch_shape=batch_shape)
+        self.covar_module = gpytorch.kernels.ScaleKernel(self.base_kernel, batch_shape=batch_shape)
         # self.mean_module = gpytorch.means.ZeroMean(batch_shape=torch.Size([nout]))
         # self.covar_module = gpytorch.kernels.ScaleKernel(
         #     gpytorch.kernels.RBFKernel(batch_shape=torch.Size([nout])),
