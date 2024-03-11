@@ -33,7 +33,7 @@ class DEMPC_solver(object):
         self.tol_nlp = params["optimizer"]["SEMPC"]["tol_nlp"]
         self.nx = ocp.model.x.size()[0]
         self.nu = ocp.model.u.size()[0]
-        self.eps = params["common"]["epsilon"]
+
         self.n_order = params["optimizer"]["order"]
         self.x_dim = params["optimizer"]["x_dim"]
         self.pos_dim = 1

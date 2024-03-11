@@ -36,9 +36,6 @@ class Agent(object):
         self.x_dim = params["optimizer"]["x_dim"]
         self.Dyn_gp_noise = params["agent"]["Dyn_gp_noise"]
         self.Dyn_gp_beta = params["agent"]["Dyn_gp_beta"]
-        self.constraint = params["common"]["constraint"]
-        self.Lc = params["agent"]["Lc"]
-        self.epsilon = params["common"]["epsilon"]
         self.param = params
         if (
             self.params["agent"]["true_dyn_as_sample"]

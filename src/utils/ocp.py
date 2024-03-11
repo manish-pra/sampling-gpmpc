@@ -180,7 +180,6 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
 
 def dempc_const_val(ocp, params, x_dim, n_order):
     # constraints
-    eps = params["common"]["epsilon"]  # - 0.05
     ocp.constraints.lbu = np.array(params["optimizer"]["u_min"])
     ocp.constraints.ubu = np.array(params["optimizer"]["u_max"])
     ocp.constraints.idxbu = np.arange(1)
