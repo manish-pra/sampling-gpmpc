@@ -9,16 +9,16 @@ agent:
     both : [[[5.2649, 4.5967, 7.0177]], [[3.9696, 2.1265, 6.6749]] ]
   Dyn_gp_noise : 7.0e-9
   Dyn_gp_outputscale : 
-    y1 : 0.104 #0.3040 #0.75  #0.65
-    y2 : 0.1071 #0.3071 #0.65 #0.45, noise multiplier 3.0e-7 results in smooth trajectories
+    y1 : 0.1040 #0.3040 #0.75  #0.65
+    y2 : 0.1071 #0.3071 #0.65 #0.455, noise multiplier 3.0e-7 results in smooth trajectories
     both : [0.65, 0.55]
   Dyn_gp_task_noises : 
     val : [3.8, 1.27, 3.8, 1.27]
     multiplier : 1.0e-5                     #1.0e-5 Low noise value make it crazy fast
-  Dyn_gp_beta : 1.5 # 1.5
+  Dyn_gp_beta : 2.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 10
+  num_dyn_samples: 20
   prior_dyn_meas: True       
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
@@ -59,5 +59,5 @@ experiment:
   generate_regret_plot : True
   folder: "pendulum"
   rnd_seed: 
-    use: True
-    value: 1234567
+    use: False
+    value: 123456

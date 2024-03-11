@@ -91,6 +91,32 @@ class Agent(object):
         self.Dyn_gp_model = self.__update_Dyn()
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
+        self.epistimic_random_vector = self.random_vector_within_bounds()
+
+    def random_vector_within_bounds(self):
+        # generate a normally distributed weight vector within bounds by continous respampling
+        H = self.params["optimizer"]["H"]
+        n_dyn = self.params["agent"]["num_dyn_samples"]
+        beta = self.params["agent"]["Dyn_gp_beta"]
+        n_mpc = self.params["common"]["num_MPC_itrs"]
+        # ret_itrs = torch.normal(0, 1, size=(2, n_dyn, 2, H, 4))
+        # ret_itrs = torch.normal(
+        #     torch.zeros(2, n_dyn, 2, H, 4), torch.ones(2, n_dyn, 2, H, 4)
+        # )
+        ret_mpc_iters = torch.empty(n_mpc, 2, n_dyn, 2, H, 4)
+        for j in range(self.params["common"]["num_MPC_itrs"]):
+            ret_itrs = torch.empty(2, n_dyn, 2, H, 4)
+            for i in range(self.params["optimizer"]["SEMPC"]["max_sqp_iter"]):
+                ret = torch.empty(0, 2, H, 4)
+                while True:
+                    w = torch.normal(0, 1, size=(1, 2, H, 4))
+                    if torch.all(w >= -beta) and torch.all(w <= beta):
+                        ret = torch.cat([ret, w], dim=0)
+                    if ret.shape[0] == n_dyn:
+                        break
+                ret_itrs[i, :, :, :, :] = ret
+            ret_mpc_iters[j, :, :, :, :, :] = ret_itrs
+        return ret_mpc_iters.cuda()
 
     def update_current_location(self, loc):
         self.current_location = loc
@@ -436,7 +462,10 @@ class Agent(object):
             ret_allout = ret_allout.cuda()
         return ret_allout
 
-    def get_batch_gp_sensitivities(self, x_hat):
+    def mpc_iteration(self, i):
+        self.mpc_iter = i
+
+    def get_batch_gp_sensitivities(self, x_hat, sqp_iter):
         """_summaary_ Derivatives are obtained by sampling from the GP directly. Record those derivatives.
 
         Args:
@@ -482,7 +511,10 @@ class Agent(object):
             #     del sample
             # y_sample[out] = sample
             # del lower, upper
-            y_sample = self.model_i(x_hat[batch_idx:]).sample()
+            y_sample = self.model_i(x_hat[batch_idx:]).sample(
+                base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
+            )
+            # y_sample = self.model_i(x_hat[batch_idx:]).sample()
 
             # mean = self.Dyn_model_list[self.sample_idx-1][out](x_hat).mean
             # y_sample[out] = sample
