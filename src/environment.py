@@ -100,41 +100,6 @@ class ContiWorld:
                 )
                 yaml_file.write(dump)
 
-        # elif env_params["generate"] == False:
-        #     k = open(env_file_path, "rb")
-        #     self.env_data = pickle.load(k)
-        #     k.close()
-        #     self.env_data["init_safe"]['loc'][0] = torch.Tensor(env_params["start_loc"])
-        #     self.Cx_model_cont = self.env_data["Cx_model"]
-        #     self.Fx_model_cont = self.env_data["Fx_model"]
-        #     self.__Cx = self.Cx_model_cont.posterior(
-        #         self.VisuGrid).mvn.mean.detach()
-        #     # print("Lipschitz", self.get_true_lipschitz())
-        #     # self.__Fx = self.Fx_model_cont.posterior(
-        #     #     self.VisuGrid).mvn.mean.detach()
-        #     self.__Fx = torch.norm(self.VisuGrid - torch.Tensor(env_params["goal_loc"]),2, dim=1)
-        #     init = {}
-        #     init['loc'] = []
-        #     init['idx'] = []
-        #     for init_agent in self.env_data["init_safe"]['loc']:
-        #         idx = torch.abs((self.VisuGrid - init_agent)
-        #                         [:, 0]).argmin()
-        #         init['loc'].append(self.VisuGrid[idx])
-        #         init['idx'].append(idx)
-        #     init['idx'] = torch.stack(init['idx']).reshape(-1)
-        #     self.__init_safe = init
-        #     if self.Ny != 1:
-        #         self.__init_safe = self.env_data["init_safe"]
-        #     a = 1
-        #     self.plot2D()
-
-        # self.state = self.__init_safe
-        # # sim = export_sim(params, 'sim_env')
-        # # self.integrator = AcadosSimSolver(sim, json_file='acados_ocp_env.json')
-        # # self.test_integrator(10000)
-        # a = 1
-        # # self.plot1D()
-
     def test_integrator(self, iter):
         x_curr = torch.Tensor([0.72, 0.0]).numpy()
         U = torch.zeros(1).numpy()

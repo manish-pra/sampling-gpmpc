@@ -34,8 +34,8 @@ params["env"]["name"] = args.env
 print(params)
 
 # random seed
-if params["experiment"]["rnd_seed_use"]:
-    torch.manual_seed(params["experiment"]["rnd_seed"])
+if params["experiment"]["rnd_seed"]["use"]:
+    torch.manual_seed(params["experiment"]["rnd_seed"]["value"])
 
 # 2) Set the path and copy params from file
 exp_name = params["experiment"]["name"]

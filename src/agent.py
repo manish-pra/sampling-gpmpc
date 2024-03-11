@@ -1,39 +1,20 @@
-# from utils.datatypes import SafeSet
 from copy import copy
 from dataclasses import dataclass
 
 import gpytorch
-
-# from utils.helper import idxfromloc
-import networkx as nx
 import numpy as np
 
-# import matplotlib.pyplot as plt
-# import os
 import torch
 from botorch import fit_gpytorch_model
-from botorch.acquisition import UpperConfidenceBound
 from botorch.models import SingleTaskGP
-from botorch.optim import optimize_acqf
 from gpytorch.kernels import (
-    LinearKernel,
     MaternKernel,
     PiecewisePolynomialKernel,
-    PolynomialKernel,
     RBFKernel,
     ScaleKernel,
 )
-from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
 from src.GP_model import BatchMultitaskGPModelWithDerivatives, GPModelWithDerivatives
 import matplotlib.pyplot as plt
-
-# from utils.agent_helper import greedy_algorithm, coverage_oracle, greedy_algorithm_opti, apply_goose, greedy_algorithm_opti_cov
-# from src.solver import GoalOPT
-
-# @dataclass
-# class Set:
-#     left: float
-#     right: float
 
 
 class Agent(object):
@@ -50,25 +31,16 @@ class Agent(object):
         # self.Cx_X_train = X_train.reshape(-1, self.env_dim)
         # self.Fx_Y_train = Fx_Y_train.reshape(-1, 1)
         # self.Cx_Y_train = Cx_Y_train.reshape(-1, 1)
-        # self.disk_size = params["common"]["disk_size"]
-        # self.obs_model = params["agent"]["obs_model"]
         self.mean_shift_val = params["agent"]["mean_shift_val"]
-        # self.explore_exploit_strategy = params["agent"]["explore_exploit_strategy"]
         self.converged = False
-        # self.origin = X_train
         self.x_dim = params["optimizer"]["x_dim"]
-        # self.Dyn_gp_lengthscale = params["agent"]["Dyn_gp_lengthscale"]
         self.Dyn_gp_noise = params["agent"]["Dyn_gp_noise"]
         self.Dyn_gp_beta = params["agent"]["Dyn_gp_beta"]
-        # self.Dyn_gp_outputscale = params["agent"]["Dyn_gp_outputscale"]
         self.constraint = params["common"]["constraint"]
         self.Lc = params["agent"]["Lc"]
         self.epsilon = params["common"]["epsilon"]
-        # self.step_size = params["env"]["step_size"]
         self.Nx = params["env"]["shape"]["x"]
         self.Ny = params["env"]["shape"]["y"]
-        self.counter = 11
-        self.goal_in_pessi = False
         self.param = params
         if (
             self.params["agent"]["true_dyn_as_sample"]
@@ -151,24 +123,6 @@ class Agent(object):
             # self.Dyn_gp_Y_train['y2'] = torch.rand(1, 1 + self.in_dim)
         self.Dyn_gp_model = self.__update_Dyn()
         self.real_data_batch()
-        # self.visu()
-        # self.sample_dyn()
-        # self.env_start = params["env"]["shape"]["lx"] + params["env"]["start"]
-        # x_bound = torch.Tensor(
-        #     [params["env"]["start"], params["env"]["start"]+params["env"]["shape"]["lx"]])
-        # y_bound = torch.Tensor(
-        #     [params["env"]["start"], params["env"]["start"]+params["env"]["shape"]["ly"]])
-        # if params["env"]["shape"]["ly"] == 0:
-        #     self.dim = 1
-        #     a = params["env"]["start"]
-        #     y_bound = torch.Tensor([a, a])
-        # self.bounds = torch.stack([x_bound, y_bound]).transpose(0, 1)
-        # a = 1
-        # self.infeasible = False
-        # self.info_pt_z = None
-        # self.safe_meas_loc = self.origin.reshape(-1, 2)
-        # self.planned_measure_loc =  self.origin
-        # self.get_utility_minimizer = np.array(params["env"]["goal_loc"])
         self.planned_measure_loc = np.array([2])
 
     def update_current_location(self, loc):
@@ -402,22 +356,19 @@ class Agent(object):
         train_data_y = torch.hstack([X1dot.reshape(-1, 1), X2dot.reshape(-1, 1)])
         return train_data_y
 
-    # gp_val, gp_grad = player.get_gp_sensitivities(np.hstack([x_h,u_h]), "mean", 0)
     def get_true_gradient(self, x_hat):
         l = 1
         g = 10
+        # A = np.array([[0.0, 1.0],
+        #               [-g*np.cos(x_hat[0])/l,0.0]])
+        # B = np.array([[0.0],
+        #               [1/l]])
         ret = torch.zeros((2, x_hat.shape[0], 3))
         ret[1, :, 0] = -g * torch.cos(x_hat[:, 0]) / l
         ret[0, :, 1] = torch.ones(x_hat.shape[0])
         ret[1, :, 2] = torch.ones(x_hat.shape[0]) / l
-        # A = np.array([[0.0, 1.0],
-        #               [g*np.cos(x_hat[0])/l,0.0]])
-        # B = np.array([[0.0],
-        #               [1/l]])
-        # val = self.pendulum_dyn(torch.from_numpy(x_hat[:,0]), torch.from_numpy(x_hat[:,1]), torch.from_numpy(x_hat[:,2]))
-        # return val.numpy().transpose(), ret
+
         val = self.pendulum_dyn(x_hat[:, 0], x_hat[:, 1], x_hat[:, 2])
-        # return val, ret
         return torch.hstack([val[:, 0].reshape(-1, 1), ret[0, :, :]]), torch.hstack(
             [val[:, 1].reshape(-1, 1), ret[1, :, :]]
         )
@@ -485,7 +436,7 @@ class Agent(object):
         y2_ret[:, 2] = torch.ones(x_hat.shape[0])
         y2_ret[:, 3] = torch.ones(x_hat.shape[0]) * dt / (l * l)
         # A = np.array([[0.0, 1.0],
-        #               [g*np.cos(x_hat[0])/l,0.0]])
+        #               [-g*np.cos(x_hat[0])/l,0.0]])
         # B = np.array([[0.0],
         #               [1/l]])
         return y1_ret, y2_ret
@@ -590,80 +541,6 @@ class Agent(object):
         upper = upper * (1 + beta) / 2 + lower * (1 - beta) / 2
         lower = temp
         return lower, upper
-
-    def get_gp_sensitivities(self, x_hat, bound, sample_idx):
-        """_summaary_ Derivatives are obtained by sampling from the GP directly. Record those derivatives.
-
-        Args:
-            x_hat (_type_): _description_
-            bound (_type_): _description_
-            sample_idx (_type_): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        self.st_bound = bound
-        self.sample_idx = sample_idx
-        x_hat = torch.Tensor(x_hat)
-        y_sample = {}
-        if sample_idx == 0:
-            if False:
-                y_sample["y1"], y_sample["y2"] = self.get_prior_data(x_hat)
-            else:
-                for out in ["y1", "y2"]:
-                    with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(
-                        50
-                    ):
-                        self.Dyn_gp_model[out].eval()
-                        y_sample[out] = self.Dyn_gp_model[out](x_hat).mean.detach()
-        else:
-            for out in ["y1", "y2"]:
-                with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(
-                    50
-                ):
-                    self.Dyn_model_list[self.sample_idx - 1][out].eval()
-                    # likelihood(self.Dyn_model_list[self.sample_idx](x_hat)) for sampling with noise
-                    y_sample[out] = self.Dyn_model_list[self.sample_idx - 1][out](
-                        x_hat
-                    ).sample()
-                    # mean = self.Dyn_model_list[self.sample_idx-1][out](x_hat).mean
-                    # y_sample[out] = sample
-            self.update_hallucinated_Dyn_dataset(x_hat, y_sample, sample_idx - 1)
-        gp_val = torch.hstack(
-            [y_sample["y1"][:, 0].reshape(-1, 1), y_sample["y2"][:, 0].reshape(-1, 1)]
-        ).numpy()
-        y_grad = {}
-        y_grad["y1"] = y_sample["y1"][:, 1:3].numpy()
-        y_grad["y2"] = y_sample["y2"][:, 1:3].numpy()
-        u_grad = torch.hstack(
-            [y_sample["y1"][:, -1].reshape(-1, 1), y_sample["y2"][:, -1].reshape(-1, 1)]
-        ).numpy()
-        return gp_val, y_grad, u_grad  # y, dy/dx1, dy/dx2, dy/du
-
-    # def funct_sum(self, X):
-    #     return self.funct(X).sum(1)
-
-    # # def funct(self, X):
-    # #     self.Dyn_gp_model.eval()
-    # #     return self.Dyn_gp_model(X.float()).mean
-
-    # def funct(self, X):
-    #     self.Dyn_model_list[self.sample_idx].eval()
-    #     return self.Dyn_model_list[self.sample_idx](X.float()).mean
-
-    # def funct(self, X):
-    #     if self.st_bound == "LB" and self.st_gp == "Cx":
-    #         self.Cx_model.eval()
-    #         return self.Cx_model(X.float()).mean - self.Cx_beta*2*torch.sqrt(self.Cx_model(X.float()).variance)
-    #     if self.st_bound == "UB" and self.st_gp == "Cx":
-    #         self.Cx_model.eval()
-    #         return self.Cx_model(X.float()).mean + self.Cx_beta*2*torch.sqrt(self.Cx_model(X.float()).variance)
-    #     if self.st_bound == "UB" and self.st_gp == "Fx":
-    #         self.Fx_model.eval()
-    #         return self.Fx_model(X.float()).mean + self.Fx_beta*2*torch.sqrt(self.Fx_model(X.float()).variance)
-    #     if self.st_bound == "LB" and self.st_gp == "Fx":
-    #         self.Fx_model.eval()
-    #         return self.Fx_model(X.float()).mean - self.Fx_beta*2*torch.sqrt(self.Fx_model(X.float()).variance)
 
 
 if __name__ == "__main__":
