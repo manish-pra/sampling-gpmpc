@@ -39,8 +39,6 @@ class Agent(object):
         self.constraint = params["common"]["constraint"]
         self.Lc = params["agent"]["Lc"]
         self.epsilon = params["common"]["epsilon"]
-        self.Nx = params["env"]["shape"]["x"]
-        self.Ny = params["env"]["shape"]["y"]
         self.param = params
         if (
             self.params["agent"]["true_dyn_as_sample"]
@@ -49,27 +47,6 @@ class Agent(object):
             self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"] - 1
         else:
             self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]
-        if params["env"]["cov_module"] == "Sq_exp":
-            self.Cx_covar_module = ScaleKernel(
-                base_kernel=RBFKernel(),
-            )  # ard_num_dims=self.env_dim
-            self.Fx_covar_module = ScaleKernel(
-                base_kernel=RBFKernel(),
-            )  # ard_num_dims=self.env_dim
-        elif params["env"]["cov_module"] == "Matern":
-            self.Cx_covar_module = ScaleKernel(
-                base_kernel=MaternKernel(nu=2.5),
-            )  # ard_num_dims=self.env_dim
-            self.Fx_covar_module = ScaleKernel(
-                base_kernel=MaternKernel(nu=2.5),
-            )  # ard_num_dims=self.env_dim
-        else:
-            self.Cx_covar_module = ScaleKernel(
-                base_kernel=PiecewisePolynomialKernel()
-            )  # ard_num_dims=self.env_dim
-            self.Fx_covar_module = ScaleKernel(
-                base_kernel=PiecewisePolynomialKernel()
-            )  # ard_num_dims=self.env_dim
 
         if self.params["common"]["use_cuda"] and torch.cuda.is_available():
             self.use_cuda = True

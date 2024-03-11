@@ -6,11 +6,7 @@ import warnings
 import matplotlib.pyplot as plt
 import yaml
 import dill as pickle
-from src.environment import ContiWorld
-from src.DEMPC import DEMPC
 from src.visu import Visualizer
-from src.agent import Agent
-import numpy as np
 
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
@@ -50,15 +46,6 @@ if not os.path.exists(save_path):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
-
-# 3) Setup the environment. This class defines different environments
-env = ContiWorld(
-    env_params=params["env"],
-    common_params=params["common"],
-    visu_params=params["visu"],
-    env_dir=env_load_path,
-    params=params,
-)
 
 print(args)
 if args.i != -1:

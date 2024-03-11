@@ -1,26 +1,5 @@
 env:
-  name: "pendulum"
   start: [0.0, 0.0]
-  shape:
-    lx :  3
-    ly :  0
-    x :  60
-    y :  60
-  # start_loc: [-2.0, -2.0]
-  # goal_loc: [-1.0, -0.5]
-  start_loc: [0.0, 0.0]
-  goal_loc: [0.1, -1.7]
-  # goal_loc: [0.5, -0.1]
-  # goal_loc: [0.5, -1.6]
-  # goal_loc: [0.0, 0.0]
-  n_players : 1
-  Dyn_gp_lengthscale : 0.3
-  Dyn_gp_noise : 0.0001
-  Dyn_gp_beta : 1.5 # only for visu
-  generate: False   # True, False, walls, None: use some fixed save path
-  env_file_name: 'env_data.pkl'
-  cov_module: 'Matern'     #'Matern', Sq_exp, 'Poly'
-  compute_true_Lipschitz: False
 
 agent:
   dynamics: 'bicycle' # "unicycle", "bicycle", "NH_intergrator" , "int"
