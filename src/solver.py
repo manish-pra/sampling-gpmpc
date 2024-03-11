@@ -15,12 +15,7 @@ class DEMPC_solver(object):
     def __init__(self, params) -> None:
         ocp = export_dempc_ocp(params)
         self.name_prefix = (
-            params["algo"]["type"]
-            + "_env_"
-            + str(params["env"]["name"])
-            + "_i_"
-            + str(params["env"]["i"])
-            + "_"
+            "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
         )
         self.ocp_solver = AcadosOcpSolver(
             ocp, json_file=self.name_prefix + "acados_ocp_sempc.json"
@@ -28,7 +23,6 @@ class DEMPC_solver(object):
         self.ocp_solver.store_iterate(self.name_prefix + "ocp_initialization.json")
 
         self.H = params["optimizer"]["H"]
-        self.Hm = params["optimizer"]["Hm"]
         self.max_sqp_iter = params["optimizer"]["SEMPC"]["max_sqp_iter"]
         self.tol_nlp = params["optimizer"]["SEMPC"]["tol_nlp"]
         self.nx = ocp.model.x.size()[0]

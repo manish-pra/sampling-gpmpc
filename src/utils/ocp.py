@@ -23,12 +23,7 @@ from src.utils.model import (
 def export_dempc_ocp(params):
     ocp = AcadosOcp()
     name_prefix = (
-        params["algo"]["type"]
-        + "_env_"
-        + str(params["env"]["name"])
-        + "_i_"
-        + str(params["env"]["i"])
-        + "_"
+        "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
     )
     n_order = params["optimizer"]["order"]
     x_dim = params["optimizer"]["x_dim"]

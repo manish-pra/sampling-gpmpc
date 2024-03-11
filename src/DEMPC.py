@@ -18,7 +18,6 @@ class DEMPC:
         self.data = {}
         self.flag_reached_xt_goal = False
         self.H = self.params["optimizer"]["H"]
-        self.Hm = self.params["optimizer"]["Hm"]
         self.n_order = params["optimizer"]["order"]
         self.x_dim = params["optimizer"]["x_dim"]
         self.state_dim = self.x_dim
