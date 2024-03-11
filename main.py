@@ -33,6 +33,10 @@ params["env"]["i"] = args.i
 params["env"]["name"] = args.env
 print(params)
 
+# random seed
+if params["experiment"]["rnd_seed_use"]:
+    torch.manual_seed(params["experiment"]["rnd_seed"])
+
 # 2) Set the path and copy params from file
 exp_name = params["experiment"]["name"]
 env_load_path = (
@@ -71,6 +75,7 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 
 # 4) Set the initial state
 agent.update_current_state(np.array(params["env"]["start"]))
+
 
 de_mpc = DEMPC(params, env, visu, agent)
 de_mpc.dempc_main()

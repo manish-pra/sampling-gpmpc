@@ -91,3 +91,5 @@ experiment:
   name: "DEMPC" #
   generate_regret_plot : True
   folder: "pendulum"
+  rnd_seed: 123456
+  rnd_seed_use: True
