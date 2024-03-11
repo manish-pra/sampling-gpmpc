@@ -1,9 +1,10 @@
-
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 import dill as pickle
+
+
 class Visualizer:
     def __init__(self, params, path, agent):
         self.params = params
@@ -13,26 +14,26 @@ class Visualizer:
         self.true_state_traj = []
         self.physical_state_traj = []
         self.save_path = path
-        self.agent =  agent
+        self.agent = agent
         if self.params["visu"]["show"]:
             self.initialize_plot_handles(path)
-    
+
     def initialize_plot_handles(self, path):
-        fig_gp, ax = plt.subplots(figsize=(16/2.4, 16/2.4))
+        fig_gp, ax = plt.subplots(figsize=(16 / 2.4, 16 / 2.4))
         # fig_gp.tight_layout(pad=0)
-        ax.grid(which='both', axis='both')
+        ax.grid(which="both", axis="both")
         ax.minorticks_on()
-        ax.set_xlabel('theta')
-        ax.set_ylabel('theta_dot')
-        ax.add_line(plt.Line2D([-0.3, 2.4], [2.5, 2.5], color='red', linestyle='--'))
+        ax.set_xlabel("theta")
+        ax.set_ylabel("theta_dot")
+        ax.add_line(plt.Line2D([-0.3, 2.4], [2.5, 2.5], color="red", linestyle="--"))
         # ax.set_yticklabels([])
         # ax.set_xticklabels([])
         # ax.set_xticks([])
         # ax.set_yticks([])
         # ax.set_aspect('equal', 'box')
-        ax.set_xlim(-0.3,2.4)
-        ax.set_ylim(-3,3)
-        fig_dyn, ax2 = plt.subplots() # plt.subplots(2,2)
+        ax.set_xlim(-0.3, 2.4)
+        ax.set_ylim(-3, 3)
+        fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
 
         # ax2.set_aspect('equal', 'box')
         self.f_handle = {}
@@ -43,17 +44,17 @@ class Visualizer:
         # Move it to visu
         self.writer_gp = self.get_frame_writer()
         self.writer_dyn = self.get_frame_writer()
-        self.writer_dyn.setup(fig_dyn, path +
-                              "/video_dyn.mp4", dpi=200)
-        self.writer_gp.setup(fig_gp, path +
-                             "/video_gp.mp4", dpi=200)
-    
+        self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200)
+        self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=200)
+
     def get_frame_writer(self):
         # FFMpegWriter = manimation.writers['ffmpeg']
-        metadata = dict(title='Movie Test', artist='Matplotlib',
-                        comment='Movie support!')
-        writer = manimation.FFMpegWriter(fps=10, codec="libx264",
-                                        metadata=metadata)  # libx264 (good quality), mpeg4
+        metadata = dict(
+            title="Movie Test", artist="Matplotlib", comment="Movie support!"
+        )
+        writer = manimation.FFMpegWriter(
+            fps=10, codec="libx264", metadata=metadata
+        )  # libx264 (good quality), mpeg4
         return writer
 
     def pendulum_discrete_dyn(self, X1_k, X2_k, U_k):
@@ -63,19 +64,19 @@ class Visualizer:
             x (_type_): _description_
             u (_type_): _description_
         """
-        m =1
-        l=1
-        g=10
+        m = 1
+        l = 1
+        g = 10
         dt = self.params["optimizer"]["dt"]
-        X1_kp1 = X1_k + X2_k*dt 
-        X2_kp1 = X2_k - g*np.sin(X1_k)*dt/l + U_k*dt/(l*l)
+        X1_kp1 = X1_k + X2_k * dt
+        X2_kp1 = X2_k - g * np.sin(X1_k) * dt / l + U_k * dt / (l * l)
         return X1_kp1, X2_kp1
-    
+
     def propagate_true_dynamics(self, x_init, U):
         x1_list = []
         x2_list = []
         X1_k = x_init[0]
-        X2_k = x_init[1]   
+        X2_k = x_init[1]
         x1_list.append(X1_k.item())
         x2_list.append(X2_k.item())
         for ele in range(U.shape[0]):
@@ -85,19 +86,23 @@ class Visualizer:
             X1_k = X1_kp1.copy()
             X2_k = X2_kp1.copy()
         return x1_list, x2_list
-    
+
     def propagate_mean_dyn(self, x_init, U):
-        self.agent.Dyn_gp_model['y1'].eval()
-        self.agent.Dyn_gp_model['y2'].eval()
+        self.agent.Dyn_gp_model["y1"].eval()
+        self.agent.Dyn_gp_model["y2"].eval()
         x1_list = []
         x2_list = []
         X1_k = x_init[0]
-        X2_k = x_init[1]   
+        X2_k = x_init[1]
         x1_list.append(X1_k.item())
         x2_list.append(X2_k.item())
         for ele in range(U.shape[0]):
-            y1 = self.agent.Dyn_gp_model['y1'](torch.Tensor([[X1_k, X2_k, U[ele]]]).cuda()).mean.detach()[0]
-            y2 = self.agent.Dyn_gp_model['y2'](torch.Tensor([[X1_k, X2_k, U[ele]]]).cuda()).mean.detach()[0]
+            y1 = self.agent.Dyn_gp_model["y1"](
+                torch.Tensor([[X1_k, X2_k, U[ele]]]).cuda()
+            ).mean.detach()[0]
+            y2 = self.agent.Dyn_gp_model["y2"](
+                torch.Tensor([[X1_k, X2_k, U[ele]]]).cuda()
+            ).mean.detach()[0]
             X1_kp1, X2_kp1 = y1[0].cpu(), y2[0].cpu()
             del y1, y2
             x1_list.append(X1_kp1.item())
@@ -110,16 +115,38 @@ class Visualizer:
         rm = []
         ax = self.f_handle["gp"].axes[0]
         physical_state_traj = np.vstack(self.physical_state_traj)
-        ax.plot(physical_state_traj[:,0], physical_state_traj[:,1], color='tab:blue', label='real', linestyle='-')
+        ax.plot(
+            physical_state_traj[:, 0],
+            physical_state_traj[:, 1],
+            color="tab:blue",
+            label="real",
+            linestyle="-",
+        )
         X = self.state_traj[-1]
         U = self.input_traj[-1]
-        rm.append(ax.plot(X[:,0::2],X[:,1::2], linestyle='-'))
+        rm.append(ax.plot(X[:, 0::2], X[:, 1::2], linestyle="-"))
         pred_true_state = np.vstack(self.true_state_traj[-1])
-        rm.append(ax.plot(pred_true_state[:,0], pred_true_state[:,1], color='black', label='true', linestyle='-'))
+        rm.append(
+            ax.plot(
+                pred_true_state[:, 0],
+                pred_true_state[:, 1],
+                color="black",
+                label="true",
+                linestyle="-",
+            )
+        )
         pred_mean_state = np.vstack(self.mean_state_traj[-1])
-        rm.append(ax.plot(pred_mean_state[:,0], pred_mean_state[:,1], color='black', label='mean', linestyle='--'))
+        rm.append(
+            ax.plot(
+                pred_mean_state[:, 0],
+                pred_mean_state[:, 1],
+                color="black",
+                label="mean",
+                linestyle="--",
+            )
+        )
         return rm
-    
+
     def remove_temp_objects(self, temp_obj):
         for t in temp_obj:
             if type(t) is list:
@@ -130,18 +157,20 @@ class Visualizer:
 
     def plot_pendulum_traj(self, X, U):
         plt.close()
-        plt.plot(X[:,0::2],X[:,1::2])#, label = [i for i in range(self.params["agent"]["num_dyn_samples"])])
+        plt.plot(
+            X[:, 0::2], X[:, 1::2]
+        )  # , label = [i for i in range(self.params["agent"]["num_dyn_samples"])])
         # plt.legend([i for i in range(self.params["agent"]["num_dyn_samples"])])
-        plt.xlabel('theta')
-        plt.ylabel('theta_dot')
-        x1_true, x2_true = self.propagate_true_dynamics(X[0,0:2], U)
-        plt.plot(x1_true, x2_true, color='black', label='true', linestyle='--')
-        x1_mean, x2_mean = self.propagate_mean_dyn(X[0,0:2], U)
+        plt.xlabel("theta")
+        plt.ylabel("theta_dot")
+        x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
+        plt.plot(x1_true, x2_true, color="black", label="true", linestyle="--")
+        x1_mean, x2_mean = self.propagate_mean_dyn(X[0, 0:2], U)
         print("x1_mean", x1_mean, x2_mean)
-        plt.plot(x1_mean, x2_mean, color='black', label='mean', linestyle='-.')
+        plt.plot(x1_mean, x2_mean, color="black", label="mean", linestyle="-.")
         plt.legend()
         plt.grid()
-        plt.savefig('pendulum.png')
+        plt.savefig("pendulum.png")
 
     def record_out(self, x_curr, X, U, pred_true_state, pred_mean_state):
         self.physical_state_traj.append(x_curr)
@@ -154,9 +183,9 @@ class Visualizer:
         self.physical_state_traj.append(x_curr)
         self.state_traj.append(X)
         self.input_traj.append(U)
-        x1_true, x2_true = self.propagate_true_dynamics(X[0,0:2], U)
+        x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
         # x1_mean, x2_mean = self.propagate_mean_dyn(X[0,0:2], U)
-        self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0,1))
+        self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0, 1))
         # self.mean_state_traj.append(torch.Tensor([x1_mean, x2_mean]).transpose(0,1))
 
     def save_data(self):
@@ -187,6 +216,3 @@ class Visualizer:
         self.true_state_traj = data_dict["true_state_traj"]
         self.physical_state_traj = data_dict["physical_state_traj"]
         a_file.close()
-
-
-        

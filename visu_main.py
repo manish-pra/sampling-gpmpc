@@ -12,16 +12,16 @@ from src.visu import Visualizer
 from src.agent import Agent
 import numpy as np
 
-warnings.filterwarnings('ignore')
-plt.rcParams['figure.figsize'] = [12, 6]
+warnings.filterwarnings("ignore")
+plt.rcParams["figure.figsize"] = [12, 6]
 
 workspace = "safe_gpmpc"
 
-parser = argparse.ArgumentParser(description='A foo that bars')
-parser.add_argument('-param', default="params")  # params
+parser = argparse.ArgumentParser(description="A foo that bars")
+parser.add_argument("-param", default="params")  # params
 
-parser.add_argument('-env', type=int, default=0)
-parser.add_argument('-i', type=int, default=39)  # initialized at origin
+parser.add_argument("-env", type=int, default=0)
+parser.add_argument("-i", type=int, default=39)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -53,7 +53,12 @@ if not os.path.exists(save_path):
 
 # 3) Setup the environment. This class defines different environments
 env = ContiWorld(
-    env_params=params["env"], common_params=params["common"], visu_params=params["visu"], env_dir=env_load_path, params=params)
+    env_params=params["env"],
+    common_params=params["common"],
+    visu_params=params["visu"],
+    env_dir=env_load_path,
+    params=params,
+)
 
 print(args)
 if args.i != -1:
@@ -82,8 +87,14 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
 # load data)
 
 for i in range(0, len(state_traj)):
-    mean_state_traj = state_traj[i][:,:2]
-    visu.record_out(physical_state_traj[i], state_traj[i], input_traj[i], true_state_traj[i], mean_state_traj)
+    mean_state_traj = state_traj[i][:, :2]
+    visu.record_out(
+        physical_state_traj[i],
+        state_traj[i],
+        input_traj[i],
+        true_state_traj[i],
+        mean_state_traj,
+    )
     temp_obj = visu.plot_receding_pendulum_traj()
     # X = visu.state_traj[i]
     # U = visu.input_traj[i]

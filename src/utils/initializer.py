@@ -15,8 +15,9 @@ from src.agent import Agent
 #             train["Fx_X"][:i]+train["Fx_X"][i+1:], train["Fx_Y"][:i]+train["Fx_Y"][i+1:])
 #     return players
 
+
 def get_players_initialized(params):
     players = []
     for i in range(params["env"]["n_players"]):
-        players.append(Agent(i,params))
+        players.append(Agent(i, params))
     return players

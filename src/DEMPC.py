@@ -8,7 +8,8 @@ from src.utils.initializer import get_players_initialized
 from src.utils.termcolor import bcolors
 import timeit
 
-class DEMPC():
+
+class DEMPC:
     def __init__(self, params, env, visu, agent) -> None:
         self.dempc_solver = DEMPC_solver(params)
         self.env = env
@@ -29,11 +30,9 @@ class DEMPC():
         self.goal_in_pessi = False
         self.state_dim = self.x_dim
         self.agent = agent
-        
 
     def dempc_main(self):
-        """_summary_ Responsible for initialization, logic for when to collect sample vs explore
-        """
+        """_summary_ Responsible for initialization, logic for when to collect sample vs explore"""
         # while not self.agent.infeasible:
         run = True
         # self.agent.feasible = True
@@ -46,15 +45,27 @@ class DEMPC():
         print("Receding Horizon")
         for i in range(100):
             torch.cuda.empty_cache()
-            x_curr = self.agent.current_state[:self.state_dim].reshape(self.state_dim)
+            x_curr = self.agent.current_state[: self.state_dim].reshape(self.state_dim)
             if torch.is_tensor(x_curr):
                 x_curr = x_curr.numpy()
-            st_curr = np.array(x_curr.tolist()*self.params["agent"]["num_dyn_samples"])
+            st_curr = np.array(
+                x_curr.tolist() * self.params["agent"]["num_dyn_samples"]
+            )
             X, U = self.one_step_planner(st_curr)
             X1_kp1, X2_kp1 = self.agent.pendulum_discrete_dyn(X[0][0], X[0][1], U[0])
             self.agent.update_current_state(torch.Tensor([X1_kp1, X2_kp1]))
             # propagate the agent to the next state
-            print(bcolors.green + "Reached:", i, " ", X1_kp1," ", X2_kp1 , " ", U[0],  bcolors.ENDC)
+            print(
+                bcolors.green + "Reached:",
+                i,
+                " ",
+                X1_kp1,
+                " ",
+                X2_kp1,
+                " ",
+                U[0],
+                bcolors.ENDC,
+            )
         return False
 
     def receding_horizon_old(self, player):
@@ -69,8 +80,7 @@ class DEMPC():
             print(bcolors.OKCYAN + "Solving Constrints" + bcolors.ENDC)
 
             # Write in MPC style to reach the goal. The main loop is outside
-            x_curr = self.agent.current_location[0][0].reshape(
-                1).numpy()
+            x_curr = self.agent.current_location[0][0].reshape(1).numpy()
             x_origin = self.agent.origin[0].reshape(1).numpy()
             self.dempc_solver.ocp_solver.set(0, "lbx", x_curr)
             self.dempc_solver.ocp_solver.set(0, "ubx", x_curr)
@@ -95,8 +105,9 @@ class DEMPC():
             self.env.integrator.solve()
             x_next = self.env.integrator.get("x")
             self.agent.update_current_location(
-                torch.Tensor([x_next.item(), -2.0]).reshape(-1, 2))
-            diff = X[int(self.H/2)] - x_curr
+                torch.Tensor([x_next.item(), -2.0]).reshape(-1, 2)
+            )
+            diff = X[int(self.H / 2)] - x_curr
             print(x_curr, " ", diff)
             # self.visu.UpdateIter(self.iter, -1)
             # self.visu.UpdateSafeVisu(0, self.players, self.env)
@@ -113,7 +124,8 @@ class DEMPC():
         # set current location as the location to be measured
         self.agent.safe_meas_loc = player.current_location
         goal_dist = (
-            player.planned_measure_loc[0] - player.current_location[0][0]).numpy()
+            player.planned_measure_loc[0] - player.current_location[0][0]
+        ).numpy()
         if np.abs(goal_dist.item()) < 1.0e-2:
             self.flag_reached_xt_goal = True
         self.prev
@@ -180,11 +192,11 @@ class DEMPC():
         t_0 = timeit.default_timer()
         self.dempc_solver.solve(self.agent)
         t_1 = timeit.default_timer()
-        print("Time to solve", t_1-t_0)
+        print("Time to solve", t_1 - t_0)
         X, U, Sl = self.dempc_solver.get_solution()
         # self.visu.Dyn_gp_model = self.agent.Dyn_gp_model
         self.visu.record(st_curr, X, U)
         # print(X,U)
-        
+
         # self.visu.plot_pendulum_traj(X,U)
         return torch.from_numpy(X).float(), torch.from_numpy(U).float()

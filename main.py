@@ -14,16 +14,16 @@ import numpy as np
 import torch
 import pickle
 
-warnings.filterwarnings('ignore')
-plt.rcParams['figure.figsize'] = [12, 6]
+warnings.filterwarnings("ignore")
+plt.rcParams["figure.figsize"] = [12, 6]
 
 workspace = "safe_gpmpc"
 
-parser = argparse.ArgumentParser(description='A foo that bars')
-parser.add_argument('-param', default="params")  # params
+parser = argparse.ArgumentParser(description="A foo that bars")
+parser.add_argument("-param", default="params")  # params
 
-parser.add_argument('-env', type=int, default=0)
-parser.add_argument('-i', type=int, default=39)  # initialized at origin
+parser.add_argument("-env", type=int, default=0)
+parser.add_argument("-i", type=int, default=39)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -61,7 +61,12 @@ if not os.path.exists(save_path):
 
 # 3) Setup the environment. This class defines different environments
 env = ContiWorld(
-    env_params=params["env"], common_params=params["common"], visu_params=params["visu"], env_dir=env_load_path, params=params)
+    env_params=params["env"],
+    common_params=params["common"],
+    visu_params=params["visu"],
+    env_dir=env_load_path,
+    params=params,
+)
 
 print(args)
 if args.i != -1:
@@ -83,5 +88,3 @@ visu.save_data()
 # dict_file = torch.cuda.memory._snapshot()
 # pickle.dump(dict_file, open(save_path + str(traj_iter) + "/memory_snapshot_1.pickle", "wb"))
 exit()
-
-
