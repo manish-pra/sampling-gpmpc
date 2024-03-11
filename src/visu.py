@@ -199,9 +199,6 @@ class Visualizer:
         # data_dict["meas_traj"] = self.meas_traj
         # data_dict["player_train_pts"] = self.player_train_pts
         # data_dict["player_model"] = self.player_model
-        # data_dict["opti_path_list"] = self.opti_path_list
-        # data_dict["utility_minimizer_list"] = self.utility_minimizer_list
-        # data_dict["num_safe_nodes_list"] = self.num_safe_nodes_list
         # data_dict["iteration_time"] = self.iteration_time
         # a_file = open(self.save_path + "/data.pkl", "wb")
         pickle.dump(data_dict, a_file)

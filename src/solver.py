@@ -87,20 +87,6 @@ class DEMPC_solver(object):
             self.ocp_solver.set(self.H, "x", x_init)
             x_init[-1] = half_time + dt * (self.H - self.Hm)
             x_h[self.H, :] = x_init.copy()
-            # x0 = np.zeros(self.state_dim)
-            # x0[:self.x_dim] = np.ones(self.x_dim)*0.72
-            # x0=np.concatenate([x0, np.array([0.0])])
-            # x_init=x0.copy()
-            # # x_init = self.ocp_solver.get(0, "x")
-            # u_init = self.ocp_solver.get(0, "u")
-            # Ts = 1/200
-            # # MPC controller
-            # x_init = np.array([0.72,0.72,0.0,0.0, 0.0])
-            # u_init = np.array([-0.2,-0.2, Ts])
-            #     x_h[stage, :] = x_init
-            #     u_h[stage, :] = u_init
-            # x_h[self.H, :] = x_init
-            # self.ocp_solver.set(self.H, "x", x_init)
         return x_h, u_h
 
     def path_init(self, path):
@@ -202,33 +188,6 @@ class DEMPC_solver(object):
 
             X, U, Sl = self.get_solution()
             # print("X", X, "U", U)
-            # for stage in range(self.H):
-            #     print(stage, " constraint ", self.constraint(LB_cz_val[stage], LB_cz_grad[stage], U[stage,3:5], X[stage,0:4], u_h[stage,-self.x_dim:], x_h[stage, :self.state_dim], self.params["common"]["Lc"]))
-            if sqp_iter == (self.max_sqp_iter - 1):
-                if self.params["visu"]["show"]:
-                    plt.figure(2)
-                    if (
-                        self.params["algo"]["type"] == "ret_expander"
-                        or self.params["algo"]["type"] == "MPC_expander"
-                    ):
-                        plt.plot(X[:, 0], X[:, 1], color="tab:green")  # state
-                        plt.plot(U[:, 3], U[:, 4], color="tab:blue")  # l(x)
-                    else:
-                        plt.plot(X[:, 0], X[:, 1], color="tab:green")
-                    plt.xlim(
-                        self.params["env"]["start"],
-                        self.params["env"]["start"]
-                        + self.params["visu"]["step_size"]
-                        * self.params["env"]["shape"]["x"],
-                    )
-                    plt.ylim(
-                        self.params["env"]["start"],
-                        self.params["env"]["start"]
-                        + self.params["visu"]["step_size"]
-                        * self.params["env"]["shape"]["y"],
-                    )
-                    # plt.axes().set_aspect('equal')
-                    plt.savefig("temp.png")
             # print("statistics", self.ocp_solver.get_stats("statistics"))
             if max(residuals) < self.tol_nlp:
                 print("Residual less than tol", max(residuals), " ", self.tol_nlp)
@@ -238,24 +197,6 @@ class DEMPC_solver(object):
             #         self.ocp_solver.status))
             #     self.ocp_solver.reset()
             #     self.ocp_solver.load_iterate(self.name_prefix + 'ocp_initialization.json')
-
-    def constraint(self, lb_cz_lin, lb_cz_grad, model_z, model_x, z_lin, x_lin, Lc):
-        x_dim = self.x_dim
-        tol = 1e-5
-        ret = (
-            lb_cz_lin
-            + lb_cz_grad.T @ (model_z - z_lin)
-            - (Lc / (ca.norm_2(x_lin[:x_dim] - z_lin) + tol))
-            * ((x_lin[:x_dim] - z_lin).T @ (model_x - x_lin)[:x_dim])
-            - (Lc / (ca.norm_2(x_lin[:x_dim] - z_lin) + tol))
-            * ((z_lin - x_lin[:x_dim]).T @ (model_z - z_lin))
-            - Lc * ca.norm_2(x_lin[:x_dim] - z_lin)
-        )
-        # ret = lb_cz_lin + lb_cz_grad.T @ (model_z-z_lin) - 2*Lc*(x_lin[:x_dim] - z_lin).T@(model_x-x_lin)[:x_dim] - 2*Lc*(z_lin-x_lin[:x_dim]).T@(model_z-z_lin) - Lc*(x_lin[:x_dim] - z_lin).T@(x_lin[:x_dim] - z_lin)
-        return ret, lb_cz_lin + lb_cz_grad.T @ (model_z - z_lin)
-
-    def model_ss(self, model_x):
-        val = model_x - model.f_expl_expr[:-1]
 
     def get_solution(self):
         X = np.zeros((self.H + 1, self.nx))

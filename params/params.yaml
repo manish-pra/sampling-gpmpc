@@ -47,17 +47,13 @@ visu:
   show: False
   show_current_loc: False
   step_size: 0.02
-  
-  opti_path: False
-  show_path: True
-  show_opti_set: True
 
 common:
   dim : 2
   constraint : 0.0
   epsilon : 0.4 #epsilon : 0.3 #0.25
-  Lc : 7    #4.45  # 11.159
   use_cuda : True
+  num_MPC_itrs : 50
 
 optimizer:
   H : 30 # horizon

@@ -6,13 +6,12 @@ import warnings
 import matplotlib.pyplot as plt
 import yaml
 
-from src.environment import ContiWorld
+
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
 import numpy as np
 import torch
-import pickle
 
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
@@ -59,15 +58,6 @@ if not os.path.exists(save_path):
         if e.errno != errno.EEXIST:
             raise
 
-# 3) Setup the environment. This class defines different environments
-env = ContiWorld(
-    env_params=params["env"],
-    common_params=params["common"],
-    visu_params=params["visu"],
-    env_dir=env_load_path,
-    params=params,
-)
-
 print(args)
 if args.i != -1:
     traj_iter = args.i
@@ -82,7 +72,7 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 agent.update_current_state(np.array(params["env"]["start"]))
 
 
-de_mpc = DEMPC(params, env, visu, agent)
+de_mpc = DEMPC(params, visu, agent)
 de_mpc.dempc_main()
 visu.save_data()
 # dict_file = torch.cuda.memory._snapshot()
