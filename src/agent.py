@@ -17,16 +17,15 @@ class Agent(object):
     def __init__(self, params) -> None:
         self.my_key = 0
         self.params = params
-        self.env_dim = params["common"]["dim"]
-        self.in_dim = len(self.params["optimizer"]["x_min"]) + len(
-            self.params["optimizer"]["u_min"]
+        self.nx = self.params["agent"]["dim"]["nx"]
+        self.nu = self.params["agent"]["dim"]["nu"]
+        self.ny = self.params["agent"]["dim"]["ny"]
+
+        # TODO: (Manish) replace self.in_dim --> self.nx + self.nu
+        self.in_dim = self.nx + self.nu
+        self.batch_shape = torch.Size(
+            [self.params["agent"]["num_dyn_samples"], self.ny]
         )
-        self.out_dim = 1  # len(self.params["optimizer"]["x_min"])
-        self.batch_shape = torch.Size([self.params["agent"]["num_dyn_samples"], 2])
-        # self.Fx_X_train = X_train.reshape(-1, self.env_dim)
-        # self.Cx_X_train = X_train.reshape(-1, self.env_dim)
-        # self.Fx_Y_train = Fx_Y_train.reshape(-1, 1)
-        # self.Cx_Y_train = Cx_Y_train.reshape(-1, 1)
         self.mean_shift_val = params["agent"]["mean_shift_val"]
         self.converged = False
         self.x_dim = params["optimizer"]["x_dim"]
@@ -46,9 +45,11 @@ class Agent(object):
         self.Hallcinated_Y_train = None
         self.model_i = None
 
-        self.Hallcinated_X_train = torch.empty(self.eff_dyn_samples, 2, 0, self.in_dim)
+        self.Hallcinated_X_train = torch.empty(
+            self.eff_dyn_samples, self.ny, 0, self.in_dim
+        )
         self.Hallcinated_Y_train = torch.empty(
-            self.eff_dyn_samples, 2, 0, self.in_dim + 1
+            self.eff_dyn_samples, self.ny, 0, self.in_dim + 1
         )  # NOTE(amon): added+1 to in_dim
         # self.Hallcinated_Y_train['y1'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
         # self.Hallcinated_Y_train['y2'] = torch.empty(self.eff_dyn_samples,0,1+self.in_dim)
@@ -99,17 +100,18 @@ class Agent(object):
         n_dyn = self.params["agent"]["num_dyn_samples"]
         beta = self.params["agent"]["Dyn_gp_beta"]
         n_mpc = self.params["common"]["num_MPC_itrs"]
+        n_itrs = self.params["optimizer"]["SEMPC"]["max_sqp_iter"]
         # ret_itrs = torch.normal(0, 1, size=(2, n_dyn, 2, H, 4))
         # ret_itrs = torch.normal(
         #     torch.zeros(2, n_dyn, 2, H, 4), torch.ones(2, n_dyn, 2, H, 4)
         # )
-        ret_mpc_iters = torch.empty(n_mpc, 2, n_dyn, 2, H, 4)
+        ret_mpc_iters = torch.empty(n_mpc, n_itrs, n_dyn, self.ny, H, self.in_dim + 1)
         for j in range(self.params["common"]["num_MPC_itrs"]):
-            ret_itrs = torch.empty(2, n_dyn, 2, H, 4)
+            ret_itrs = torch.empty(n_itrs, n_dyn, self.ny, H, self.in_dim + 1)
             for i in range(self.params["optimizer"]["SEMPC"]["max_sqp_iter"]):
-                ret = torch.empty(0, 2, H, 4)
+                ret = torch.empty(0, self.ny, H, self.in_dim + 1)
                 while True:
-                    w = torch.normal(0, 1, size=(1, 2, H, 4))
+                    w = torch.normal(0, 1, size=(1, self.ny, H, self.in_dim + 1))
                     if torch.all(w >= -beta) and torch.all(w <= beta):
                         ret = torch.cat([ret, w], dim=0)
                     if ret.shape[0] == n_dyn:
@@ -125,20 +127,6 @@ class Agent(object):
         self.current_state = state
         self.update_current_location(state[: self.x_dim])
 
-    def fit_i_model(self, data_sa, labels_s_next):
-        Fx_X = data_sa.reshape(-1, 3)
-        Fx_Y = labels_s_next.reshape(-1, 2)
-        model_i = SingleTaskGP(
-            Fx_X,
-            Fx_Y,
-            covar_module=ScaleKernel(
-                base_kernel=RBFKernel(),
-            ),
-        )
-        model_i.covar_module.base_kernel.lengthscale = self.Dyn_gp_lengthscale
-        model_i.likelihood.noise = self.Dyn_gp_noise
-        return model_i
-
     def __update_Dyn(self):
         # likelihood = {}
         # self.Dyn_gp_model = {}
@@ -148,7 +136,7 @@ class Agent(object):
         # RuntimeError: Shapes are not broadcastable for mul operation
 
         likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-            num_tasks=4,
+            num_tasks=self.in_dim + 1,
             noise_constraint=gpytorch.constraints.GreaterThan(0.0),
             batch_shape=self.batch_shape,
         )
@@ -242,7 +230,7 @@ class Agent(object):
     def real_data_batch(self):
         n_pnts, n_dims = self.Dyn_gp_X_train.shape
         self.Dyn_gp_X_train_batch = torch.tile(
-            self.Dyn_gp_X_train, dims=(self.eff_dyn_samples, 2, 1, 1)
+            self.Dyn_gp_X_train, dims=(self.eff_dyn_samples, self.ny, 1, 1)
         )
         self.Dyn_gp_Y_train_batch = torch.tile(
             self.Dyn_gp_Y_train, dims=(self.eff_dyn_samples, 1, 1, 1)
@@ -275,7 +263,7 @@ class Agent(object):
             [self.Dyn_gp_Y_train_batch, self.Hallcinated_Y_train], dim=2
         )
         likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-            num_tasks=4,
+            num_tasks=self.in_dim + 1,
             noise_constraint=gpytorch.constraints.GreaterThan(0.0),
             batch_shape=self.batch_shape,
         )  # Value + Derivative
@@ -323,8 +311,10 @@ class Agent(object):
                 # del self.Hallcinated_Y_train['y2']
                 del self.Hallcinated_Y_train
 
-            self.Hallcinated_X_train = torch.empty(n_sample, 2, 0, self.in_dim)
-            self.Hallcinated_Y_train = torch.empty(n_sample, 2, 0, 1 + self.in_dim)
+            self.Hallcinated_X_train = torch.empty(n_sample, self.ny, 0, self.in_dim)
+            self.Hallcinated_Y_train = torch.empty(
+                n_sample, self.ny, 0, 1 + self.in_dim
+            )
             # self.Hallcinated_Y_train['y1'] = torch.empty(n_sample,0,1+self.in_dim)
             # self.Hallcinated_Y_train['y2'] = torch.empty(n_sample,0,1+self.in_dim)
             if self.use_cuda:
@@ -501,16 +491,6 @@ class Agent(object):
             50
         ):
             self.model_i.eval()
-            # likelihood(self.Dyn_model_list[self.sample_idx](x_hat)) for sampling with noise
-            # lower, upper = self.model_i[out](x_hat[batch_idx:]).confidence_region()
-            # lower, upper = self.scale_with_beta(lower, upper, 16)
-            # while True:
-            #     sample = self.model_i[out](x_hat[batch_idx:]).sample()
-            #     if (sample>=lower).all() and (sample<=upper).all():
-            #         break
-            #     del sample
-            # y_sample[out] = sample
-            # del lower, upper
             y_sample = self.model_i(x_hat[batch_idx:]).sample(
                 base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
@@ -529,10 +509,10 @@ class Agent(object):
         # y_grad = {}
         # y_grad['y1'] = y_sample['y1'][:,:,1:3].cpu().numpy()
         # y_grad['y2'] = y_sample['y2'][:,:,1:3].cpu().numpy()
-        y_grad = y_sample[:, :, :, 1:3].cpu().numpy()
+        y_grad = y_sample[:, :, :, 1 : 1 + self.nx].cpu().numpy()
         # u_grad = torch.cat([y_sample['y1'][:,:,-1].unsqueeze(2),y_sample['y2'][:,:,-1].unsqueeze(2)],2).cpu().numpy()
         # u_grad = torch.cat([y_sample[:,0,:,-1].unsqueeze(1).unsqueeze(3),y_sample[:,1,:,-1].unsqueeze(1).unsqueeze(3)],1).cpu().numpy()
-        u_grad = y_sample[:, :, :, [-1]].cpu().numpy()
+        u_grad = y_sample[:, :, :, 1 + self.nx : 1 + self.nx + self.nu].cpu().numpy()
         del y_sample
         del x_hat
         return gp_val, y_grad, u_grad  # y, dy/dx1, dy/dx2, dy/du
