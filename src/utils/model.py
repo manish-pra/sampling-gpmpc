@@ -23,6 +23,7 @@ def export_linear_model(name, p, num_dyn):
         x_lin_list.append(ca.SX.sym('x_lin'+str(i), nx))
         f_at_lin_list.append(ca.SX.sym('f_at_lin'+str(i), nx))
         f_expl = ca.vertcat(f_expl,  A_list[i] @ x[nx*i:nx*(i+1)] + B_list[i] @ u - (A_list[i] @ x_lin_list[i] + B_list[i] @ u_lin - f_at_lin_list[i]))
+        # TODO: (amon) Casadi reshape row-wise -> for multiple inputs B_list is likely wrong, also needs to be transposed? Or is that because of the explicit output treatment?
         p_lin = ca.vertcat(p_lin, A_list[i].T.reshape((nx**2, 1)), B_list[i].reshape((nx*nu, 1)), x_lin_list[i],f_at_lin_list[i])
     p_lin = ca.vertcat(p_lin, u_lin, p)
 
