@@ -14,21 +14,11 @@ from src.utils.model import (
     export_unicycle_model_with_discrete_rk4,
 )
 
-# control a model whose dynamics is known but with a GP model
-# Make that GP trained with pendulum data
-# check results
-# make it for multiple GP's
-
 
 def export_dempc_ocp(params):
     ocp = AcadosOcp()
     name_prefix = (
-        params["algo"]["type"]
-        + "_env_"
-        + str(params["env"]["name"])
-        + "_i_"
-        + str(params["env"]["i"])
-        + "_"
+        "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
     )
     n_order = params["optimizer"]["order"]
     x_dim = params["optimizer"]["x_dim"]
@@ -37,12 +27,8 @@ def export_dempc_ocp(params):
         x_dim, n_order, params
     )  # think of a pendulum and -pi/2,pi, pi/2 region is unsafe
 
-    model = export_linear_model(
-        name_prefix + "dempc", p, params["agent"]["num_dyn_samples"]
-    )  # start pendulum at 0
-
+    model = export_linear_model(name_prefix + "dempc", p, params)  # start pendulum at 0
     # model.con_h_expr = const_expr
-
     model_x = model.x
     model_u = model.u
     ocp.model = model
@@ -123,6 +109,7 @@ def concat_const_val(ocp, params):
 
 def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     pos_dim = 1
+    nx = params["agent"]["dim"]["nx"]
     q = 1e-3 * np.diag(np.ones(pos_dim))
     qx = np.diag(np.ones(pos_dim))
     xg = p[0]
@@ -144,11 +131,11 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
         )
     else:
         ocp.model.cost_expr_ext_cost = (
-            w * (model_x[::2] - xg).T @ qx @ (model_x[::2] - xg)
+            w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
             + model_u.T @ (q) @ model_u
         )
         ocp.model.cost_expr_ext_cost_e = (
-            w * (model_x[::2] - xg).T @ qx @ (model_x[::2] - xg)
+            w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
         )
 
     # if params["algo"]["type"] == "ret_expander" or params["algo"]["type"] == "MPC_expander":
@@ -180,7 +167,6 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
 
 def dempc_const_val(ocp, params, x_dim, n_order):
     # constraints
-    eps = params["common"]["epsilon"]  # - 0.05
     ocp.constraints.lbu = np.array(params["optimizer"]["u_min"])
     ocp.constraints.ubu = np.array(params["optimizer"]["u_max"])
     ocp.constraints.idxbu = np.arange(1)

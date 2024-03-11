@@ -13,14 +13,10 @@ from src.utils.ocp import export_dempc_ocp
 # it takes in GP function, x_g and rest are parameters
 class DEMPC_solver(object):
     def __init__(self, params) -> None:
+        self.params = params
         ocp = export_dempc_ocp(params)
         self.name_prefix = (
-            params["algo"]["type"]
-            + "_env_"
-            + str(params["env"]["name"])
-            + "_i_"
-            + str(params["env"]["i"])
-            + "_"
+            "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
         )
         self.ocp_solver = AcadosOcpSolver(
             ocp, json_file=self.name_prefix + "acados_ocp_sempc.json"
@@ -28,17 +24,11 @@ class DEMPC_solver(object):
         self.ocp_solver.store_iterate(self.name_prefix + "ocp_initialization.json")
 
         self.H = params["optimizer"]["H"]
-        self.Hm = params["optimizer"]["Hm"]
         self.max_sqp_iter = params["optimizer"]["SEMPC"]["max_sqp_iter"]
         self.tol_nlp = params["optimizer"]["SEMPC"]["tol_nlp"]
-        self.nx = ocp.model.x.size()[0]
-        self.nu = ocp.model.u.size()[0]
-        self.eps = params["common"]["epsilon"]
-        self.n_order = params["optimizer"]["order"]
-        self.x_dim = params["optimizer"]["x_dim"]
+        self.nx = self.params["agent"]["dim"]["nx"]
+        self.nu = self.params["agent"]["dim"]["nu"]
         self.pos_dim = 1
-        self.params = params
-        self.state_dim = self.n_order * self.x_dim
 
     def initilization(self, sqp_iter, x_h, u_h):
         for stage in range(self.H):
@@ -89,72 +79,37 @@ class DEMPC_solver(object):
             x_h[self.H, :] = x_init.copy()
         return x_h, u_h
 
-    def path_init(self, path):
-        split_path = np.zeros((self.H + 1, self.x_dim))
-        interp_h = np.arange(self.Hm)
-        path_step = np.linspace(0, self.Hm, path.shape[0])
-        x_pos = np.interp(interp_h, path_step, path.numpy()[:, 0])
-        y_pos = np.interp(interp_h, path_step, path.numpy()[:, 1])
-        split_path[: self.Hm, 0], split_path[: self.Hm, 1] = x_pos, y_pos
-        split_path[self.Hm :, :] = (
-            np.ones_like(split_path[self.Hm :, :]) * path[-1].numpy()
-        )
-        # split the path into horizons
-        for stage in range(self.H + 1):
-            x_init = self.ocp_solver.get(stage, "x")
-            x_init[: self.x_dim] = split_path[stage]
-            self.ocp_solver.set(stage, "x", x_init)
-
     def solve(self, player):
         # self.ocp_solver.store_iterate(self.name_prefix + 'ocp_initialization.json', overwrite=True)
-        x_h = np.zeros(
-            (self.H, (self.pos_dim + 1) * self.params["agent"]["num_dyn_samples"])
-        )
-        u_h = np.zeros((self.H, self.pos_dim))  # u_dim
+        x_h = np.zeros((self.H, self.nx * self.params["agent"]["num_dyn_samples"]))
+        u_h = np.zeros((self.H, self.nu))  # u_dim
         # w = 1e-3*np.ones(self.H+1)
-        # w[int(self.H - 1)] = self.params["optimizer"]["w"]
+        # w[int(self.H/2)] = self.params["optimizer"]["w"]
         w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
-        # we = 1e-8*np.ones(self.H+1)
-        # we[int(self.H-1)] = 10000
-        # w[:int(self.Hm)] = 1e-1*np.ones(self.Hm)
-
-        # cw = 1e+3*np.ones(self.H+1)
-        # if not player.goal_in_pessi:
-        #     cw[int(self.Hm)] = 1
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
-        # x_origin = player.origin[:self.pos_dim].numpy()
-        x_terminal = np.zeros(self.pos_dim)
-        # x_terminal[:self.pos_dim] = np.ones(self.pos_dim)*x_origin
+
         for sqp_iter in range(self.max_sqp_iter):
             self.ocp_solver.options_set("rti_phase", 1)
-            # if self.params["algo"]["type"] == "ret" or self.params["algo"]["type"] == "ret_expander":
-            #     if player.goal_in_pessi:
-            #         x_h, u_h = self.initilization(sqp_iter, x_h, u_h)
-            #     else:
-            #         for stage in range(self.H):
-            #             # current stage values
-            #             x_h[stage, :] = self.ocp_solver.get(stage, "x")
-            #             u_h[stage, :] = self.ocp_solver.get(stage, "u")
-            #         x_h[self.H, :] = self.ocp_solver.get(self.H, "x")
-            # else:
-            #    pass
             # x_h, u_h = self.initilization(sqp_iter, x_h, u_h)
             for stage in range(self.H):
                 # current stage values
                 x_h[stage, :] = self.ocp_solver.get(stage, "x")
                 u_h[stage, :] = self.ocp_solver.get(stage, "u")
-            # x_h[self.H, :] = self.ocp_solver.get(self.H, "x")
+            # x_h[self.H, :] = self.ocp_solver.get(self.H, "x") --> not needed, no corresponding u
 
             # create model with updated data
             player.train_hallucinated_dynGP(sqp_iter)
             batch_x_hat = player.get_batch_x_hat(x_h, u_h)
             # sample the gradients
-            gp_val, y_grad, u_grad = player.get_batch_gp_sensitivities(batch_x_hat)
+            gp_val, y_grad, u_grad = player.get_batch_gp_sensitivities(
+                batch_x_hat, sqp_iter
+            )
             del batch_x_hat
             # gp_val, gp_grad = player.get_gp_sensitivities(np.hstack([x_h, u_h]), "mean", 0)
             # gp_val, gp_grad = player.get_true_gradient(np.hstack([x_h,u_h]))
             for stage in range(self.H):
                 p_lin = np.empty(0)
+                # TODO (manish) remove num_dyn for loop --> use dim manipulation
                 for i in range(self.params["agent"]["num_dyn_samples"]):
                     p_lin = np.concatenate(
                         [
@@ -165,16 +120,13 @@ class DEMPC_solver(object):
                             # y_grad['y2'][i,stage,:].reshape(-1),
                             u_grad[i, :, stage, :].reshape(-1),
                             # u_grad[i,stage,:].reshape(-1),
-                            x_h[stage, i * 2 : 2 * (i + 1)],
+                            x_h[stage, i * self.nx : self.nx * (i + 1)],
                             gp_val[i, :, stage, :].reshape(-1),
                             # gp_val[i,stage,:].reshape(-1)
                         ]
                     )
                 p_lin = np.hstack([p_lin, u_h[stage], xg[stage], w[stage]])
                 self.ocp_solver.set(stage, "p", p_lin)
-                # self.ocp_solver.set(stage, "p", np.hstack(
-                #     (gp_grad[:,stage,:][:,:2].transpose().reshape(-1), gp_grad[:,stage,:][:,-1].reshape(-1), x_h[stage],
-                #      u_h[stage], gp_val[:,stage], xg[stage], w[stage])))
             status = self.ocp_solver.solve()
 
             self.ocp_solver.options_set("rti_phase", 2)
@@ -186,8 +138,6 @@ class DEMPC_solver(object):
             print("cost", self.ocp_solver.get_cost())
             residuals = self.ocp_solver.get_residuals()
 
-            X, U, Sl = self.get_solution()
-            # print("X", X, "U", U)
             # print("statistics", self.ocp_solver.get_stats("statistics"))
             if max(residuals) < self.tol_nlp:
                 print("Residual less than tol", max(residuals), " ", self.tol_nlp)
@@ -199,8 +149,10 @@ class DEMPC_solver(object):
             #     self.ocp_solver.load_iterate(self.name_prefix + 'ocp_initialization.json')
 
     def get_solution(self):
-        X = np.zeros((self.H + 1, self.nx))
-        U = np.zeros((self.H, self.nu))
+        nx = self.ocp_solver.acados_ocp.model.x.size()[0]
+        nu = self.ocp_solver.acados_ocp.model.u.size()[0]
+        X = np.zeros((self.H + 1, nx))
+        U = np.zeros((self.H, nu))
         Sl = np.zeros((self.H + 1))
 
         # get data
