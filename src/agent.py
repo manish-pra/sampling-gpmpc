@@ -29,13 +29,14 @@ class Agent(object):
         self.mean_shift_val = params["agent"]["mean_shift_val"]
         self.converged = False
         self.x_dim = params["optimizer"]["x_dim"]
-        if (
-            self.params["agent"]["true_dyn_as_sample"]
-            or self.params["agent"]["mean_as_dyn_sample"]
-        ):
-            self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"] - 1
-        else:
-            self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]
+        # if (
+        #     self.params["agent"]["true_dyn_as_sample"]
+        #     or self.params["agent"]["mean_as_dyn_sample"]
+        # ):
+        #     self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"] - 1
+        # else:
+        #     self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]
+        self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]
 
         if self.params["common"]["use_cuda"] and torch.cuda.is_available():
             self.use_cuda = True
@@ -77,7 +78,7 @@ class Agent(object):
         else:
             self.Dyn_gp_X_train = torch.rand(1, self.in_dim)
             self.Dyn_gp_Y_train = torch.rand(2, 1, 1 + self.in_dim)
-        self.Dyn_gp_model = self.__update_Dyn()
+
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
@@ -114,78 +115,6 @@ class Agent(object):
     def update_current_state(self, state):
         self.current_state = state
         self.update_current_location(state[: self.x_dim])
-
-    def __update_Dyn(self):
-        # likelihood = {}
-        # self.Dyn_gp_model = {}
-        # Fx_Y_train = self.__mean_corrected(self.Fx_Y_train)
-        # self.Dyn_gp_model = GPModelWithDerivatives(self.Dyn_gp_X_train, self.Dyn_gp_Y_train)
-        # raise RuntimeError("Shapes are not broadcastable for mul operation")
-        # RuntimeError: Shapes are not broadcastable for mul operation
-
-        likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-            num_tasks=self.in_dim + 1,
-            noise_constraint=gpytorch.constraints.GreaterThan(0.0),
-            batch_shape=self.batch_shape,
-        )
-        self.Dyn_gp_model = BatchMultitaskGPModelWithDerivatives(
-            self.Dyn_gp_X_train,
-            self.Dyn_gp_Y_train,
-            likelihood,
-            batch_shape=self.batch_shape,
-        )
-        self.Dyn_gp_model.likelihood.noise = torch.tile(
-            torch.Tensor([self.params["agent"]["Dyn_gp_noise"]]),
-            dims=(self.batch_shape[0], self.batch_shape[1], 1),
-        )
-        self.Dyn_gp_model.likelihood.task_noises = torch.tile(
-            torch.Tensor(self.params["agent"]["Dyn_gp_task_noises"]["val"])
-            * self.params["agent"]["Dyn_gp_task_noises"]["multiplier"],
-            dims=(self.batch_shape[0], self.batch_shape[1], 1),
-        )
-
-        self.Dyn_gp_model.covar_module.base_kernel.lengthscale = torch.tile(
-            torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"]["both"]),
-            dims=(self.batch_shape[0], 1, 1, 1),
-        )
-        self.Dyn_gp_model.covar_module.outputscale = torch.tile(
-            torch.Tensor([self.params["agent"]["Dyn_gp_outputscale"]["both"]]),
-            dims=(self.batch_shape[0], 1),
-        )
-
-        if self.use_cuda:
-            self.Dyn_gp_model = self.Dyn_gp_model.cuda()
-
-        return self.Dyn_gp_model
-
-    # def __update_Dyn(self):
-    #     # Fx_Y_train = self.__mean_corrected(self.Fx_Y_train)
-    #     self.Dyn_gp_model = SingleTaskGP(self.Dyn_gp_X_train, self.Dyn_gp_Y_train)
-    #     self.Dyn_gp_model.covar_module.base_kernel.lengthscale = self.Dyn_gp_lengthscale
-    #     self.Dyn_gp_model.likelihood.noise = self.Dyn_gp_noise
-    #     # mll = ExactMarginalLogLikelihood(model.likelihood, model)
-    #     # fit_gpytorch_model(mll)
-    #     return self.Dyn_gp_model
-
-    def update_Dyn_gp(self, newX, newY):
-        self.__update_Dyn_set(newX, newY)
-        self.__update_Dyn()
-        return self.Dyn_gp_model
-
-    def update_Dyn_gp_with_current_data(self):
-        self.__update_Dyn()
-        return self.Dyn_gp_model
-
-    def __update_Dyn_set(self, newX, newY):
-        newX = newX.reshape(-1, self.in_dim)
-        newY = newY.reshape(-1, 1)
-        self.Dyn_gp_X_train = torch.cat([self.Dyn_gp_X_train, newX]).reshape(
-            -1, self.in_dim
-        )
-        self.Dyn_gp_Y_train = torch.cat([self.Dyn_gp_Y_train, newY]).reshape(-1, 1)
-        if self.use_cuda:
-            self.Dyn_gp_X_train = self.Dyn_gp_X_train.cuda()
-            self.Dyn_gp_Y_train = self.Dyn_gp_Y_train.cuda()
 
     def update_hallucinated_Dyn_dataset(self, newX, newY):
         self.Hallcinated_X_train = torch.cat([self.Hallcinated_X_train, newX], 2)
@@ -402,33 +331,28 @@ class Agent(object):
         """
 
         y_mean_dyn = None
-        batch_idx = 1
         if self.params["agent"]["true_dyn_as_sample"]:
+            # TODO: get true gradient from generic model (independent of the pendulum model)
             y_mean_dyn = {}
             y_mean_dyn["y1"], y_mean_dyn["y2"] = self.get_true_gradient(x_hat[0].cpu())
             if self.use_cuda:
                 y_mean_dyn["y1"] = y_mean_dyn["y1"].cuda()
                 y_mean_dyn["y2"] = y_mean_dyn["y2"].cuda()
-        elif self.params["agent"]["mean_as_dyn_sample"]:
-            y_mean_dyn = {}
-            for out in ["y1", "y2"]:
-                with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(
-                    50
-                ):
-                    self.Dyn_gp_model[out].eval()
-                    y_mean_dyn[out] = self.Dyn_gp_model[out](x_hat[0]).mean.detach()
-        else:
-            batch_idx = 0
 
         with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(
             50
         ):
             self.model_i.eval()
-            y_sample = self.model_i(x_hat[batch_idx:]).sample(
+            model_i_call = self.model_i(x_hat)
+            y_sample = model_i_call.sample(
                 base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
 
-        self.update_hallucinated_Dyn_dataset(x_hat[batch_idx:], y_sample)
+            if self.params["agent"]["mean_as_dyn_sample"]:
+                # overwrite first sample with mean
+                y_sample[[0], :, :, :] = model_i_call.mean[[0], :, :, :]
+
+        self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
 
         if y_mean_dyn is not None:
             # TODO: (amon) support includion of mean dyn again
