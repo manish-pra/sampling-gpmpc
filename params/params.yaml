@@ -22,12 +22,10 @@ agent:
   Dyn_gp_beta : 2.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 3
+  num_dyn_samples: 20
   prior_dyn_meas: True       
-  # mean_as_dyn_sample: True
-  mean_as_dyn_sample: True
-  true_dyn_as_sample: True       # This is for debugging, set num_dyn_samples to 1
-  # true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
+  mean_as_dyn_sample: False
+  true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
 
 visu:
   show: False
