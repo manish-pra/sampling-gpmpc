@@ -1,3 +1,0 @@
-[submodule "external/zero-order-gp-mpc-package"]
-	path = external/zero-order-gp-mpc-package
-	url = git@gitlab.ethz.ch:ics-group/projects/amon-lahr/zero-order-gp-mpc-package.git
