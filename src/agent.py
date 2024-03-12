@@ -204,8 +204,8 @@ class Agent(object):
         # B = np.array([[0.0],
         #               [1/l]])
         ret = torch.zeros((2, x_hat.shape[0], 3))
-        ret[1, :, 0] = -g * torch.cos(x_hat[:, 0]) / l
         ret[0, :, 1] = torch.ones(x_hat.shape[0])
+        ret[1, :, 0] = -g * torch.cos(x_hat[:, 0]) / l
         ret[1, :, 2] = torch.ones(x_hat.shape[0]) / l
 
         val = self.pendulum_dyn(x_hat[:, 0], x_hat[:, 1], x_hat[:, 2])
@@ -321,15 +321,6 @@ class Agent(object):
             _type_: in numpy format
         """
 
-        y_mean_dyn = None
-        if self.params["agent"]["true_dyn_as_sample"]:
-            # TODO: get true gradient from generic model (independent of the pendulum model)
-            y_mean_dyn = {}
-            y_mean_dyn["y1"], y_mean_dyn["y2"] = self.get_true_gradient(x_hat[0].cpu())
-            if self.use_cuda:
-                y_mean_dyn["y1"] = y_mean_dyn["y1"].cuda()
-                y_mean_dyn["y2"] = y_mean_dyn["y2"].cuda()
-
         with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(
             50
         ):
@@ -339,15 +330,26 @@ class Agent(object):
                 base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
 
-            if self.params["agent"]["mean_as_dyn_sample"]:
-                # overwrite first sample with mean
-                y_sample[[0], :, :, :] = model_i_call.mean[[0], :, :, :]
+            idx_overwrite = 0
+            if self.params["agent"]["true_dyn_as_sample"]:
+                # overwrite next sample with true dynamics
+                y_sample_true_1, y_sample_true_2 = self.get_prior_data(
+                    x_hat[idx_overwrite, 0, :, :].cpu()
+                )
+                y_sample_true = torch.stack([y_sample_true_1, y_sample_true_2], dim=0)
+                y_sample[idx_overwrite, :, :, :] = y_sample_true
+                idx_overwrite += 1
 
+            if self.params["agent"]["mean_as_dyn_sample"]:
+                # overwrite next sample with mean
+                y_sample[[idx_overwrite], :, :, :] = model_i_call.mean[
+                    [idx_overwrite], :, :, :
+                ]
+                idx_overwrite += 1
+
+        assert torch.all(x_hat[:, 0, :, :] == x_hat[:, 1, :, :])
         self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
 
-        if y_mean_dyn is not None:
-            # TODO: (amon) support includion of mean dyn again
-            y_sample = torch.cat([y_mean_dyn[out].unsqueeze(0), y_sample[out]], 0)
         gp_val = y_sample[:, :, :, [0]].cpu().numpy()
         y_grad = y_sample[:, :, :, 1 : 1 + self.nx].cpu().numpy()
         u_grad = y_sample[:, :, :, 1 + self.nx : 1 + self.nx + self.nu].cpu().numpy()
