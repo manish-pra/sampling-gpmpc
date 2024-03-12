@@ -106,7 +106,10 @@ class Agent(object):
                         break
                 ret_itrs[i, :, :, :, :] = ret
             ret_mpc_iters[j, :, :, :, :, :] = ret_itrs
-        return ret_mpc_iters.cuda()
+
+        if self.use_cuda:
+            ret_mpc_iters = ret_mpc_iters.cuda()
+        return ret_mpc_iters
 
     def update_current_location(self, loc):
         self.current_location = loc
