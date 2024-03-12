@@ -20,6 +20,7 @@ class Agent(object):
         self.nx = self.params["agent"]["dim"]["nx"]
         self.nu = self.params["agent"]["dim"]["nu"]
         self.ny = self.params["agent"]["dim"]["ny"]
+        self.ns = self.params["agent"]["num_dyn_samples"]
 
         # TODO: (Manish) replace self.in_dim --> self.nx + self.nu
         self.in_dim = self.nx + self.nu
@@ -29,14 +30,6 @@ class Agent(object):
         self.mean_shift_val = params["agent"]["mean_shift_val"]
         self.converged = False
         self.x_dim = params["optimizer"]["x_dim"]
-        # if (
-        #     self.params["agent"]["true_dyn_as_sample"]
-        #     or self.params["agent"]["mean_as_dyn_sample"]
-        # ):
-        #     self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"] - 1
-        # else:
-        #     self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]
-        self.eff_dyn_samples = self.params["agent"]["num_dyn_samples"]
 
         if self.params["common"]["use_cuda"] and torch.cuda.is_available():
             self.use_cuda = True
@@ -46,11 +39,9 @@ class Agent(object):
         self.Hallcinated_Y_train = None
         self.model_i = None
 
-        self.Hallcinated_X_train = torch.empty(
-            self.eff_dyn_samples, self.ny, 0, self.in_dim
-        )
+        self.Hallcinated_X_train = torch.empty(self.ns, self.ny, 0, self.in_dim)
         self.Hallcinated_Y_train = torch.empty(
-            self.eff_dyn_samples, self.ny, 0, self.in_dim + 1
+            self.ns, self.ny, 0, self.in_dim + 1
         )  # NOTE(amon): added+1 to in_dim
         if self.use_cuda:
             self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
@@ -123,17 +114,17 @@ class Agent(object):
     def real_data_batch(self):
         n_pnts, n_dims = self.Dyn_gp_X_train.shape
         self.Dyn_gp_X_train_batch = torch.tile(
-            self.Dyn_gp_X_train, dims=(self.eff_dyn_samples, self.ny, 1, 1)
+            self.Dyn_gp_X_train, dims=(self.ns, self.ny, 1, 1)
         )
         self.Dyn_gp_Y_train_batch = torch.tile(
-            self.Dyn_gp_Y_train, dims=(self.eff_dyn_samples, 1, 1, 1)
+            self.Dyn_gp_Y_train, dims=(self.ns, 1, 1, 1)
         )
         if self.use_cuda:
             self.Dyn_gp_X_train_batch = self.Dyn_gp_X_train_batch.cuda()
             self.Dyn_gp_Y_train_batch = self.Dyn_gp_Y_train_batch.cuda()
 
     def train_hallucinated_dynGP(self, sqp_iter):
-        n_sample = self.eff_dyn_samples
+        n_sample = self.ns
         if self.model_i is not None:
             del self.model_i
         data_X = torch.concat(
