@@ -9,7 +9,7 @@ from gpytorch.kernels import (
     RBFKernel,
     ScaleKernel,
 )
-from src.GP_model import BatchMultitaskGPModelWithDerivatives, GPModelWithDerivatives
+from src.GP_model import BatchMultitaskGPModelWithDerivatives_fromParams
 import matplotlib.pyplot as plt
 
 
@@ -144,38 +144,19 @@ class Agent(object):
         n_sample = self.ns
         if self.model_i is not None:
             del self.model_i
-        data_X = torch.concat(
-            [self.Dyn_gp_X_train_batch, self.Hallcinated_X_train], dim=2
-        )
 
-        data_Y = torch.concat(
-            [self.Dyn_gp_Y_train_batch, self.Hallcinated_Y_train], dim=2
-        )
+        data_X, data_Y = self.concatenate_real_hallucinated_data()
+
         likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
             num_tasks=self.in_dim + 1,
             noise_constraint=gpytorch.constraints.GreaterThan(0.0),
             batch_shape=self.batch_shape,
         )  # Value + Derivative
-        self.model_i = BatchMultitaskGPModelWithDerivatives(
-            data_X, data_Y, likelihood, self.batch_shape
+
+        self.model_i = BatchMultitaskGPModelWithDerivatives_fromParams(
+            data_X, data_Y, likelihood, self.params, batch_shape=self.batch_shape
         )
-        self.model_i.likelihood.noise = torch.tile(
-            torch.Tensor([self.params["agent"]["Dyn_gp_noise"]]),
-            dims=(self.batch_shape[0], self.batch_shape[1], 1),
-        )
-        self.model_i.likelihood.task_noises = torch.tile(
-            torch.Tensor(self.params["agent"]["Dyn_gp_task_noises"]["val"])
-            * self.params["agent"]["Dyn_gp_task_noises"]["multiplier"],
-            dims=(self.batch_shape[0], self.batch_shape[1], 1),
-        )
-        self.model_i.covar_module.base_kernel.lengthscale = torch.tile(
-            torch.Tensor(self.params["agent"]["Dyn_gp_lengthscale"]["both"]),
-            dims=(self.batch_shape[0], 1, 1, 1),
-        )
-        self.model_i.covar_module.outputscale = torch.tile(
-            torch.Tensor(self.params["agent"]["Dyn_gp_outputscale"]["both"]),
-            dims=(self.batch_shape[0], 1),
-        )
+
         if self.use_cuda:
             self.model_i = self.model_i.cuda()
 
@@ -194,6 +175,15 @@ class Agent(object):
             if self.use_cuda:
                 self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
                 self.Hallcinated_Y_train = self.Hallcinated_Y_train.cuda()
+
+    def concatenate_real_hallucinated_data(self):
+        data_X = torch.concat(
+            [self.Dyn_gp_X_train_batch, self.Hallcinated_X_train], dim=2
+        )
+        data_Y = torch.concat(
+            [self.Dyn_gp_Y_train_batch, self.Hallcinated_Y_train], dim=2
+        )
+        return data_X, data_Y
 
     def get_next_to_go_loc(self):
         return self.planned_measure_loc
