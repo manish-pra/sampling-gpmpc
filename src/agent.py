@@ -47,6 +47,12 @@ class Agent(object):
             self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
             self.Hallcinated_Y_train = self.Hallcinated_Y_train.cuda()
 
+        self.initial_training_data()
+        self.real_data_batch()
+        self.planned_measure_loc = np.array([2])
+        self.epistimic_random_vector = self.random_vector_within_bounds()
+
+    def initial_training_data(self):
         # Initialize model
         x1 = torch.linspace(-3.14, 3.14, 11)
         x2 = torch.linspace(-10, 10, 11)
@@ -55,11 +61,14 @@ class Agent(object):
         self.Dyn_gp_X_range = torch.hstack(
             [X1.reshape(-1, 1), X2.reshape(-1, 1), U.reshape(-1, 1)]
         )
-        if params["agent"]["prior_dyn_meas"]:
-            x1 = torch.linspace(-2.14, 2.14, 3)
+
+        n_data_x = 7
+        n_data_u = 7
+        if self.params["agent"]["prior_dyn_meas"]:
+            x1 = torch.linspace(-2.14, 2.14, n_data_x)
             # x1 = torch.linspace(-0.57,1.14,5)
-            x2 = torch.linspace(-2.5, 2.5, 3)
-            u = torch.linspace(-8, 8, 5)
+            x2 = torch.linspace(-2.5, 2.5, n_data_x)
+            u = torch.linspace(-8, 8, n_data_u)
             X1, X2, U = torch.meshgrid(x1, x2, u)
             self.Dyn_gp_X_train = torch.hstack(
                 [X1.reshape(-1, 1), X2.reshape(-1, 1), U.reshape(-1, 1)]
@@ -70,9 +79,8 @@ class Agent(object):
             self.Dyn_gp_X_train = torch.rand(1, self.in_dim)
             self.Dyn_gp_Y_train = torch.rand(2, 1, 1 + self.in_dim)
 
-        self.real_data_batch()
-        self.planned_measure_loc = np.array([2])
-        self.epistimic_random_vector = self.random_vector_within_bounds()
+        if not self.params["agent"]["train_data_has_derivatives"]:
+            self.Dyn_gp_Y_train[:, :, 1:] = torch.nan
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling
@@ -323,6 +331,8 @@ class Agent(object):
 
         with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(
             50
+        ), gpytorch.settings.observation_nan_policy(
+            "mask"
         ):
             self.model_i.eval()
             model_i_call = self.model_i(x_hat)
