@@ -62,8 +62,14 @@ class Agent(object):
             [X1.reshape(-1, 1), X2.reshape(-1, 1), U.reshape(-1, 1)]
         )
 
-        n_data_x = 7
-        n_data_u = 7
+        if self.params["agent"]["train_data_has_derivatives"]:
+            # need more training data for decent result
+            n_data_x = 7
+            n_data_u = 7
+        else:
+            n_data_x = 5
+            n_data_u = 3
+
         if self.params["agent"]["prior_dyn_meas"]:
             x1 = torch.linspace(-2.14, 2.14, n_data_x)
             # x1 = torch.linspace(-0.57,1.14,5)
