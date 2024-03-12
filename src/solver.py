@@ -116,13 +116,9 @@ class DEMPC_solver(object):
                             p_lin,
                             y_grad[i, 0, stage, :].reshape(-1),
                             y_grad[i, 1, stage, :].reshape(-1),
-                            # y_grad['y1'][i,stage,:].reshape(-1),
-                            # y_grad['y2'][i,stage,:].reshape(-1),
                             u_grad[i, :, stage, :].reshape(-1),
-                            # u_grad[i,stage,:].reshape(-1),
                             x_h[stage, i * self.nx : self.nx * (i + 1)],
                             gp_val[i, :, stage, :].reshape(-1),
-                            # gp_val[i,stage,:].reshape(-1)
                         ]
                     )
                 p_lin = np.hstack([p_lin, u_h[stage], xg[stage], w[stage]])
