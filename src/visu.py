@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 import dill as pickle
+from scipy.spatial import ConvexHull, convex_hull_plot_2d
 
 
 class Visualizer:
@@ -110,6 +111,80 @@ class Visualizer:
             X1_k = X1_kp1.clone()
             X2_k = X2_kp1.clone()
         return x1_list, x2_list
+
+    def plot_uncertainity_propagation(self):
+        plt.close()
+        plt.close()
+        x_axis = np.arange(71)
+        ns = 1
+        mean_x1 = self.state_traj[0][:, ::2].mean(1)
+        mean_x2 = self.state_traj[0][:, 1::2].mean(1)
+        std_x1 = self.state_traj[0][:, ::2]
+        std_x2 = self.state_traj[0][:, 1::2]
+        plt.plot(x_axis, mean_x1, color="tab:blue")
+        # plt.fill_between(x_axis, mean_x2 - std_x2, mean_x2 + std_x2, alpha=0.5)
+        plt.fill_between(
+            x_axis, std_x1.min(1), std_x1.max(1), alpha=0.5, color="tab:blue"
+        )
+        x1_true, x2_true = self.propagate_true_dynamics(
+            self.state_traj[0][0, 0:2], self.input_traj[0]
+        )
+        plt.plot(x_axis, x1_true, color="black", label="true")
+        plt.grid()
+        plt.ylabel("theta")
+        plt.xlabel("Horizon")
+        plt.legend()
+        plt.savefig("uncertainity1.png")
+
+        plt.close()
+        plt.plot(x_axis, mean_x2, color="tab:blue")
+        plt.fill_between(
+            x_axis, std_x2.min(1), std_x2.max(1), alpha=0.5, color="tab:blue"
+        )
+        plt.plot([-2, 71], [2.5, 2.5], color="red", linestyle="--")
+        plt.plot(x_axis, x2_true, color="black", label="true")
+        plt.ylabel("theta_dot")
+        plt.xlabel("Horizon")
+        plt.grid()
+        plt.legend()
+        plt.savefig("uncertainity2.png")
+
+        pass
+
+    def plot_uncertainity_propagation_2D(self):
+        plt.close()
+        H = self.state_traj[0].shape[0]
+        x_axis = np.arange(71)
+        ns = 1
+        x1_true, x2_true = self.propagate_true_dynamics(
+            self.state_traj[0][0, 0:2], self.input_traj[0]
+        )
+        pts_i = self.state_traj[0][0].reshape(-1, 2)
+        plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color="tab:blue")
+        for i in range(1, H):
+            pts_i = self.state_traj[0][i].reshape(-1, 2)
+            hull = ConvexHull(pts_i)
+            plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color="tab:blue")
+            plt.plot(
+                pts_i[hull.vertices, 0],
+                pts_i[hull.vertices, 1],
+                alpha=0.5,
+                color="tab:blue",
+                lw=2,
+            )
+            plt.plot(
+                pts_i[hull.vertices[[0, -1]], 0],
+                pts_i[hull.vertices[[0, -1]], 1],
+                alpha=0.5,
+                color="tab:blue",
+                lw=2,
+            )
+        plt.plot([-0.1, 2.2], [2.5, 2.5], color="red", linestyle="--")
+        plt.plot(x1_true, x2_true, color="black", label="true")
+        plt.ylabel("theta_dot")
+        plt.xlabel("theta")
+        plt.grid()
+        plt.savefig("uncertainity_convex_hull.png")
 
     def plot_receding_pendulum_traj(self):
         rm = []

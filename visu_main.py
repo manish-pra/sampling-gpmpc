@@ -66,8 +66,9 @@ a_file.close()
 params["visu"]["show"] = True
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
 # agent = Agent(params)
-# visu.extract_data()
-
+visu.extract_data()
+visu.plot_uncertainity_propagation()
+visu.plot_uncertainity_propagation_2D()
 # physical_state_traj = np.vstack(visu.physical_state_traj)
 # plt.plot(physical_state_traj[:,0], physical_state_traj[:,1])
 # plt.show()

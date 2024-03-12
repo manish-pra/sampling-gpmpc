@@ -222,7 +222,7 @@ def dempc_set_options(ocp, params):
     # PARTIAL_CONDENSING_HPIPM, FULL_CONDENSING_QPOASES, FULL_CONDENSING_HPIPM,
     # PARTIAL_CONDENSING_QPDUNES, PARTIAL_CONDENSING_OSQP, FULL_CONDENSING_DAQP
     ocp.solver_options.hessian_approx = "GAUSS_NEWTON"  # 'GAUSS_NEWTON', 'EXACT'
-    ocp.solver_options.levenberg_marquardt = 1.0e-1
+    ocp.solver_options.levenberg_marquardt = 1.0e-3
     ocp.solver_options.integrator_type = "DISCRETE"  #'IRK'  # IRK , DISCRETE
     # ocp.solver_options.print_level = 1
     ocp.solver_options.nlp_solver_ext_qp_res = 1
