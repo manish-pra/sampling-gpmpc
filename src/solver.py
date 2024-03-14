@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from acados_template import AcadosOcpSolver, AcadosSimSolver
-
+import dill as pickle
 from src.utils.ocp import export_dempc_ocp
 
 
@@ -121,7 +121,9 @@ class DEMPC_solver(object):
                             gp_val[i, :, stage, :].reshape(-1),
                         ]
                     )
-                p_lin = np.hstack([p_lin, u_h[stage], xg[stage], w[stage]])
+                p_lin = np.hstack(
+                    [p_lin, u_h[stage], xg[stage], w[stage], self.input_traj[0][stage]]
+                )
                 self.ocp_solver.set(stage, "p", p_lin)
             status = self.ocp_solver.solve()
 

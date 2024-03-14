@@ -12,6 +12,7 @@ from src.visu import Visualizer
 from src.agent import Agent
 import numpy as np
 import torch
+import dill as pickle
 
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
@@ -22,7 +23,7 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=40)  # initialized at origin
+parser.add_argument("-i", type=int, default=401)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -58,6 +59,15 @@ if not os.path.exists(save_path):
         if e.errno != errno.EEXIST:
             raise
 
+if params["experiment"]["GT_uncertainity"]["propagate"]:
+    a_file = open(
+        save_path + params["experiment"]["GT_uncertainity"]["ref"] + "/data.pkl", "rb"
+    )
+    data_dict = pickle.load(a_file)
+    input_traj = data_dict["input_traj"]
+    a_file.close()
+
+
 print(args)
 if args.i != -1:
     traj_iter = args.i
@@ -73,6 +83,7 @@ agent.update_current_state(np.array(params["env"]["start"]))
 
 
 de_mpc = DEMPC(params, visu, agent)
+de_mpc.dempc_solver.input_traj = input_traj
 de_mpc.dempc_main()
 visu.save_data()
 # dict_file = torch.cuda.memory._snapshot()

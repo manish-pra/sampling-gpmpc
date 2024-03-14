@@ -57,7 +57,7 @@ def dempc_const_expr(x_dim, n_order, params):
     # var = (ub_cx_lin + ub_cx_grad.T @ (model_x-x_lin)
     #         [:x_dim] - (lb_cx_lin + lb_cx_grad.T @ (model_x-x_lin)[:x_dim]))
 
-    p_lin = ca.vertcat(xg, cw)
+    p_lin = ca.vertcat(xg, cw, we)
     # model.con_h_expr = ca.vertcat(lb_cx_lin +
     #                             lb_cx_grad.T @ (model_x-x_lin)[:x_dim] - q_th, cw*var)
     # model.con_h_expr_e = ca.vertcat(lb_cx_lin +
@@ -110,10 +110,10 @@ def concat_const_val(ocp, params):
 def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     pos_dim = 1
     nx = params["agent"]["dim"]["nx"]
-    q = 1e-3 * np.diag(np.ones(pos_dim))
+    q = 1000000000 * np.diag(np.ones(pos_dim))
     qx = np.diag(np.ones(pos_dim))
     xg = p[0]
-    w = p[1]
+    w = 0.1
     # cost
     ocp.cost.cost_type = "EXTERNAL"
     ocp.cost.cost_type_e = "EXTERNAL"
@@ -130,10 +130,9 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
             w * (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg)
         )
     else:
-        ocp.model.cost_expr_ext_cost = (
-            w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
-            + model_u.T @ (q) @ model_u
-        )
+        ocp.model.cost_expr_ext_cost = w * (model_x[::nx] - xg).T @ qx @ (
+            model_x[::nx] - xg
+        ) + (model_u - p[2]).T @ (q) @ (model_u - p[2])
         ocp.model.cost_expr_ext_cost_e = (
             w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
         )
