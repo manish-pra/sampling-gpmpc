@@ -18,7 +18,6 @@ class DEMPC:
         self.data = {}
         self.flag_reached_xt_goal = False
         self.H = self.params["optimizer"]["H"]
-        self.Hm = self.params["optimizer"]["Hm"]
         self.n_order = params["optimizer"]["order"]
         self.x_dim = params["optimizer"]["x_dim"]
         self.state_dim = self.x_dim
@@ -37,6 +36,7 @@ class DEMPC:
     def receding_horizon(self):
         print("Receding Horizon")
         for i in range(self.params["common"]["num_MPC_itrs"]):
+            self.agent.mpc_iteration(i)
             torch.cuda.empty_cache()
             x_curr = self.agent.current_state[: self.state_dim].reshape(self.state_dim)
             if torch.is_tensor(x_curr):

@@ -59,17 +59,45 @@ class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
         self.covar_module = gpytorch.kernels.ScaleKernel(
             self.base_kernel, batch_shape=batch_shape
         )
-        # self.covar_module = gpytorch.kernels.ScaleKernel(self.base_kernel)
-        # self.mean_module = gpytorch.means.ZeroMean(batch_shape=torch.Size([nout]))
-        # self.covar_module = gpytorch.kernels.ScaleKernel(
-        #     gpytorch.kernels.RBFKernel(batch_shape=torch.Size([nout])),
-        #     batch_shape=torch.Size([nout])
-        # )
+        self.batch_shape = batch_shape
 
     def forward(self, x):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
-        # return gpytorch.distributions.MultitaskMultivariateNormal.from_batch_mvn(
-        #     gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
-        # )
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
+
+
+class BatchMultitaskGPModelWithDerivatives_fromParams(
+    BatchMultitaskGPModelWithDerivatives
+):
+    def __init__(self, train_x, train_y, likelihood, params, batch_shape=None):
+
+        if batch_shape is None:
+            batch_shape = torch.Size(
+                [params["agent"]["num_dyn_samples"], params["agent"]["dim"]["ny"]]
+            )
+
+        super().__init__(
+            train_x,
+            train_y,
+            likelihood,
+            batch_shape=batch_shape,
+        )
+
+        self.likelihood.noise = torch.tile(
+            torch.Tensor([params["agent"]["Dyn_gp_noise"]]),
+            dims=(batch_shape[0], batch_shape[1], 1),
+        )
+        self.likelihood.task_noises = torch.tile(
+            torch.Tensor(params["agent"]["Dyn_gp_task_noises"]["val"])
+            * params["agent"]["Dyn_gp_task_noises"]["multiplier"],
+            dims=(batch_shape[0], batch_shape[1], 1),
+        )
+        self.covar_module.base_kernel.lengthscale = torch.tile(
+            torch.Tensor(params["agent"]["Dyn_gp_lengthscale"]["both"]),
+            dims=(batch_shape[0], 1, 1, 1),
+        )
+        self.covar_module.outputscale = torch.tile(
+            torch.Tensor(params["agent"]["Dyn_gp_outputscale"]["both"]),
+            dims=(batch_shape[0], 1),
+        )

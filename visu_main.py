@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=39)  # initialized at origin
+parser.add_argument("-i", type=int, default=40)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -72,9 +72,9 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
 # plt.plot(physical_state_traj[:,0], physical_state_traj[:,1])
 # plt.show()
 # load data)
-
+nx = params["agent"]["dim"]["nx"]
 for i in range(0, len(state_traj)):
-    mean_state_traj = state_traj[i][:, :2]
+    mean_state_traj = state_traj[i][:, :nx]
     visu.record_out(
         physical_state_traj[i],
         state_traj[i],
@@ -83,16 +83,5 @@ for i in range(0, len(state_traj)):
         mean_state_traj,
     )
     temp_obj = visu.plot_receding_pendulum_traj()
-    # X = visu.state_traj[i]
-    # U = visu.input_traj[i]
-    # visu.plot_pendulum_traj(X, U)
-    # visu.record(physical_state_traj[i], X, U)
-    # visu.save_data()
-    # plt.show()
-    # plt.pause(0.1)
-    # plt.close()
     visu.writer_gp.grab_frame()
     visu.remove_temp_objects(temp_obj)
-    # plt.show()
-    # plt.pause(0.1)
-    # plt.close()

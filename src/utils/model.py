@@ -3,11 +3,12 @@ import numpy as np
 from acados_template import AcadosModel
 
 
-def export_linear_model(name, p, num_dyn):
-    x = ca.SX.sym("x", 2 * num_dyn)
-    u = ca.SX.sym("u", 1)
-    nx = 2
-    nu = u.shape[0]
+def export_linear_model(name, p, params):
+    num_dyn = params["agent"]["num_dyn_samples"]
+    nx = params["agent"]["dim"]["nx"]
+    nu = params["agent"]["dim"]["nu"]
+    x = ca.SX.sym("x", nx * num_dyn)
+    u = ca.SX.sym("u", nu)
     np = p.shape[0]
 
     # linear dynamics for every stage
