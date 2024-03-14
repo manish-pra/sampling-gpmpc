@@ -14,7 +14,7 @@ from src.agent import Agent
 import numpy as np
 import torch
 
-from zero_order_gpmpc.controllers.zoro_acados_utils import generate_gp_funs
+from extra.zoro_code import generate_gp_funs
 from src.GP_model import BatchMultitaskGPModelWithDerivatives_fromParams
 import gpytorch
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("-param", default="params")  # params
 
     parser.add_argument("-env", type=int, default=0)
-    parser.add_argument("-i", type=int, default=40)  # initialized at origin
+    parser.add_argument("-i", type=int, default=40123)  # initialized at origin
     args = parser.parse_args()
 
     # 1) Load the config file
@@ -178,14 +178,15 @@ if __name__ == "__main__":
 
     std_dev_0 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 0, 0])
     std_dev_1 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 1, 1])
-    std_dev = np.array([np.diag(x_covar[i, :, :]) for i in range(N + 1)])
-    x_plus_std = x_mean + std_dev
-    x_minus_std = x_mean - std_dev
+    std_dev = np.sqrt(np.array([np.diag(x_covar[i, :, :]) for i in range(N + 1)]))
+    x_plus_std = x_mean + 3 * std_dev
+    x_minus_std = x_mean - 3 * std_dev
 
     # plot
     plt.figure()
     plt.plot(x_mean[:, 0], x_mean[:, 1], label="mean")
     plt.plot(x_plus_std[:, 0], x_plus_std[:, 1], label="meanplus")
     plt.plot(x_minus_std[:, 0], x_minus_std[:, 1], label="meanminus")
+    plt.plot([-0.3, 2.4], [2.5, 2.5], "--", color="red")
     plt.legend()
     plt.show()
