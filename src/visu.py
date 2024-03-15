@@ -42,10 +42,11 @@ class Visualizer:
         # self.plot_contour_env("dyn")
 
         # Move it to visu
-        self.writer_gp = self.get_frame_writer()
-        self.writer_dyn = self.get_frame_writer()
-        self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200)
-        self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=200)
+        if self.params["visu"]["show_video"]:
+            self.writer_gp = self.get_frame_writer()
+            self.writer_dyn = self.get_frame_writer()
+            self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200)
+            self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=200)
 
     def get_frame_writer(self):
         # FFMpegWriter = manimation.writers['ffmpeg']
@@ -135,16 +136,17 @@ class Visualizer:
                 linestyle="-",
             )
         )
-        pred_mean_state = np.vstack(self.mean_state_traj[-1])
-        rm.append(
-            ax.plot(
-                pred_mean_state[:, 0],
-                pred_mean_state[:, 1],
-                color="black",
-                label="mean",
-                linestyle="--",
+        if len(self.mean_state_traj) != 0:
+            pred_mean_state = np.vstack(self.mean_state_traj[-1])
+            rm.append(
+                ax.plot(
+                    pred_mean_state[:, 0],
+                    pred_mean_state[:, 1],
+                    color="black",
+                    label="mean",
+                    linestyle="--",
+                )
             )
-        )
         return rm
 
     def remove_temp_objects(self, temp_obj):
