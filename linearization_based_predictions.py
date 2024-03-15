@@ -143,6 +143,7 @@ if __name__ == "__main__":
     x_covar = torch.zeros((N + 1, nx, nx))
     x_covar[0, :, :] = torch.zeros((nx, nx))
 
+    ellipse_list = []
     for i in range(N):
 
         inp_current = torch.tile(
@@ -182,7 +183,11 @@ if __name__ == "__main__":
         t = np.linspace(0, 2 * np.pi, 100)
         z = [np.cos(t), np.sin(t)]
         ellipse = np.dot(3 * r, z) + x_mean[[i + 1], :].numpy().T
+        ellipse_list.append(ellipse)
         plt.plot(ellipse[0, :], ellipse[1, :])
+    a_file = open(save_path_iter + "/ellipse_data.pkl", "wb")
+    pickle.dump(ellipse_list, a_file)
+    a_file.close()
     plt.show()
 
     # std_dev_0 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 0, 0])
