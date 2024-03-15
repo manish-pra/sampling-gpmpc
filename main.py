@@ -86,6 +86,8 @@ de_mpc = DEMPC(params, visu, agent)
 de_mpc.dempc_solver.input_traj = input_traj
 de_mpc.dempc_main()
 visu.save_data()
+visu.plot_receding_pendulum_traj()
+visu.f_handle["gp"].savefig(save_path + str(traj_iter) + "/gp.png")
 # dict_file = torch.cuda.memory._snapshot()
 # pickle.dump(dict_file, open(save_path + str(traj_iter) + "/memory_snapshot_1.pickle", "wb"))
 exit()

@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=401)  # initialized at origin
+parser.add_argument("-i", type=int, default=140)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -64,6 +64,7 @@ physical_state_traj = data_dict["physical_state_traj"]
 a_file.close()
 
 params["visu"]["show"] = True
+params["visu"]["show_video"] = True
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
 # agent = Agent(params)
 visu.extract_data()
