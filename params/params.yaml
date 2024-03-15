@@ -15,14 +15,14 @@ agent:
   Dyn_gp_outputscale : 
     y1 : 0.1040 #0.3040 #0.75  #0.65
     y2 : 0.1071 #0.3071 #0.65 #0.455, noise multiplier 3.0e-7 results in smooth trajectories
-    both : [0.65, 0.55]
+    both : [0.1040, 0.1071]
   Dyn_gp_task_noises : 
     val : [3.8, 1.27, 3.8, 1.27]
     multiplier : 3.0e-7                     #1.0e-5 Low noise value make it crazy fast
   Dyn_gp_beta : 3.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 50
+  num_dyn_samples: 400
   prior_dyn_meas: True       
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
@@ -56,7 +56,7 @@ optimizer:
   x_dim: 2
   dt: 0.015 # 0.010
   w: 50
-  cost: "expected"               # "mean"
+  cost: "expected"               # "mean", "uncertainity", "expected"
 
 experiment:
   name: "DEMPC" #

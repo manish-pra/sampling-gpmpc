@@ -59,36 +59,6 @@ class Visualizer:
         )  # libx264 (good quality), mpeg4
         return writer
 
-    def pendulum_discrete_dyn(self, X1_k, X2_k, U_k):
-        """_summary_
-
-        Args:
-            x (_type_): _description_
-            u (_type_): _description_
-        """
-        m = 1
-        l = 1
-        g = 10
-        dt = self.params["optimizer"]["dt"]
-        X1_kp1 = X1_k + X2_k * dt
-        X2_kp1 = X2_k - g * np.sin(X1_k) * dt / l + U_k * dt / (l * l)
-        return X1_kp1, X2_kp1
-
-    def propagate_true_dynamics(self, x_init, U):
-        x1_list = []
-        x2_list = []
-        X1_k = x_init[0]
-        X2_k = x_init[1]
-        x1_list.append(X1_k.item())
-        x2_list.append(X2_k.item())
-        for ele in range(U.shape[0]):
-            X1_kp1, X2_kp1 = self.pendulum_discrete_dyn(X1_k, X2_k, U[ele])
-            x1_list.append(X1_kp1.item())
-            x2_list.append(X2_kp1.item())
-            X1_k = X1_kp1.copy()
-            X2_k = X2_kp1.copy()
-        return x1_list, x2_list
-
     def propagate_mean_dyn(self, x_init, U):
         self.agent.Dyn_gp_model["y1"].eval()
         self.agent.Dyn_gp_model["y2"].eval()
@@ -290,3 +260,34 @@ class Visualizer:
         self.true_state_traj = data_dict["true_state_traj"]
         self.physical_state_traj = data_dict["physical_state_traj"]
         a_file.close()
+
+
+def pendulum_discrete_dyn(X1_k, X2_k, U_k, dt=0.015):
+    """_summary_
+
+    Args:
+        x (_type_): _description_
+        u (_type_): _description_
+    """
+    m = 1
+    l = 1
+    g = 10
+    X1_kp1 = X1_k + X2_k * dt
+    X2_kp1 = X2_k - g * np.sin(X1_k) * dt / l + U_k * dt / (l * l)
+    return X1_kp1, X2_kp1
+
+
+def propagate_true_dynamics(x_init, U, dt=0.015):
+    x1_list = []
+    x2_list = []
+    X1_k = x_init[0]
+    X2_k = x_init[1]
+    x1_list.append(X1_k.item())
+    x2_list.append(X2_k.item())
+    for ele in range(U.shape[0]):
+        X1_kp1, X2_kp1 = pendulum_discrete_dyn(X1_k, X2_k, U[ele], dt)
+        x1_list.append(X1_kp1.item())
+        x2_list.append(X2_kp1.item())
+        X1_k = X1_kp1.copy()
+        X2_k = X2_kp1.copy()
+    return x1_list, x2_list
