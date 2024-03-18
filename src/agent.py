@@ -64,8 +64,8 @@ class Agent(object):
 
         if self.params["agent"]["train_data_has_derivatives"]:
             # need more training data for decent result
-            n_data_x = 5
-            n_data_u = 3
+            n_data_x = 3
+            n_data_u = 5
         else:
             n_data_x = 7
             n_data_u = 7
