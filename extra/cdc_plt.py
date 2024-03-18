@@ -11,7 +11,9 @@ from src.visu import propagate_true_dynamics
 
 plot_GT = True
 plot_sampling_MPC = False
-plot_cautious_MPC = True
+plot_cautious_MPC = False
+plot_safe_MPC = True
+filename = "safe_uncertainity.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
 TEXTWIDTH = 16
 set_figure_params(serif=True, fontsize=14)
@@ -92,29 +94,46 @@ if plot_sampling_MPC:
             lw=1.5,
         )
 
-# if plot_cautious_MPC:
+if plot_cautious_MPC:
+    ellipse_list_path = "/home/manish/work/MPC_Dyn/safe_gpmpc/experiments/pendulum/env_0/params/40123/ellipse_data.pkl"
+    a_file = open(ellipse_list_path, "rb")
+    ellipse_list = pickle.load(a_file)
+    a_file.close()
+    for ellipse in ellipse_list:
+        plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7)
+
+if plot_safe_MPC:
+    ellipse_list_path = (
+        "/home/manish/work/horrible/safe-exploration_cem/koller_ellipse_data.pkl"
+    )
+    a_file = open(ellipse_list_path, "rb")
+    ellipse_list = pickle.load(a_file)
+    a_file.close()
+    for ellipse in ellipse_list:
+        plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:red")
 
 
 plt.plot([-0.1, 2.2], [2.5, 2.5], color="red", linestyle="--")
-
+plt.xlim(-0.1, 1.45)
+plt.ylim(-0.1, 2.7)
 fname = Path().resolve().joinpath("figures")
 fname.mkdir(exist_ok=True)
+adapt_figure_size_from_axes(ax)
+plt.tick_params(axis="x", direction="in")
+plt.tick_params(axis="y", direction="in")
 plt.savefig(
-    str(fname.joinpath("sam_uncertainity2.pdf")),
+    str(fname.joinpath(filename)),
     format="pdf",
     dpi=300,
     transparent=True,
 )
 # plt.savefig("sam_uncertainity.png")
-adapt_figure_size_from_axes(ax)
-plt.tick_params(axis="x", direction="in")
-plt.tick_params(axis="y", direction="in")
 
-plt.ylabel("theta_dot")
-plt.xlabel("theta")
-plt.grid()
-plt.savefig("uncertainity_convex_hull.png")
-a = 1
+# plt.ylabel("theta_dot")
+# plt.xlabel("theta")
+# plt.grid()
+# plt.savefig("uncertainity_convex_hull.png")
+# a = 1
 
 
 # Load sampling_gpmpc data
