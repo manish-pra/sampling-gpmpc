@@ -67,8 +67,10 @@ class Agent(object):
             n_data_x = 3
             n_data_u = 5
         else:
-            n_data_x = 7
-            n_data_u = 7
+            # need more training data for decent result
+            # keep low output scale, TODO: check if variance on gradient output can be controlled
+            n_data_x = 5
+            n_data_u = 9
 
         if self.params["agent"]["prior_dyn_meas"]:
             x1 = torch.linspace(-2.14, 2.14, n_data_x)
@@ -330,6 +332,8 @@ class Agent(object):
 
         with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(
             50
+        ), gpytorch.settings.observation_nan_policy(
+            "mask"
         ):
             self.model_i.eval()
             model_i_call = self.model_i(x_hat)

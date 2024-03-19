@@ -13,6 +13,8 @@ from src.agent import Agent
 import numpy as np
 import torch
 
+# torch.cuda.set_per_process_memory_fraction(0.99, "cuda:0")
+
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
