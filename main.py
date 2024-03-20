@@ -10,6 +10,7 @@ import yaml
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
+from src.environments.pendulum import Pendulum
 import numpy as np
 import torch
 
@@ -67,7 +68,8 @@ if args.i != -1:
 if not os.path.exists(save_path + str(traj_iter)):
     os.makedirs(save_path + str(traj_iter))
 
-agent = Agent(params)
+env_model = Pendulum(params)
+agent = Agent(params, env_model)
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 
 # 4) Set the initial state

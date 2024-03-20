@@ -45,7 +45,7 @@ class DEMPC:
                 x_curr.tolist() * self.params["agent"]["num_dyn_samples"]
             )
             X, U = self.one_step_planner(st_curr)
-            X1_kp1, X2_kp1 = self.agent.pendulum_discrete_dyn(X[0][0], X[0][1], U[0])
+            X1_kp1, X2_kp1 = self.agent.env_model.discrete_dyn(X[0][0], X[0][1], U[0])
             self.agent.update_current_state(torch.Tensor([X1_kp1, X2_kp1]))
             # propagate the agent to the next state
             print(
