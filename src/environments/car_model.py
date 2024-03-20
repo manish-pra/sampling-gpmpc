@@ -16,24 +16,19 @@ class CarKinematicsModel(object):
         u = torch.linspace(-30, 30, 11)
         X1, X2, U = torch.meshgrid(x1, x2, u)
 
-        if self.params["agent"]["train_data_has_derivatives"]:
-            # need more training data for decent result
-            n_data_x = 3
-            n_data_u = 5
-        else:
-            # need more training data for decent result
-            # keep low output scale, TODO: check if variance on gradient output can be controlled
-            n_data_x = 5
-            n_data_u = 9
+        # need more training data for decent result
+        # keep low output scale, TODO: check if variance on gradient output can be controlled Dyn_gp_task_noises
 
-        if self.params["agent"]["prior_dyn_meas"]:
-            x1 = torch.linspace(-2.14, 2.14, n_data_x)
-            # x1 = torch.linspace(-0.57,1.14,5)
-            x2 = torch.linspace(-2.5, 2.5, n_data_x)
-            u = torch.linspace(-8, 8, n_data_u)
-            X1, X2, U = torch.meshgrid(x1, x2, u)
+        n_data_x = self.params["env"]["n_data_x"]
+        n_data_u = self.params["env"]["n_data_u"]
+
+        if self.params["env"]["prior_dyn_meas"]:
+            phi = torch.linspace(-2, 2, n_data_x)
+            v = torch.linspace(-2, 2, n_data_x)
+            delta = torch.linspace(-0.5, 0.5, n_data_u)
+            Phi, V, Delta = torch.meshgrid(phi, v, delta)
             Dyn_gp_X_train = torch.hstack(
-                [X1.reshape(-1, 1), X2.reshape(-1, 1), U.reshape(-1, 1)]
+                [Phi.reshape(-1, 1), V.reshape(-1, 1), Delta.reshape(-1, 1)]
             )
             Dyn_gp_Y_train = self.get_prior_data(Dyn_gp_X_train)
             # Dyn_gp_Y_train = torch.stack((y1, y2), dim=0)
@@ -41,18 +36,20 @@ class CarKinematicsModel(object):
             Dyn_gp_X_train = torch.rand(1, self.in_dim)
             Dyn_gp_Y_train = torch.rand(2, 1, 1 + self.in_dim)
 
-        if not self.params["agent"]["train_data_has_derivatives"]:
+        if not self.params["env"]["train_data_has_derivatives"]:
             Dyn_gp_Y_train[:, :, 1:] = torch.nan
 
         return Dyn_gp_X_train, Dyn_gp_Y_train
 
     def get_prior_data(self, xu):
-        dt = 0.015
+        dt = self.params["optimizer"]["dt"]
         nx = 2  # phi, v
         nu = 1  # delta
         ny = 3  # phi, v, delta
-        lf = 1.105 * 0.01
-        lr = 1.738 * 0.01
+        lf = self.params["env"]["params"]["lf"]
+        lr = self.params["env"]["params"]["lr"]
+        # lf = 1.105 * 0.01
+        # lr = 1.738 * 0.01
         phi, v, delta = xu[:, 0], xu[:, 1], xu[:, 2]
         g_xu = self.unknown_dyn(xu)  # phi, v, delta
         y_ret = torch.zeros((ny, xu.shape[0], 1 + nx + nu))
@@ -115,8 +112,8 @@ class CarKinematicsModel(object):
             xu[:, [0], :, 3],
         )
         delta_k, acc_k = xu[:, [0], :, 4], xu[:, [0], :, 5]
-        lf = 1.105 * 0.01
-        lr = 1.738 * 0.01
+        lf = self.params["env"]["params"]["lf"]
+        lr = self.params["env"]["params"]["lr"]
         dt = self.params["optimizer"]["dt"]
         X_kp1 = X_k
         Y_kp1 = Y_k
@@ -128,9 +125,9 @@ class CarKinematicsModel(object):
     def unknown_dyn(self, xu):
         """_summary_"""
         Phi_k, V_k, delta_k = xu[:, [0]], xu[:, [1]], xu[:, [2]]
-        lf = 1.105 * 0.01
-        lr = 1.738 * 0.01
-        dt = 0.015
+        lf = self.params["env"]["params"]["lf"]
+        lr = self.params["env"]["params"]["lr"]
+        dt = self.params["optimizer"]["dt"]
         beta = torch.atan(torch.tan(delta_k) * lr / (lr + lf))
         dX_kp1 = V_k * torch.cos(Phi_k + beta) * dt
         dY_kp1 = V_k * torch.sin(Phi_k + beta) * dt
@@ -146,8 +143,8 @@ class CarKinematicsModel(object):
         state_kp1 = f_xu + torch.matmul(B_d, g_xu.reshape(3, 1))
         # X_k, Y_k, Phi_k, V_k = xu[:, [0]], xu[:, [1]], xu[:, [2]], xu[:, [3]]
         # acc_k = xu[:, 5]
-        # # lf = 1.105 * 0.01
-        # # lr = 1.738 * 0.01
+        # lf = self.params["env"]["params"]["lf"]
+        # lr = self.params["env"]["params"]["lr"]
         # dt = self.params["optimizer"]["dt"]
         # # beta = torch.atan(torch.tan(delta_k) * lr / (lr + lf))
         # X_kp1 = X_k + g_xu[:, [0]]
@@ -156,6 +153,19 @@ class CarKinematicsModel(object):
         # V_kp1 = V_k + acc_k * dt
         # state_kp1 = torch.stack([X_kp1, Y_kp1, Phi_kp1, V_kp1])
         return state_kp1
+
+    def propagate_true_dynamics(self, x_init, U):
+        state_list = []
+        state_list.append(x_init)
+        for ele in range(U.shape[0]):
+            state_input = (
+                torch.from_numpy(np.hstack([state_list[-1], U[ele]]))
+                .reshape(1, -1)
+                .float()
+            )
+            state_kp1 = self.discrete_dyn(state_input)
+            state_list.append(state_kp1.reshape(-1))
+        return np.stack(state_list)
 
     def continous_dyn(self, X1, X2, U):
         """_summary_
@@ -171,20 +181,3 @@ class CarKinematicsModel(object):
         X2dot = -g * torch.sin(X1) / l + U / l
         train_data_y = torch.hstack([X1dot.reshape(-1, 1), X2dot.reshape(-1, 1)])
         return train_data_y
-
-    def get_true_gradient(self, x_hat):
-        l = 1
-        g = 10
-        # A = np.array([[0.0, 1.0],
-        #               [-g*np.cos(x_hat[0])/l,0.0]])
-        # B = np.array([[0.0],
-        #               [1/l]])
-        ret = torch.zeros((2, x_hat.shape[0], 3))
-        ret[0, :, 1] = torch.ones(x_hat.shape[0])
-        ret[1, :, 0] = -g * torch.cos(x_hat[:, 0]) / l
-        ret[1, :, 2] = torch.ones(x_hat.shape[0]) / l
-
-        val = self.pendulum_dyn(x_hat[:, 0], x_hat[:, 1], x_hat[:, 2])
-        return torch.hstack([val[:, 0].reshape(-1, 1), ret[0, :, :]]), torch.hstack(
-            [val[:, 1].reshape(-1, 1), ret[1, :, :]]
-        )

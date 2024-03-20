@@ -222,14 +222,19 @@ class Agent(object):
         df_dxu_grad = self.env_model.get_f_known_jacobian(xu_hat)
         g_xu_hat = xu_hat[:, : self.g_ny, :, [2, 3, 4]]  # phi, v, delta
         dg_dxu_grad = self.get_batch_gp_sensitivities(g_xu_hat, sqp_iter)
-        pad_dg_dxu_grad = torch.zeros(
-            ns, self.g_ny, nH, 1 + self.nx + self.nu, device=xu_hat.device
-        )
-        pad_dg_dxu_grad[:, :, :, [0, 3, 4, 5]] = dg_dxu_grad
-        B_d = torch.eye(self.nx, self.g_ny, device=xu_hat.device)
-        y_sample = df_dxu_grad + torch.matmul(
-            B_d, pad_dg_dxu_grad.transpose(1, 2)
-        ).transpose(1, 2)
+        if True:
+            ch_pad_dg_dxu_grad = torch.zeros_like(df_dxu_grad, device=xu_hat.device)
+            ch_pad_dg_dxu_grad[:, : self.g_ny, :, [0, 3, 4, 5]] = dg_dxu_grad
+            y_sample = df_dxu_grad + ch_pad_dg_dxu_grad
+        else:
+            pad_dg_dxu_grad = torch.zeros(
+                ns, self.g_ny, nH, 1 + self.nx + self.nu, device=xu_hat.device
+            )
+            pad_dg_dxu_grad[:, :, :, [0, 3, 4, 5]] = dg_dxu_grad
+            B_d = torch.eye(self.nx, self.g_ny, device=xu_hat.device)
+            y_sample = df_dxu_grad + torch.matmul(
+                B_d, pad_dg_dxu_grad.transpose(1, 2)
+            ).transpose(1, 2)
         gp_val = y_sample[:, :, :, [0]].cpu().numpy()
         y_grad = y_sample[:, :, :, 1 : 1 + self.nx].cpu().numpy()
         u_grad = y_sample[:, :, :, 1 + self.nx : 1 + self.nx + self.nu].cpu().numpy()
@@ -262,10 +267,10 @@ class Agent(object):
             idx_overwrite = 0
             if self.params["agent"]["true_dyn_as_sample"]:
                 # overwrite next sample with true dynamics
-                y_sample_true_1, y_sample_true_2 = self.env_model.get_prior_data(
+                y_sample_true = self.env_model.get_prior_data(
                     x_hat[idx_overwrite, 0, :, :].cpu()
                 )
-                y_sample_true = torch.stack([y_sample_true_1, y_sample_true_2], dim=0)
+                # y_sample_true = torch.stack([y_sample_true_1, y_sample_true_2], dim=0)
                 y_sample[idx_overwrite, :, :, :] = y_sample_true
                 idx_overwrite += 1
 

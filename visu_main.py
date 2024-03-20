@@ -82,6 +82,7 @@ for i in range(0, len(state_traj)):
         true_state_traj[i],
         mean_state_traj,
     )
+    # print(true_state_traj[i])
     temp_obj = visu.plot_receding_pendulum_traj()
     visu.writer_gp.grab_frame()
     visu.remove_temp_objects(temp_obj)

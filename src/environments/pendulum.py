@@ -13,15 +13,11 @@ class Pendulum(object):
         u = torch.linspace(-30, 30, 11)
         X1, X2, U = torch.meshgrid(x1, x2, u)
 
-        if self.params["agent"]["train_data_has_derivatives"]:
-            # need more training data for decent result
-            n_data_x = 3
-            n_data_u = 5
-        else:
-            # need more training data for decent result
-            # keep low output scale, TODO: check if variance on gradient output can be controlled
-            n_data_x = 5
-            n_data_u = 9
+        # need more training data for decent result
+        # keep low output scale, TODO: check if variance on gradient output can be controlled Dyn_gp_task_noises
+
+        n_data_x = self.params["env"]["n_data_x"]
+        n_data_u = self.params["env"]["n_data_u"]
 
         if self.params["agent"]["prior_dyn_meas"]:
             x1 = torch.linspace(-2.14, 2.14, n_data_x)
@@ -38,7 +34,7 @@ class Pendulum(object):
             Dyn_gp_X_train = torch.rand(1, self.in_dim)
             Dyn_gp_Y_train = torch.rand(2, 1, 1 + self.in_dim)
 
-        if not self.params["agent"]["train_data_has_derivatives"]:
+        if not self.params["env"]["train_data_has_derivatives"]:
             Dyn_gp_Y_train[:, :, 1:] = torch.nan
 
         return Dyn_gp_X_train, Dyn_gp_Y_train

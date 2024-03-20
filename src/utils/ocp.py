@@ -124,19 +124,21 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     if params["optimizer"]["cost"] == "mean":
         ocp.model.cost_expr_ext_cost = (
             w * (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg)
+            + w * (model_x[1]).T @ qx @ (model_x[1])
             + model_u.T @ (q) @ model_u
         )
-        ocp.model.cost_expr_ext_cost_e = (
-            w * (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg)
-        )
+        ocp.model.cost_expr_ext_cost_e = w * (model_x[:pos_dim] - xg).T @ qx @ (
+            model_x[:pos_dim] - xg
+        ) + w * (model_x[1]).T @ qx @ (model_x[1])
     else:
         ocp.model.cost_expr_ext_cost = (
             w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
             + model_u.T @ (q) @ model_u
+            + w * (model_x[1]).T @ qx @ (model_x[1]) * 10
         )
-        ocp.model.cost_expr_ext_cost_e = (
-            w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
-        )
+        ocp.model.cost_expr_ext_cost_e = w * (model_x[::nx] - xg).T @ qx @ (
+            model_x[::nx] - xg
+        ) + w * (model_x[1]).T @ qx @ (model_x[1])
 
     # if params["algo"]["type"] == "ret_expander" or params["algo"]["type"] == "MPC_expander":
     #     ocp.constraints.idxsh = np.array([1,2])
