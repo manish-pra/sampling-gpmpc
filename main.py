@@ -11,6 +11,7 @@ from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
 from src.environments.pendulum import Pendulum
+from src.environments.car_model import CarKinematicsModel
 import numpy as np
 import torch
 
@@ -22,7 +23,7 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "safe_gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params")  # params
+parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=40)  # initialized at origin
@@ -68,7 +69,13 @@ if args.i != -1:
 if not os.path.exists(save_path + str(traj_iter)):
     os.makedirs(save_path + str(traj_iter))
 
-env_model = Pendulum(params)
+if params["env"]["dynamics"] == "pendulum":
+    env_model = Pendulum(params)
+elif params["env"]["dynamics"] == "bicycle":
+    env_model = CarKinematicsModel(params)
+else:
+    raise ValueError("Unknown dynamics model")
+
 agent = Agent(params, env_model)
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 

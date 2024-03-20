@@ -21,7 +21,7 @@ def export_dempc_ocp(params):
         "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
     )
     n_order = params["optimizer"]["order"]
-    x_dim = params["optimizer"]["x_dim"]
+    x_dim = params["agent"]["dim"]["nx"]
 
     const_expr, p = dempc_const_expr(
         x_dim, n_order, params
@@ -67,7 +67,7 @@ def dempc_const_expr(x_dim, n_order, params):
 
 
 def concat_const_val(ocp, params):
-    x_dim = params["optimizer"]["x_dim"]
+    x_dim = params["agent"]["dim"]["nx"]
     if (
         params["algo"]["type"] == "ret_expander"
         or params["algo"]["type"] == "MPC_expander"

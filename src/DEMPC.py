@@ -19,8 +19,7 @@ class DEMPC:
         self.flag_reached_xt_goal = False
         self.H = self.params["optimizer"]["H"]
         self.n_order = params["optimizer"]["order"]
-        self.x_dim = params["optimizer"]["x_dim"]
-        self.state_dim = self.x_dim
+        self.nx = self.params["agent"]["dim"]["nx"]
         self.agent = agent
 
     def dempc_main(self):
@@ -38,7 +37,7 @@ class DEMPC:
         for i in range(self.params["common"]["num_MPC_itrs"]):
             self.agent.mpc_iteration(i)
             torch.cuda.empty_cache()
-            x_curr = self.agent.current_state[: self.state_dim].reshape(self.state_dim)
+            x_curr = self.agent.current_state[: self.nx].reshape(self.nx)
             if torch.is_tensor(x_curr):
                 x_curr = x_curr.numpy()
             st_curr = np.array(

@@ -5,17 +5,6 @@ import numpy as np
 class Pendulum(object):
     def __init__(self, params):
         self.params = params
-        # self.dt = 0.1
-        # self.state = np.array([0.0, 0.0])
-        # self.state_dim = 2
-        # self.action_dim = 1
-        # self.max_action = 2.0
-        # self.max_speed = 8.0
-        # self.max_torque = 2.0
-        # self.length = 0.5
-        # self.m = 1.0
-        # self.g = 9.8
-        # self.viewer = None
 
     def initial_training_data(self):
         # Initialize model
