@@ -169,7 +169,7 @@ def dempc_const_val(ocp, params, x_dim, n_order):
     # constraints
     ocp.constraints.lbu = np.array(params["optimizer"]["u_min"])
     ocp.constraints.ubu = np.array(params["optimizer"]["u_max"])
-    ocp.constraints.idxbu = np.arange(1)
+    ocp.constraints.idxbu = np.arange(ocp.constraints.ubu.shape[0])
 
     lbx = np.array(params["optimizer"]["x_min"] * params["agent"]["num_dyn_samples"])
     ubx = np.array(params["optimizer"]["x_max"] * params["agent"]["num_dyn_samples"])

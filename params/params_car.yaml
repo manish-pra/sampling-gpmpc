@@ -42,8 +42,8 @@ common:
 
 optimizer:
   H : 30 # horizon
-  u_min : [-8] # Minimum control input
-  u_max : [8] 
+  u_min : [-0.5, -1] # Minimum control input
+  u_max : [0.5, 1] 
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
   x_min : [-2.14, -2.5] # Minimum state value

@@ -15,6 +15,7 @@ class Visualizer:
         self.physical_state_traj = []
         self.save_path = path
         self.agent = agent
+        self.nx = self.params["agent"]["dim"]["nx"]
         if self.params["visu"]["show"]:
             self.initialize_plot_handles(path)
 
@@ -124,7 +125,7 @@ class Visualizer:
         )
         X = self.state_traj[-1]
         U = self.input_traj[-1]
-        rm.append(ax.plot(X[:, 0::2], X[:, 1::2], linestyle="-"))
+        rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
         pred_true_state = np.vstack(self.true_state_traj[-1])
         rm.append(
             ax.plot(
@@ -183,9 +184,14 @@ class Visualizer:
         self.physical_state_traj.append(x_curr)
         self.state_traj.append(X)
         self.input_traj.append(U)
-        x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
+        state_input = torch.from_numpy(
+            np.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
+        ).float()
+        state_kp1 = self.agent.env_model.discrete_dyn(state_input)
+        self.true_state_traj.append(state_kp1.transpose(0, 1).numpy())
+        # x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
+        # self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0, 1))
         # x1_mean, x2_mean = self.propagate_mean_dyn(X[0,0:2], U)
-        self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0, 1))
         # self.mean_state_traj.append(torch.Tensor([x1_mean, x2_mean]).transpose(0,1))
 
     def save_data(self):

@@ -7,6 +7,7 @@ class CarKinematicsModel(object):
         self.params = params
         self.nx = self.params["agent"]["dim"]["nx"]
         self.nu = self.params["agent"]["dim"]["nu"]
+        self.g_ny = self.params["agent"]["g_dim"]["ny"]
 
     def initial_training_data(self):
         # Initialize model
@@ -139,19 +140,21 @@ class CarKinematicsModel(object):
 
     def discrete_dyn(self, xu):
         """_summary_"""
-
+        f_xu = self.known_dyn(xu.reshape(1, 1, 1, -1)).reshape(-1, 1)
         g_xu = self.unknown_dyn(xu[:, [2, 3, 4]])  # phi, v, delta
-        X_k, Y_k, Phi_k, V_k = xu[:, [0]], xu[:, [1]], xu[:, [2]], xu[:, [3]]
-        acc_k = xu[:, 5]
-        # lf = 1.105 * 0.01
-        # lr = 1.738 * 0.01
-        dt = 0.015
-        # beta = torch.atan(torch.tan(delta_k) * lr / (lr + lf))
-        X_kp1 = X_k + g_xu[:, [0]]
-        Y_kp1 = Y_k + g_xu[:, [1]]
-        Phi_kp1 = Phi_k + g_xu[:, [2]]  # + V_k * torch.sin(beta) * dt / lr
-        V_kp1 = V_k + acc_k * dt
-        state_kp1 = torch.stack([X_kp1, Y_kp1, Phi_kp1, V_kp1])
+        B_d = torch.eye(self.nx, self.g_ny)
+        state_kp1 = f_xu + torch.matmul(B_d, g_xu.reshape(3, 1))
+        # X_k, Y_k, Phi_k, V_k = xu[:, [0]], xu[:, [1]], xu[:, [2]], xu[:, [3]]
+        # acc_k = xu[:, 5]
+        # # lf = 1.105 * 0.01
+        # # lr = 1.738 * 0.01
+        # dt = self.params["optimizer"]["dt"]
+        # # beta = torch.atan(torch.tan(delta_k) * lr / (lr + lf))
+        # X_kp1 = X_k + g_xu[:, [0]]
+        # Y_kp1 = Y_k + g_xu[:, [1]]
+        # Phi_kp1 = Phi_k + g_xu[:, [2]]  # + V_k * torch.sin(beta) * dt / lr
+        # V_kp1 = V_k + acc_k * dt
+        # state_kp1 = torch.stack([X_kp1, Y_kp1, Phi_kp1, V_kp1])
         return state_kp1
 
     def continous_dyn(self, X1, X2, U):

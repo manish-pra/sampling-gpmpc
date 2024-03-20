@@ -34,7 +34,7 @@ def export_linear_model(name, p, params):
         p_lin = ca.vertcat(
             p_lin,
             A_list[i].T.reshape((nx**2, 1)),
-            B_list[i].reshape((nx * nu, 1)),
+            B_list[i].T.reshape((nx * nu, 1)),
             x_lin_list[i],
             f_at_lin_list[i],
         )
