@@ -1,5 +1,5 @@
 env:
-  start: [0.0, 0.0, 0.0, 0.0] # x,y,theta,v
+  start: [0.0, 0.1, 0.0, 0.0] # x,y,theta,v
   dynamics: 'bicycle' # "pendulum"
   params: 
     lf: 1.105
@@ -33,7 +33,7 @@ agent:
   Dyn_gp_beta : 3.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 10      
+  num_dyn_samples: 20      
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
 
@@ -58,7 +58,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 5
+    max_sqp_iter: 2
     tol_nlp: 1.0e-4 
   Tf: 1  # sampling time = Tf/H
   order: 2

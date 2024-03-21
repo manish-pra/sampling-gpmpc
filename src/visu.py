@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 import dill as pickle
+from matplotlib.patches import Ellipse
 
 
 class Visualizer:
@@ -26,8 +27,21 @@ class Visualizer:
         ax.minorticks_on()
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
-        ax.add_line(plt.Line2D([-0.3, 2.4], [1, 1], color="red", linestyle="--"))
-        ax.add_line(plt.Line2D([-0.3, 2.4], [-1, -1], color="red", linestyle="--"))
+        if self.params["env"]["dynamics"] == "bicycle":
+            ax.add_line(plt.Line2D([-0.3, 2.4], [1, 1], color="red", linestyle="--"))
+            ax.add_line(plt.Line2D([-0.3, 2.4], [-1, -1], color="red", linestyle="--"))
+            # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
+            #                 edgecolor='r', fc='None', lw=2)
+            # ax.add_patch(ellipse)
+            u = 1.0  # x-position of the center
+            v = 0.1  # y-position of the center
+            f = 0.01
+            a = np.sqrt(2 * f)  # radius on the x-axis
+            b = np.sqrt(1 * f)  # radius on the y-axis
+            t = np.linspace(0, 2 * 3.14, 100)
+            plt.plot(u + a * np.cos(t), v + b * np.sin(t))
+            plt.grid(color="lightgray", linestyle="--")
+
         # ax.set_yticklabels([])
         # ax.set_xticklabels([])
         # ax.set_xticks([])
@@ -112,6 +126,43 @@ class Visualizer:
             X1_k = X1_kp1.clone()
             X2_k = X2_kp1.clone()
         return x1_list, x2_list
+
+    def plot_receding_car_traj(self):
+        rm = []
+        ax = self.f_handle["gp"].axes[0]
+        physical_state_traj = np.vstack(self.physical_state_traj)
+
+        ax.plot(
+            physical_state_traj[:, 0],
+            physical_state_traj[:, 1],
+            color="tab:blue",
+            label="real",
+            linestyle="-",
+        )
+        X = self.state_traj[-1]
+        U = self.input_traj[-1]
+        rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
+        pred_true_state = np.vstack(self.true_state_traj[-1])
+        rm.append(
+            ax.plot(
+                pred_true_state[:, 0],
+                pred_true_state[:, 1],
+                color="black",
+                label="true",
+                linestyle="-",
+            )
+        )
+        pred_mean_state = np.vstack(self.mean_state_traj[-1])
+        rm.append(
+            ax.plot(
+                pred_mean_state[:, 0],
+                pred_mean_state[:, 1],
+                color="black",
+                label="mean",
+                linestyle="--",
+            )
+        )
+        return rm
 
     def plot_receding_pendulum_traj(self):
         rm = []

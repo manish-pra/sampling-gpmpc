@@ -34,10 +34,11 @@ def export_dempc_ocp(params):
     ocp.model = model
     num_dyn = params["agent"]["num_dyn_samples"]
     const_expr = []
+    b = 0.1
     for i in range(num_dyn):
-        expr = (model_x[nx * i] - 1).T @ 2 @ (model_x[nx * i] - 1) + (
-            model_x[nx * i + 1]
-        ).T @ (model_x[nx * i + 1])
+        expr = (model_x[nx * i] - 1).T @ 0.5 @ (model_x[nx * i] - 1) + (
+            model_x[nx * i + 1] - b
+        ).T @ (model_x[nx * i + 1] - b)
         const_expr = ca.vertcat(const_expr, expr)
     model.con_h_expr = const_expr
     model.con_h_expr_e = const_expr
@@ -118,10 +119,12 @@ def concat_const_val(ocp, params):
 def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     pos_dim = 1
     nx = params["agent"]["dim"]["nx"]
-    q = 1e-3 * np.diag(np.ones(pos_dim))
+    nu = params["agent"]["dim"]["nu"]
+    q = 1e-1 * np.diag(np.ones(nu))
     qx = np.diag(np.ones(pos_dim))
     xg = p[0]
     w = p[1]
+
     # cost
     ocp.cost.cost_type = "EXTERNAL"
     ocp.cost.cost_type_e = "EXTERNAL"
@@ -142,10 +145,10 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
         ocp.model.cost_expr_ext_cost = (
             w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
             + model_u.T @ (q) @ model_u
-            + w * (model_x[1::nx]).T @ qx @ (model_x[1::nx]) * 10
+            + w * (model_x[1::nx]).T @ qx @ (model_x[1::nx])
         )
-        ocp.model.cost_expr_ext_cost_e = w * (model_x[::nx] - xg).T @ qx @ (
-            model_x[::nx] - xg
+        ocp.model.cost_expr_ext_cost_e = (
+            w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
         ) + w * (model_x[1::nx]).T @ qx @ (model_x[1::nx])
 
     # if params["algo"]["type"] == "ret_expander" or params["algo"]["type"] == "MPC_expander":
