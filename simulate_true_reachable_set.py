@@ -101,6 +101,7 @@ else:
     # torch.cuda.device(torch.device("cpu"))
     torch.set_default_device(torch.device("cpu"))
 
+
 X_traj = torch.zeros(
     (agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + agent.nu)
 )
@@ -266,7 +267,13 @@ for k in range(num_files):
         pickle.dump(X_traj_list, f)
 
 # save trajectories
+# flatten list
+X_traj_list = [item for sublist in X_traj_list for item in sublist]
+Y_traj_list = [item for sublist in Y_traj_list for item in sublist]
 
+
+with open(save_path + str(traj_iter) + "/X_traj_list.pkl", "wb") as f:
+    pickle.dump(X_traj_list, f)
 
 # plot trajectories
 x_plot = np.array(
