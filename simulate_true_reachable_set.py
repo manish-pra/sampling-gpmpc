@@ -114,6 +114,8 @@ Y_traj_list = [
     for i in range(num_repeat)
 ]
 
+sqrt_beta = params["agent"]["Dyn_gp_beta"]
+
 for j in range(num_repeat):
 
     agent = Agent(params)
@@ -141,6 +143,10 @@ for j in range(num_repeat):
             Y_traj_list[j][i] = model_i_call.sample(
                 # base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
+            Y_max = model_i_call.mean + sqrt_beta * torch.sqrt(model_i_call.variance)
+            Y_min = model_i_call.mean - sqrt_beta * torch.sqrt(model_i_call.variance)
+            Y_traj_list[j][i] = torch.max(Y_traj_list[j][i], Y_min)
+            Y_traj_list[j][i] = torch.min(Y_traj_list[j][i], Y_max)
 
         # condition on sampled values
         agent.update_hallucinated_Dyn_dataset(X_traj_list[j][i], Y_traj_list[j][i])
