@@ -101,7 +101,6 @@ else:
     # torch.cuda.device(torch.device("cpu"))
     torch.set_default_device(torch.device("cpu"))
 
-
 X_traj = torch.zeros(
     (agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + agent.nu)
 )
