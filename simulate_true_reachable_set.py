@@ -76,7 +76,8 @@ agent.update_current_state(np.array(params["env"]["start"]))
 
 # get saved input trajectory
 input_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/40/data.pkl"
+    # "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/40/data.pkl"
+    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/_static/reachable_set_input.pkl"
 )
 with open(input_data_path, "rb") as input_data_file:
     input_gpmpc_data = pickle.load(input_data_file)
@@ -94,7 +95,7 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 100
+num_repeat = 10
 X_traj_list = [
     [copy.deepcopy(X_traj) for i in range(params["optimizer"]["H"] + 1)]
     for i in range(num_repeat)
@@ -156,7 +157,7 @@ for j in range(num_repeat):
 plt.show()
 # de_mpc = DEMPC(params, visu, agent)
 # de_mpc.dempc_main()
-visu.save_data()
+# visu.save_data()
 # dict_file = torch.cuda.memory._snapshot()
 # pickle.dump(dict_file, open(save_path + str(traj_iter) + "/memory_snapshot_1.pickle", "wb"))
 exit()
