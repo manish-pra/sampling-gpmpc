@@ -52,7 +52,7 @@ class Agent(object):
         self.Dyn_gp_X_train, self.Dyn_gp_Y_train = env_model.initial_training_data()
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
-        self.epistimic_random_vector = self.random_vector_within_bounds()
+        # self.epistimic_random_vector = self.random_vector_within_bounds()
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling
@@ -264,6 +264,15 @@ class Agent(object):
             y_sample_orig = model_i_call.sample(
                 base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
+            
+            Y_max = model_i_call.mean + self.params["agent"][
+                "Dyn_gp_beta"
+            ] * torch.sqrt(model_i_call.variance)
+            Y_min = model_i_call.mean - self.params["agent"][
+                "Dyn_gp_beta"
+            ] * torch.sqrt(model_i_call.variance)
+            y_sample = torch.max(y_sample, Y_min)
+            y_sample = torch.min(y_sample, Y_max)
 
             # check that sampled dynamics are within bounds
             y_max = model_i_call.mean + self.params["agent"][

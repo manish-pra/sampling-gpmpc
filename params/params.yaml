@@ -49,7 +49,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 2
+    max_sqp_iter: 3
     tol_nlp: 1.0e-4 
   Tf: 1  # sampling time = Tf/H
   order: 2
@@ -64,4 +64,4 @@ experiment:
   folder: "pendulum"
   rnd_seed: 
     use: True
-    value: 123456
+    value: 345678
