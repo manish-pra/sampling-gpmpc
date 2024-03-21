@@ -142,6 +142,9 @@ for j in range(num_repeat):
         X_traj_list[j][i + 1][:, :, :, 0 : agent.nx] = Y_perm
         # X_traj_list[i + 1] = torch.cat((Y_perm, U_tile), dim=-1)
 
+# save trajectories
+
+
 # plot trajectories
 
 for j in range(num_repeat):

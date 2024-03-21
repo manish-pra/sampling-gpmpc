@@ -37,7 +37,7 @@ common:
   num_MPC_itrs : 50
 
 optimizer:
-  H : 30 # horizon
+  H : 70 # horizon
   u_min : [-8] # Minimum control input
   u_max : [8] 
   # u_min : [-30, -30] # Minimum control input
