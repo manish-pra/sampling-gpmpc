@@ -266,6 +266,9 @@ for k in range(num_files):
     with open(f"{save_path}{traj_iter}/X_traj_list_{k}.pkl", "wb") as f:
         pickle.dump(X_traj_list, f)
 
+# save trajectories
+
+
 # plot trajectories
 x_plot = np.array(
     [
