@@ -68,12 +68,6 @@ if args.i != -1:
 if not os.path.exists(save_path + str(traj_iter)):
     os.makedirs(save_path + str(traj_iter))
 
-agent = Agent(params)
-visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
-
-# 4) Set the initial state
-agent.update_current_state(np.array(params["env"]["start"]))
-
 # get saved input trajectory
 input_data_path = (
     # "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/40/data.pkl"
@@ -81,6 +75,12 @@ input_data_path = (
 )
 with open(input_data_path, "rb") as input_data_file:
     input_gpmpc_data = pickle.load(input_data_file)
+
+agent = Agent(params)
+# visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
+
+# 4) Set the initial state
+# agent.update_current_state(np.array(params["env"]["start"]))
 
 input_gpmpc_timestep = 0
 input_gpmpc_input_traj = input_gpmpc_data["input_traj"][input_gpmpc_timestep]
@@ -93,11 +93,12 @@ else:
     # torch.cuda.device(torch.device("cpu"))
     torch.set_default_device(torch.device("cpu"))
 
+
 X_traj = torch.zeros(
     (agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + agent.nu)
 )
 X_traj[:, :, :, 0 : agent.nx] = torch.tile(
-    torch.Tensor(np.array(params["env"]["start"])),
+    torch.tensor(np.array(params["env"]["start"])),
     (agent.batch_shape[0], agent.batch_shape[1], 1, 1),
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
@@ -113,13 +114,16 @@ Y_traj_list = [
 ]
 
 for j in range(num_repeat):
+
+    agent = Agent(params)
+
     for i in range(params["optimizer"]["H"]):
         # train model on data points
         agent.train_hallucinated_dynGP(i)
         agent.model_i.eval()
 
         # get control input into right shape to stack with Y_perm
-        U_single = torch.Tensor(input_gpmpc_input_traj[i, :])
+        U_single = torch.tensor(input_gpmpc_input_traj[i, :])
         U_tile = torch.tile(
             U_single, (agent.batch_shape[0], agent.batch_shape[1], 1, 1)
         )
@@ -150,14 +154,20 @@ for j in range(num_repeat):
         # X_traj_list[i + 1] = torch.cat((Y_perm, U_tile), dim=-1)
 
 # save trajectories
+# flatten list
+X_traj_list = [item for sublist in X_traj_list for item in sublist]
+Y_traj_list = [item for sublist in Y_traj_list for item in sublist]
 
+
+with open(save_path + str(traj_iter) + "/X_traj_list.pkl", "wb") as f:
+    pickle.dump(X_traj_list, f)
 
 # plot trajectories
 
-for j in range(num_repeat):
+for i in range(num_repeat * agent.batch_shape[0]):
     x_plot = np.array(
         [
-            X_traj_list[j][i][:, 0, 0, 0 : agent.nx].detach().numpy()
+            X_traj_list[i][:, 0, 0, 0 : agent.nx].detach().numpy()
             for i in range(params["optimizer"]["H"])
         ]
     )
