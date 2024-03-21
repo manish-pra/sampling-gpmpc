@@ -33,7 +33,7 @@ visu:
   show_current_loc: False
 
 common:
-  use_cuda : True
+  use_cuda : False
   num_MPC_itrs : 50
 
 optimizer:
