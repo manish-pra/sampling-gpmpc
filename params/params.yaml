@@ -19,7 +19,7 @@ agent:
   Dyn_gp_task_noises : 
     val : [3.8, 1.27, 3.8, 1.27]
     multiplier : 3.0e-7                     #1.0e-5 Low noise value make it crazy fast
-  Dyn_gp_beta : 3.0 # 1.5
+  Dyn_gp_beta : 3.0 # 3.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
   num_dyn_samples: 50
@@ -50,7 +50,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 2
+    max_sqp_iter: 3
     tol_nlp: 1.0e-4 
   Tf: 1  # sampling time = Tf/H
   order: 2
@@ -67,4 +67,4 @@ experiment:
   folder: "pendulum"
   rnd_seed: 
     use: True
-    value: 123456
+    value: 345678

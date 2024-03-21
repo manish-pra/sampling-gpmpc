@@ -50,7 +50,7 @@ class Agent(object):
         self.initial_training_data()
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
-        self.epistimic_random_vector = self.random_vector_within_bounds()
+        # self.epistimic_random_vector = self.random_vector_within_bounds()
 
     def initial_training_data(self):
         # Initialize model
@@ -336,8 +336,16 @@ class Agent(object):
             self.model_i.eval()
             model_i_call = self.model_i(x_hat)
             y_sample = model_i_call.sample(
-                base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
+                # base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
+            Y_max = model_i_call.mean + self.params["agent"][
+                "Dyn_gp_beta"
+            ] * torch.sqrt(model_i_call.variance)
+            Y_min = model_i_call.mean - self.params["agent"][
+                "Dyn_gp_beta"
+            ] * torch.sqrt(model_i_call.variance)
+            y_sample = torch.max(y_sample, Y_min)
+            y_sample = torch.min(y_sample, Y_max)
 
             idx_overwrite = 0
             if self.params["agent"]["true_dyn_as_sample"]:

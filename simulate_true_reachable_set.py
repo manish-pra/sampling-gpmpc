@@ -71,8 +71,8 @@ if not os.path.exists(save_path + str(traj_iter)):
 
 # get saved input trajectory
 input_data_path = (
-    # "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/40/data.pkl"
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/_static/reachable_set_input.pkl"
+    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/40/data.pkl"
+    # "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/_static/reachable_set_input.pkl"
 )
 with open(input_data_path, "rb") as input_data_file:
     input_gpmpc_data = pickle.load(input_data_file)
@@ -104,7 +104,7 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 1
+num_repeat = 2
 X_traj_list = [
     [copy.deepcopy(X_traj) for i in range(params["optimizer"]["H"] + 1)]
     for i in range(num_repeat)
@@ -118,6 +118,9 @@ sqrt_beta = params["agent"]["Dyn_gp_beta"]
 
 for j in range(num_repeat):
 
+    print(
+        f"Repeats: {j}/{num_repeat}, Samples: {agent.batch_shape[0]*j}/{num_repeat*agent.batch_shape[0]}"
+    )
     agent = Agent(params)
 
     for i in range(params["optimizer"]["H"]):
@@ -162,7 +165,11 @@ for j in range(num_repeat):
 
 # save trajectories
 # flatten list
-X_traj_list = [item for sublist in X_traj_list for item in sublist]
+X_traj_list = [
+    torch.cat([X_traj_list[j][i] for j in range(num_repeat)], dim=0)
+    for i in range(params["optimizer"]["H"] + 1)
+]
+# X_flatten = torch.cat(X_traj_list)
 Y_traj_list = [item for sublist in Y_traj_list for item in sublist]
 
 
