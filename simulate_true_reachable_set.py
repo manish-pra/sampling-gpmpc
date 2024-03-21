@@ -86,6 +86,13 @@ input_gpmpc_timestep = 0
 input_gpmpc_input_traj = input_gpmpc_data["input_traj"][input_gpmpc_timestep]
 
 # initialize initial condition for each sample
+if agent.use_cuda:
+    # torch.cuda.device(torch.device("cuda"))
+    torch.set_default_device(torch.device("cuda"))
+else:
+    # torch.cuda.device(torch.device("cpu"))
+    torch.set_default_device(torch.device("cpu"))
+
 X_traj = torch.zeros(
     (agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + agent.nu)
 )
@@ -95,7 +102,7 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 10
+num_repeat = 1
 X_traj_list = [
     [copy.deepcopy(X_traj) for i in range(params["optimizer"]["H"] + 1)]
     for i in range(num_repeat)
