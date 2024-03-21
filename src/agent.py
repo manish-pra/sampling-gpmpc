@@ -59,7 +59,7 @@ class Agent(object):
         self.Dyn_gp_X_train, self.Dyn_gp_Y_train = env_model.initial_training_data()
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
-        self.epistimic_random_vector = self.random_vector_within_bounds()
+        # self.epistimic_random_vector = self.random_vector_within_bounds()
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling

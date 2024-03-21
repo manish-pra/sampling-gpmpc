@@ -269,7 +269,11 @@ for k in range(num_files):
 
 # save trajectories
 # flatten list
-X_traj_list = [item for sublist in X_traj_list for item in sublist]
+X_traj_list = [
+    torch.cat([X_traj_list[j][i] for j in range(num_repeat)], dim=0)
+    for i in range(params["optimizer"]["H"] + 1)
+]
+# X_flatten = torch.cat(X_traj_list)
 Y_traj_list = [item for sublist in Y_traj_list for item in sublist]
 
 
