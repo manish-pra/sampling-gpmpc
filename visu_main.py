@@ -73,6 +73,8 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
 # plt.show()
 # load data)
 nx = params["agent"]["dim"]["nx"]
+ax = visu.f_handle["gp"].axes[0]
+(l,) = ax.plot([], [], "tab:orange")
 for i in range(0, len(state_traj)):
     mean_state_traj = state_traj[i][:, :nx]
     visu.record_out(
@@ -85,5 +87,11 @@ for i in range(0, len(state_traj)):
     # print(true_state_traj[i])
     # temp_obj = visu.plot_receding_pendulum_traj()
     temp_obj = visu.plot_receding_car_traj()
+    # visu.plot_car(
+    #     physical_state_traj[i][0],
+    #     physical_state_traj[i][1],
+    #     physical_state_traj[i][2],
+    #     l,
+    # )
     visu.writer_gp.grab_frame()
     visu.remove_temp_objects(temp_obj)

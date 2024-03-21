@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 import dill as pickle
 from matplotlib.patches import Ellipse
+import math
 
 
 class Visualizer:
@@ -28,18 +29,30 @@ class Visualizer:
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         if self.params["env"]["dynamics"] == "bicycle":
-            ax.add_line(plt.Line2D([-0.3, 2.4], [1, 1], color="red", linestyle="--"))
-            ax.add_line(plt.Line2D([-0.3, 2.4], [-1, -1], color="red", linestyle="--"))
+            y_min = self.params["optimizer"]["x_min"][1]
+            y_max = self.params["optimizer"]["x_max"][1]
+            ax.add_line(
+                plt.Line2D([-0.3, 2.4], [y_max, y_max], color="red", linestyle="--")
+            )
+            ax.add_line(
+                plt.Line2D([-0.3, 2.4], [y_min, y_min], color="red", linestyle="--")
+            )
             # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
             #                 edgecolor='r', fc='None', lw=2)
             # ax.add_patch(ellipse)
-            u = 1.0  # x-position of the center
-            v = 0.1  # y-position of the center
-            f = 0.01
-            a = np.sqrt(2 * f)  # radius on the x-axis
-            b = np.sqrt(1 * f)  # radius on the y-axis
-            t = np.linspace(0, 2 * 3.14, 100)
-            plt.plot(u + a * np.cos(t), v + b * np.sin(t))
+            for ellipse in self.params["env"]["ellipses"]:
+                x0 = self.params["env"]["ellipses"][ellipse][0]
+                y0 = self.params["env"]["ellipses"][ellipse][1]
+                a = self.params["env"]["ellipses"][ellipse][2]
+                b = self.params["env"]["ellipses"][ellipse][3]
+                f = self.params["env"]["ellipses"][ellipse][4]
+                # u = 1.0  # x-position of the center
+                # v = 0.1  # y-position of the center
+                # f = 0.01
+                a = np.sqrt(a * f)  # radius on the x-axis
+                b = np.sqrt(b * f)  # radius on the y-axis
+                t = np.linspace(0, 2 * 3.14, 100)
+                plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
             plt.grid(color="lightgray", linestyle="--")
 
         # ax.set_yticklabels([])
@@ -162,7 +175,28 @@ class Visualizer:
                 linestyle="--",
             )
         )
+
         return rm
+
+    def plot_car(self, x, y, yaw, l):
+        factor = 0.3
+        l_f = 0.275 * factor
+        l_r = 0.425 * factor
+        W = 0.3 * factor
+        outline = np.array(
+            [[-l_r, l_f, l_f, -l_r, -l_r], [W / 2, W / 2, -W / 2, -W / 2, W / 2]]
+        )
+
+        Rot1 = np.array(
+            [[math.cos(yaw), math.sin(yaw)], [-math.sin(yaw), math.cos(yaw)]]
+        )
+
+        outline = np.matmul(outline.T, Rot1).T
+
+        outline[0, :] += x
+        outline[1, :] += y
+
+        l.set_data(np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten())
 
     def plot_receding_pendulum_traj(self):
         rm = []
