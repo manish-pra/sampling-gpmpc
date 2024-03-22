@@ -66,4 +66,4 @@ experiment:
   folder: "pendulum"
   rnd_seed: 
     use: True
-    value: 345678
+    value: 13252

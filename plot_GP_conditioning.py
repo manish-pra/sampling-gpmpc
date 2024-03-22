@@ -88,8 +88,10 @@ import math
 from matplotlib import pyplot as plt
 import numpy as np
 
-lb, ub = 0.0, 4
+lb_plot, ub_plot = 0.0, 4.0
+lb, ub = 0.5, 3.5
 n = 3
+n_hyper = 200
 
 train_x = torch.linspace(lb, ub, n).unsqueeze(-1)
 train_y = torch.stack(
@@ -101,7 +103,17 @@ train_y = torch.stack(
     -1,
 ).squeeze(1)
 
-train_y += 0.05 * torch.randn(n, 2)
+train_x_hyper = torch.linspace(lb, ub, n_hyper).unsqueeze(-1)
+train_y_hyper = torch.stack(
+    [
+        torch.sin(2 * train_x_hyper) + torch.cos(train_x_hyper),
+        # torch.nan(train_x_hyper.shape),
+        -torch.sin(train_x_hyper) + 2 * torch.cos(2 * train_x_hyper),
+    ],
+    -1,
+).squeeze(1)
+
+train_y_hyper += 0.08 * torch.randn(n_hyper, 2)
 
 
 class GPModelWithDerivatives(gpytorch.models.ExactGP):
@@ -120,7 +132,7 @@ class GPModelWithDerivatives(gpytorch.models.ExactGP):
 likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
     num_tasks=2
 )  # Value + Derivative
-model = GPModelWithDerivatives(train_x, train_y, likelihood)
+model = GPModelWithDerivatives(train_x_hyper, train_y_hyper, likelihood)
 
 # this is for running the notebook in our testing framework
 import os
@@ -153,8 +165,8 @@ mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
 for i in range(training_iter):
     optimizer.zero_grad()
-    output = model(train_x)
-    loss = -mll(output, train_y)
+    output = model(train_x_hyper)
+    loss = -mll(output, train_y_hyper)
     loss.backward()
     print(
         "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
@@ -177,7 +189,9 @@ y_train_nod[:, 1] = torch.tensor(float("nan"))
 
 model_nod = GPModelWithDerivatives(train_x, y_train_nod, likelihood)
 model_nod.load_state_dict(state_dict)
-
+# meas_noise = 1e-3
+# model_nod.likelihood.noise = torch.tensor([meas_noise])
+# model_nod.likelihood.task_noises = torch.tensor([meas_noise, meas_noise])
 
 # Set into eval mode
 model_nod.train()
@@ -188,18 +202,20 @@ likelihood.eval()
 f, (y1_ax, y2_ax) = plt.subplots(1, 2, figsize=(12, 6))
 
 # Make predictions
-with torch.no_grad(), gpytorch.settings.max_cg_iterations(
-    50
-), gpytorch.settings.observation_nan_policy("mask"):
-    test_x = torch.linspace(lb, ub, 500)
-    predictions = likelihood(model_nod(test_x))
+with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
+    test_x = torch.linspace(lb_plot, ub_plot, 1000)
+    # predictions = likelihood(model_nod(test_x))
+    predictions = model_nod(test_x)
     mean = predictions.mean
     lower, upper = predictions.confidence_region()
+    sample = predictions.sample()
+
 
 # Plot training data as black stars
 y1_ax.plot(train_x.detach().numpy(), train_y[:, 0].detach().numpy(), "k*")
 # Predictive mean as blue line
 y1_ax.plot(test_x.numpy(), mean[:, 0].numpy(), "b")
+y1_ax.plot(test_x.numpy(), sample[:, 0].numpy(), "r")
 # Shade in confidence
 y1_ax.fill_between(test_x.numpy(), lower[:, 0].numpy(), upper[:, 0].numpy(), alpha=0.5)
 y1_ax.legend(["Observed Values", "Mean", "Confidence"])
@@ -209,6 +225,7 @@ y1_ax.set_title("Function values")
 y2_ax.plot(train_x.detach().numpy(), train_y[:, 1].detach().numpy(), "k*")
 # Predictive mean as blue line
 y2_ax.plot(test_x.numpy(), mean[:, 1].numpy(), "b")
+y2_ax.plot(test_x.numpy(), sample[:, 1].numpy(), "r")
 # Shade in confidence
 y2_ax.fill_between(test_x.numpy(), lower[:, 1].numpy(), upper[:, 1].numpy(), alpha=0.5)
 y2_ax.legend(["Observed Derivatives", "Mean", "Confidence"])
