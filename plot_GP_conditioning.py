@@ -215,17 +215,22 @@ plot_safe_MPC = True
 filename = "iterative_conditioning.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
 TEXTWIDTH = 16
+
 set_figure_params(serif=True, fontsize=14)
+# plt.figure(figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.5 * 1 / 2))
+
+# set_figure_params(serif=True, fontsize=14)
 # f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
 # f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
-f, ax = plt.subplots(1, 3, figsize=(3 * cm2inches(12.0), 3 * cm2inches(8.0)))
+# f, ax = plt.subplots(1, 3, figsize=(3 * cm2inches(12.0), 3 * cm2inches(8.0)))
+f, ax = plt.subplots(1, 3, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.5 * 1 / 2))
 
 marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
 
 train_x_2 = torch.tensor([0.8, 1.8, 2.8]).unsqueeze(-1)
 train_x_3 = torch.tensor([0.9, 1.9, 3.0]).unsqueeze(-1)
 # train_x_arr_add = [train_x, train_x_2, train_x_3]
-train_x_arr_add = [train_x_2, train_x_3, train_x_3]
+train_x_arr_add = [train_x.clone(), train_x_2.clone(), train_x_3.clone()]
 train_y_arr_add = [train_y.clone(), train_y.clone(), train_y.clone()]
 train_x_arr = train_x.clone()
 train_y_arr = train_y.clone()
@@ -235,6 +240,7 @@ train_y_arr_all = []
 for i in range(3):
     # ax[0].ylabel(r"$z$")
     # ax[0].xlabel(r"$g^n(z)$")
+
     model_nod = new_model(train_x_arr, train_y_arr)
     # Make predictions
     with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
@@ -251,14 +257,17 @@ for i in range(3):
 
     # condition model on new data
     # get values of sample at train_x_i, if it does not exist then find the closest value
-    train_x_arr = torch.cat([train_x_arr, train_x_arr_add[i]])
-    train_y_arr_add[i] = sample[np.searchsorted(test_x, train_x_arr_add[i])][:, 0, :]
-    train_y_arr = torch.cat(
-        [
-            train_y_arr,
-            train_y_arr_add[i],
-        ]
-    )
+    if i < 2:
+        train_x_arr = torch.cat([train_x_arr, train_x_arr_add[i + 1]])
+        train_y_arr_add[i + 1] = sample[
+            np.searchsorted(test_x, train_x_arr_add[i + 1])
+        ][:, 0, :]
+        train_y_arr = torch.cat(
+            [
+                train_y_arr,
+                train_y_arr_add[i + 1],
+            ]
+        )
 
     # Predictive mean as blue line
     ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
@@ -273,6 +282,12 @@ for i in range(3):
     )
     # ax[i].legend(["Observed Values", "Mean", "Confidence"])
     ax[i].set_title(f"$j = {i+1}$")
+    # remove tick labels
+    ax[i].set_yticklabels([])
+    ax[i].set_xticklabels([])
+    # remove ticks
+    ax[i].set_yticks([])
+    ax[i].set_xticks([])
 
 for i in range(3):
     # Plot training data as black stars
@@ -287,12 +302,12 @@ for i in range(3):
 
 f.tight_layout(pad=0.0)
 f.savefig(
-    "safe_gpmpc/conditioning.pdf",
+    "/home/amon/Repositories/sampling-gpmpc/images/conditioning.pdf",
     format="pdf",
     dpi=300,
     transparent=True,
 )
-plt.show()
+# plt.show()
 
 # de_mpc = DEMPC(params, visu, agent)
 # de_mpc.dempc_main()
