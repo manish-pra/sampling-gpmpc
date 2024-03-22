@@ -229,6 +229,8 @@ train_x_arr_add = [train_x_2, train_x_3, train_x_3]
 train_y_arr_add = [train_y.clone(), train_y.clone(), train_y.clone()]
 train_x_arr = train_x.clone()
 train_y_arr = train_y.clone()
+train_x_arr_all = []
+train_y_arr_all = []
 # loop over the axes
 for i in range(3):
     # ax[0].ylabel(r"$z$")
@@ -244,6 +246,9 @@ for i in range(3):
         if i == 0:
             sample = predictions.sample()
 
+    train_x_arr_all.append(train_x_arr.clone())
+    train_y_arr_all.append(train_y_arr.clone())
+
     # condition model on new data
     # get values of sample at train_x_i, if it does not exist then find the closest value
     train_x_arr = torch.cat([train_x_arr, train_x_arr_add[i]])
@@ -255,13 +260,6 @@ for i in range(3):
         ]
     )
 
-    # Plot training data as black stars
-    for j in range(2 - i, i - 1, -1):
-        ax[j].plot(
-            train_x_arr_add[i].detach().numpy(),
-            train_y_arr_add[i][:, 0].detach().numpy(),
-            f"k{marker_symbols[i]}",
-        )
     # Predictive mean as blue line
     ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
     ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
@@ -276,7 +274,24 @@ for i in range(3):
     # ax[i].legend(["Observed Values", "Mean", "Confidence"])
     ax[i].set_title(f"$j = {i+1}$")
 
+for i in range(3):
+    # Plot training data as black stars
+    for j in range(i + 1):
+        # for j in range(2 - i, -1, -1):
+        ax[i].plot(
+            train_x_arr_add[j].detach().numpy(),
+            train_y_arr_add[j][:, 0].detach().numpy(),
+            f"k{marker_symbols[j]}",
+        )
+
+
 f.tight_layout(pad=0.0)
+f.savefig(
+    "safe_gpmpc/conditioning.pdf",
+    format="pdf",
+    dpi=300,
+    transparent=True,
+)
 plt.show()
 
 # de_mpc = DEMPC(params, visu, agent)
