@@ -50,7 +50,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 3
+    max_sqp_iter: 5
     tol_nlp: 1.0e-4 
   Tf: 1  # sampling time = Tf/H
   order: 2
