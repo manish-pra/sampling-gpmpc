@@ -37,7 +37,7 @@ agent:
   Dyn_gp_beta : 3.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 10      
+  num_dyn_samples: 5      
   mean_as_dyn_sample: True
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
 
@@ -47,7 +47,7 @@ visu:
 
 common:
   use_cuda : True
-  num_MPC_itrs : 100
+  num_MPC_itrs : 4
 
 optimizer:
   H : 30 # horizon

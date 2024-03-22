@@ -75,10 +75,11 @@ class DEMPC:
         t_0 = timeit.default_timer()
         self.dempc_solver.solve(self.agent)
         t_1 = timeit.default_timer()
-        print("Time to solve", t_1 - t_0)
+        dt = t_1 - t_0
+        print("Time to solve", dt)
         X, U, Sl = self.dempc_solver.get_solution()
         # self.visu.Dyn_gp_model = self.agent.Dyn_gp_model
-        self.visu.record(st_curr, X, U)
+        self.visu.record(st_curr, X, U, dt)
         # print(X,U)
 
         # self.visu.plot_pendulum_traj(X,U)

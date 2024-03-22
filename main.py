@@ -85,6 +85,7 @@ agent.update_current_state(np.array(params["env"]["start"]))
 
 de_mpc = DEMPC(params, visu, agent)
 de_mpc.dempc_main()
+print(np.average(visu.solver_time[1:]), np.std(visu.solver_time[1:]))
 visu.save_data()
 # dict_file = torch.cuda.memory._snapshot()
 # pickle.dump(dict_file, open(save_path + str(traj_iter) + "/memory_snapshot_1.pickle", "wb"))

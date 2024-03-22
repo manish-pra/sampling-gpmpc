@@ -15,6 +15,7 @@ class Visualizer:
         self.mean_state_traj = []
         self.true_state_traj = []
         self.physical_state_traj = []
+        self.solver_time = []
         self.save_path = path
         self.agent = agent
         self.nx = self.params["agent"]["dim"]["nx"]
@@ -266,10 +267,11 @@ class Visualizer:
         self.true_state_traj.append(pred_true_state)
         self.mean_state_traj.append(pred_mean_state)
 
-    def record(self, x_curr, X, U):
+    def record(self, x_curr, X, U, time):
         self.physical_state_traj.append(x_curr)
         self.state_traj.append(X)
         self.input_traj.append(U)
+        self.solver_time.append(time)
         # state_input = torch.from_numpy(
         #     np.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
         # ).float()
@@ -287,6 +289,7 @@ class Visualizer:
         data_dict["mean_state_traj"] = self.mean_state_traj
         data_dict["true_state_traj"] = self.true_state_traj
         data_dict["physical_state_traj"] = self.physical_state_traj
+        data_dict["solver_time"] = self.solver_time
         a_file = open(self.save_path + "/data.pkl", "wb")
         # data_dict["meas_traj"] = self.meas_traj
         # data_dict["player_train_pts"] = self.player_train_pts
