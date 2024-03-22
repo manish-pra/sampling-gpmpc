@@ -10,18 +10,18 @@ sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
 from src.visu import propagate_true_dynamics
 
 plot_GT = True
-plot_sampling_MPC = False
+plot_sampling_MPC = True
 plot_cautious_MPC = False
-plot_safe_MPC = True
-filename = "safe_uncertainity.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
+plot_safe_MPC = False
+filename = "sam_uncertainity.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
 TEXTWIDTH = 16
 set_figure_params(serif=True, fontsize=14)
 # f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
 f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
 ax = f.axes
-plt.ylabel(r"$\theta$")
-plt.xlabel(r"$\dot{\theta}$")
+plt.xlabel(r"$\theta$")
+plt.ylabel(r"$\omega$")
 plt.tight_layout(pad=0.0)
 # plt.plot(x1_smpc, x2_smpc, alpha=0.7)
 plt.xlim(-0.1, 1.45)
@@ -100,7 +100,7 @@ if plot_cautious_MPC:
     ellipse_list = pickle.load(a_file)
     a_file.close()
     for ellipse in ellipse_list:
-        plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7)
+        plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:orange")
 
 if plot_safe_MPC:
     ellipse_list_path = (
@@ -116,6 +116,7 @@ if plot_safe_MPC:
 plt.plot([-0.1, 2.2], [2.5, 2.5], color="red", linestyle="--")
 plt.xlim(-0.1, 1.45)
 plt.ylim(-0.1, 2.7)
+# plt.legend(["True uncertainty", "True dynamics"])
 fname = Path().resolve().joinpath("figures")
 fname.mkdir(exist_ok=True)
 adapt_figure_size_from_axes(ax)
