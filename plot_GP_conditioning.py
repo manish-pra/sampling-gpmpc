@@ -187,19 +187,22 @@ state_dict = model.state_dict()
 y_train_nod = train_y.clone()
 y_train_nod[:, 1] = torch.tensor(float("nan"))
 
-model_nod = GPModelWithDerivatives(train_x, y_train_nod, likelihood)
-model_nod.load_state_dict(state_dict)
-# meas_noise = 1e-3
-# model_nod.likelihood.noise = torch.tensor([meas_noise])
-# model_nod.likelihood.task_noises = torch.tensor([meas_noise, meas_noise])
+
+def new_model(train_x, train_y):
+    model = GPModelWithDerivatives(train_x, train_y, likelihood)
+    model.load_state_dict(state_dict)
+    # meas_noise = 1e-3
+    # model_nod.likelihood.noise = torch.tensor([meas_noise])
+    # model_nod.likelihood.task_noises = torch.tensor([meas_noise, meas_noise])
+    model.eval()
+    return model
+
+
+model_nod = new_model(train_x, y_train_nod)
 
 # Set into eval mode
-model_nod.train()
-model_nod.eval()
 likelihood.eval()
 
-# Initialize plots
-f, (y1_ax, y2_ax) = plt.subplots(1, 2, figsize=(12, 6))
 
 # Make predictions
 with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
@@ -210,16 +213,58 @@ with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
     lower, upper = predictions.confidence_region()
     sample = predictions.sample()
 
+# sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
+import sys
+from plotting_utilities.utilities import *
 
-# Plot training data as black stars
-y1_ax.plot(train_x.detach().numpy(), train_y[:, 0].detach().numpy(), "k*")
-# Predictive mean as blue line
-y1_ax.plot(test_x.numpy(), mean[:, 0].numpy(), "b")
-y1_ax.plot(test_x.numpy(), sample[:, 0].numpy(), "r")
-# Shade in confidence
-y1_ax.fill_between(test_x.numpy(), lower[:, 0].numpy(), upper[:, 0].numpy(), alpha=0.5)
-y1_ax.legend(["Observed Values", "Mean", "Confidence"])
-y1_ax.set_title("Function values")
+sys.path.append("/home/amon/Repositories/safe_gpmpc")
+
+
+plot_GT = True
+plot_sampling_MPC = False
+plot_cautious_MPC = False
+plot_safe_MPC = True
+filename = "iterative_conditioning.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
+
+TEXTWIDTH = 16
+set_figure_params(serif=True, fontsize=14)
+# f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
+# f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
+f, ax = plt.subplots(1, 3, figsize=(3 * cm2inches(12.0), 3 * cm2inches(8.0)))
+
+marker_symbols = ["*", "o", "s", "x", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
+
+train_x_2 = torch.tensor([0.8, 1.8, 2.8]).unsqueeze(-1)
+train_x_3 = torch.tensor([0.9, 1.9, 3.0]).unsqueeze(-1)
+train_x_arr = [train_x, train_x_2, train_x_3]
+train_y_arr = [train_y, train_y, train_y]
+# loop over the axes
+for i in range(3):
+    # ax[0].ylabel(r"$z$")
+    # ax[0].xlabel(r"$g^n(z)$")
+    # Plot training data as black stars
+    for j in range(i):
+        ax[i].plot(
+            train_x.detach().numpy(),
+            train_y[:, 0].detach().numpy(),
+            f"k{marker_symbols[i]}",
+        )
+    # Predictive mean as blue line
+    ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "b")
+    ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "r")
+    # Shade in confidence
+    ax[i].fill_between(
+        test_x.numpy(), lower[:, 0].numpy(), upper[:, 0].numpy(), alpha=0.5
+    )
+    ax[i].legend(["Observed Values", "Mean", "Confidence"])
+    ax[i].set_title(f"$j = {i+1}$")
+
+f.tight_layout(pad=0.0)
+plt.show()
+
+# Initialize plots
+f, (y1_ax, y2_ax) = plt.subplots(1, 2, figsize=(12, 6))
+
 
 # Plot training data as black stars
 y2_ax.plot(train_x.detach().numpy(), train_y[:, 1].detach().numpy(), "k*")
