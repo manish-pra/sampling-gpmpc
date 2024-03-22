@@ -198,20 +198,8 @@ def new_model(train_x, train_y):
     return model
 
 
-model_nod = new_model(train_x, y_train_nod)
-
 # Set into eval mode
 likelihood.eval()
-
-
-# Make predictions
-with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
-    test_x = torch.linspace(lb_plot, ub_plot, 1000)
-    # predictions = likelihood(model_nod(test_x))
-    predictions = model_nod(test_x)
-    mean = predictions.mean
-    lower, upper = predictions.confidence_region()
-    sample = predictions.sample()
 
 # sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
 import sys
@@ -232,51 +220,65 @@ set_figure_params(serif=True, fontsize=14)
 # f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
 f, ax = plt.subplots(1, 3, figsize=(3 * cm2inches(12.0), 3 * cm2inches(8.0)))
 
-marker_symbols = ["*", "o", "s", "x", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
+marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
 
 train_x_2 = torch.tensor([0.8, 1.8, 2.8]).unsqueeze(-1)
 train_x_3 = torch.tensor([0.9, 1.9, 3.0]).unsqueeze(-1)
-train_x_arr = [train_x, train_x_2, train_x_3]
-train_y_arr = [train_y, train_y, train_y]
+# train_x_arr_add = [train_x, train_x_2, train_x_3]
+train_x_arr_add = [train_x_2, train_x_3, train_x_3]
+train_y_arr_add = [train_y.clone(), train_y.clone(), train_y.clone()]
+train_x_arr = train_x.clone()
+train_y_arr = train_y.clone()
 # loop over the axes
 for i in range(3):
     # ax[0].ylabel(r"$z$")
     # ax[0].xlabel(r"$g^n(z)$")
+    model_nod = new_model(train_x_arr, train_y_arr)
+    # Make predictions
+    with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
+        test_x = torch.linspace(lb_plot, ub_plot, 1000)
+        predictions = model_nod(test_x)
+        mean = predictions.mean
+        lower, upper = predictions.confidence_region()
+
+        if i == 0:
+            sample = predictions.sample()
+
+    # condition model on new data
+    # get values of sample at train_x_i, if it does not exist then find the closest value
+    train_x_arr = torch.cat([train_x_arr, train_x_arr_add[i]])
+    train_y_arr_add[i] = sample[np.searchsorted(test_x, train_x_arr_add[i])][:, 0, :]
+    train_y_arr = torch.cat(
+        [
+            train_y_arr,
+            train_y_arr_add[i],
+        ]
+    )
+
     # Plot training data as black stars
-    for j in range(i):
-        ax[i].plot(
-            train_x.detach().numpy(),
-            train_y[:, 0].detach().numpy(),
+    for j in range(2 - i, i - 1, -1):
+        ax[j].plot(
+            train_x_arr_add[i].detach().numpy(),
+            train_y_arr_add[i][:, 0].detach().numpy(),
             f"k{marker_symbols[i]}",
         )
     # Predictive mean as blue line
-    ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "b")
-    ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "r")
+    ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
+    ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
     # Shade in confidence
     ax[i].fill_between(
-        test_x.numpy(), lower[:, 0].numpy(), upper[:, 0].numpy(), alpha=0.5
+        test_x.numpy(),
+        lower[:, 0].numpy(),
+        upper[:, 0].numpy(),
+        alpha=0.5,
+        color="tab:blue",
     )
-    ax[i].legend(["Observed Values", "Mean", "Confidence"])
+    # ax[i].legend(["Observed Values", "Mean", "Confidence"])
     ax[i].set_title(f"$j = {i+1}$")
 
 f.tight_layout(pad=0.0)
 plt.show()
 
-# Initialize plots
-f, (y1_ax, y2_ax) = plt.subplots(1, 2, figsize=(12, 6))
-
-
-# Plot training data as black stars
-y2_ax.plot(train_x.detach().numpy(), train_y[:, 1].detach().numpy(), "k*")
-# Predictive mean as blue line
-y2_ax.plot(test_x.numpy(), mean[:, 1].numpy(), "b")
-y2_ax.plot(test_x.numpy(), sample[:, 1].numpy(), "r")
-# Shade in confidence
-y2_ax.fill_between(test_x.numpy(), lower[:, 1].numpy(), upper[:, 1].numpy(), alpha=0.5)
-y2_ax.legend(["Observed Derivatives", "Mean", "Confidence"])
-y2_ax.set_title("Derivatives")
-
-plt.show()
 # de_mpc = DEMPC(params, visu, agent)
 # de_mpc.dempc_main()
 # visu.save_data()
