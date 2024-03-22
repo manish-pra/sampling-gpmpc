@@ -182,7 +182,7 @@ if __name__ == "__main__":
         # checks spd inside the function
         t = np.linspace(0, 2 * np.pi, 100)
         z = [np.cos(t), np.sin(t)]
-        ellipse = np.dot(3 * r, z) + x_mean[[i + 1], :].numpy().T
+        ellipse = np.dot(5.991 * r, z) + x_mean[[i + 1], :].numpy().T
         ellipse_list.append(ellipse)
         plt.plot(ellipse[0, :], ellipse[1, :])
     a_file = open(save_path_iter + "/ellipse_data.pkl", "wb")
