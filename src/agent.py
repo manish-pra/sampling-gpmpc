@@ -91,8 +91,38 @@ class Agent(object):
         self.update_current_location(state[: self.nx])
 
     def update_hallucinated_Dyn_dataset(self, newX, newY):
-        self.Hallcinated_X_train = torch.cat([self.Hallcinated_X_train, newX], 2)
-        self.Hallcinated_Y_train = torch.cat([self.Hallcinated_Y_train, newY], 2)
+        # eliminate similar data points
+        # newX, newY = self.eliminate_similar_data(newX, newY)
+
+        # calculate distance between new data and existing data
+        # self.model_i.covar_module(self.Hallcinated_X_train)
+        # self.model_i.
+
+        # eliminate_radius = 1e-3
+        # dist = torch.zeros((newX.shape[2], self.Hallcinated_X_train.shape[2]))
+        # for i in range(newX.shape[2]):
+        #     dist[i,:]
+        min_distance = 1e-2
+        X_cond, Y_cond = self.concatenate_real_hallucinated_data()
+        X_all = torch.cat([newX, X_cond], 2)
+        diag = (
+            torch.eye(newX.shape[2] + X_cond.shape[2], newX.shape[2])
+            .unsqueeze(-1)
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
+
+        dist = newX[:, :, None, :, :] - X_all[:, :, :, None, :] + diag
+        dist_norm = torch.norm(dist, dim=-1)
+        filter_these_out = torch.any(dist_norm <= min_distance, dim=2)
+        filter_these_out = torch.any(filter_these_out == True, dim=1)
+        filter_these_out = torch.any(filter_these_out == True, dim=0)
+        self.Hallcinated_X_train = torch.cat(
+            [self.Hallcinated_X_train, newX[:, :, filter_these_out == False, :]], 2
+        )
+        self.Hallcinated_Y_train = torch.cat(
+            [self.Hallcinated_Y_train, newY[:, :, filter_these_out == False, :]], 2
+        )
 
     def real_data_batch(self):
         n_pnts, n_dims = self.Dyn_gp_X_train.shape
