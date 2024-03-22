@@ -90,7 +90,7 @@ import numpy as np
 
 lb_plot, ub_plot = 0.0, 4.0
 lb, ub = 0.5, 3.5
-n = 3
+n = 4
 n_hyper = 200
 
 train_x = torch.linspace(lb, ub, n).unsqueeze(-1)
@@ -113,7 +113,16 @@ train_y_hyper = torch.stack(
     -1,
 ).squeeze(1)
 
-train_y_hyper += 0.08 * torch.randn(n_hyper, 2)
+train_y_hyper += 0.07 * torch.randn(n_hyper, 2)
+
+test_x = torch.linspace(lb_plot, ub_plot, 1000)
+test_y = torch.stack(
+    [
+        torch.sin(2 * test_x) + torch.cos(test_x),
+        -torch.sin(test_x) + 2 * torch.cos(2 * test_x),
+    ],
+    -1,
+).squeeze(1)
 
 
 class GPModelWithDerivatives(gpytorch.models.ExactGP):
@@ -194,7 +203,7 @@ def new_model(train_x, train_y):
     # meas_noise = 1e-3
     # model_nod.likelihood.noise = torch.tensor([meas_noise])
     # model_nod.likelihood.task_noises = torch.tensor([meas_noise, meas_noise])
-    model.eval()
+    # model.eval()
     return model
 
 
@@ -242,9 +251,16 @@ for i in range(3):
     # ax[0].xlabel(r"$g^n(z)$")
 
     model_nod = new_model(train_x_arr, train_y_arr)
+    # set noise to zero
+    # zero_noise = 1e-4
+    # model_nod.likelihood.noise = torch.tensor([1e-4])
+    # model_nod.likelihood.task_noises = torch.tensor([1e-4, 1e-4])
+    model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[0.3]])
+    model_nod.covar_module.outputscale = torch.tensor([0.5])
+    model_nod.eval()
+
     # Make predictions
     with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
-        test_x = torch.linspace(lb_plot, ub_plot, 1000)
         predictions = model_nod(test_x)
         mean = predictions.mean
         lower, upper = predictions.confidence_region()
@@ -270,6 +286,7 @@ for i in range(3):
         )
 
     # Predictive mean as blue line
+    ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--")
     ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
     ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
     # Shade in confidence
