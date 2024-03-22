@@ -10,10 +10,10 @@ sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
 from src.visu import propagate_true_dynamics
 
 plot_GT = True
-plot_sampling_MPC = True
-plot_cautious_MPC = False
+plot_sampling_MPC = False
+plot_cautious_MPC = True
 plot_safe_MPC = False
-filename = "sam_uncertainity.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
+filename = "cautious_uncertainity.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
 TEXTWIDTH = 16
 set_figure_params(serif=True, fontsize=14)
@@ -116,7 +116,7 @@ if plot_safe_MPC:
 plt.plot([-0.1, 2.2], [2.5, 2.5], color="red", linestyle="--")
 plt.xlim(-0.1, 1.45)
 plt.ylim(-0.1, 2.7)
-# plt.legend(["True uncertainty", "True dynamics"])
+plt.legend(["True uncertainty", "True dynamics"])
 fname = Path().resolve().joinpath("figures")
 fname.mkdir(exist_ok=True)
 adapt_figure_size_from_axes(ax)
