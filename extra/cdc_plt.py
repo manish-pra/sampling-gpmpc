@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull, convex_hull_plot_2d
-from plotting_utilities.plotting_utilities.utilities import *
+from plotting_utilities.utilities import *
 from pathlib import Path
 
 # sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
