@@ -225,26 +225,33 @@ filename = "iterative_conditioning.pdf"  # "sam_uncertainity.pdf" "cautious_unce
 
 TEXTWIDTH = 16
 
-set_figure_params(serif=True, fontsize=14)
+set_figure_params(serif=True, fontsize=10)
 # plt.figure(figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.5 * 1 / 2))
 
 # set_figure_params(serif=True, fontsize=14)
 # f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
 # f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
 # f, ax = plt.subplots(1, 3, figsize=(3 * cm2inches(12.0), 3 * cm2inches(8.0)))
-f, ax = plt.subplots(1, 3, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.5 * 1 / 2))
+f, ax = plt.subplots(1, 3, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25 * 1 / 2))
 
 marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
 
 train_x_2 = torch.tensor([0.8, 1.8, 2.8]).unsqueeze(-1)
 train_x_3 = torch.tensor([0.9, 1.9, 3.0]).unsqueeze(-1)
 # train_x_arr_add = [train_x, train_x_2, train_x_3]
-train_x_arr_add = [train_x.clone(), train_x_2.clone(), train_x_3.clone()]
+train_x_arr_add = [
+    train_x.clone(),
+    train_x_2.clone(),
+    train_x_3.clone(),
+    train_x_3.clone(),
+]
 train_y_arr_add = [train_y.clone(), train_y.clone(), train_y.clone()]
 train_x_arr = train_x.clone()
 train_y_arr = train_y.clone()
 train_x_arr_all = []
 train_y_arr_all = []
+
+beta_fac = 1.5
 # loop over the axes
 for i in range(3):
     # ax[0].ylabel(r"$z$")
@@ -264,6 +271,9 @@ for i in range(3):
         predictions = model_nod(test_x)
         mean = predictions.mean
         lower, upper = predictions.confidence_region()
+
+        mean_lower = beta_fac * (mean - lower)
+        mean_upper = beta_fac * (upper - mean)
 
         if i == 0:
             sample = predictions.sample()
@@ -285,19 +295,52 @@ for i in range(3):
             ]
         )
 
+    # vlines at test_x_add
+    if i < 2 or True:
+        # if i < 2:
+        for x in train_x_arr_add[i + 1]:
+            ax[i].axvline(
+                x.numpy().flatten(),
+                color="k",
+                linestyle="solid",
+                alpha=0.3,
+                linewidth=3,
+            )
+
     # Predictive mean as blue line
-    ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--")
-    ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
-    ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
+    h_func = ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--")
+    h_mean = ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
+    h_samp = ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
     # Shade in confidence
-    ax[i].fill_between(
+    # h_conf = ax[i].fill_between(
+    #     test_x.numpy(),
+    #     lower[:, 0].numpy(),
+    #     upper[:, 0].numpy(),
+    #     alpha=0.5,
+    #     color="tab:blue",
+    # )
+    h_conf = ax[i].fill_between(
         test_x.numpy(),
-        lower[:, 0].numpy(),
-        upper[:, 0].numpy(),
+        mean[:, 0] - mean_lower[:, 0].numpy(),
+        mean[:, 0] + mean_upper[:, 0].numpy(),
         alpha=0.5,
         color="tab:blue",
     )
+
+    if i == 2:
+        ax[i].legend(
+            [h_func[0], h_samp[0], h_conf],
+            # ["True", "Mean", "Sample"],
+            [
+                r"true function $g^{\mathrm{tr}}$",
+                r"sampled function $g^n$",
+                r"$\mathcal{GP}_{[\underline{g}, \overline{g}]}(0,k_{\mathrm{d}};\mathcal{D}^n_{0:j-1})$",
+            ],
+            # loc="lower left",
+        )
     # ax[i].legend(["Observed Values", "Mean", "Confidence"])
+    # set title with current marker_symbols
+
     ax[i].set_title(f"$j = {i+1}$")
     # remove tick labels
     ax[i].set_yticklabels([])
@@ -317,7 +360,7 @@ for i in range(3):
         )
 
 
-f.tight_layout(pad=0.0)
+f.tight_layout(pad=0.5)
 f.savefig(
     "/home/amon/Repositories/sampling-gpmpc/images/conditioning.pdf",
     format="pdf",
