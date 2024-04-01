@@ -154,44 +154,6 @@ class Visualizer:
             X2_k = X2_kp1.clone()
         return x1_list, x2_list
 
-    def plot_receding_car_traj(self):
-        rm = []
-        ax = self.f_handle["gp"].axes[0]
-        physical_state_traj = np.vstack(self.physical_state_traj)
-
-        ax.plot(
-            physical_state_traj[:, 0],
-            physical_state_traj[:, 1],
-            color="tab:blue",
-            label="real",
-            linestyle="-",
-        )
-        X = self.state_traj[-1]
-        U = self.input_traj[-1]
-        rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
-        pred_true_state = np.vstack(self.true_state_traj[-1])
-        rm.append(
-            ax.plot(
-                pred_true_state[:, 0],
-                pred_true_state[:, 1],
-                color="black",
-                label="true",
-                linestyle="-",
-            )
-        )
-        pred_mean_state = np.vstack(self.mean_state_traj[-1])
-        rm.append(
-            ax.plot(
-                pred_mean_state[:, 0],
-                pred_mean_state[:, 1],
-                color="black",
-                label="mean",
-                linestyle="--",
-            )
-        )
-
-        return rm
-
     def plot_car(self, x, y, yaw, l):
         factor = 0.3
         l_f = 0.275 * factor
@@ -212,7 +174,7 @@ class Visualizer:
 
         l.set_data(np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten())
 
-    def plot_receding_pendulum_traj(self):
+    def plot_receding_traj(self):
         rm = []
         ax = self.f_handle["gp"].axes[0]
         physical_state_traj = np.vstack(self.physical_state_traj)
