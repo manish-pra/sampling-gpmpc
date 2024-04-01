@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 import dill as pickle
+from matplotlib.patches import Ellipse
+import math
 
 
 class Visualizer:
@@ -13,8 +15,10 @@ class Visualizer:
         self.mean_state_traj = []
         self.true_state_traj = []
         self.physical_state_traj = []
+        self.solver_time = []
         self.save_path = path
         self.agent = agent
+        self.nx = self.params["agent"]["dim"]["nx"]
         if self.params["visu"]["show"]:
             self.initialize_plot_handles(path)
 
@@ -23,9 +27,35 @@ class Visualizer:
         # fig_gp.tight_layout(pad=0)
         ax.grid(which="both", axis="both")
         ax.minorticks_on()
-        ax.set_xlabel("theta")
-        ax.set_ylabel("theta_dot")
-        ax.add_line(plt.Line2D([-0.3, 2.4], [2.5, 2.5], color="red", linestyle="--"))
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        if self.params["env"]["dynamics"] == "bicycle":
+            y_min = self.params["optimizer"]["x_min"][1]
+            y_max = self.params["optimizer"]["x_max"][1]
+            ax.add_line(
+                plt.Line2D([-0.3, 2.4], [y_max, y_max], color="red", linestyle="--")
+            )
+            ax.add_line(
+                plt.Line2D([-0.3, 2.4], [y_min, y_min], color="red", linestyle="--")
+            )
+            # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
+            #                 edgecolor='r', fc='None', lw=2)
+            # ax.add_patch(ellipse)
+            for ellipse in self.params["env"]["ellipses"]:
+                x0 = self.params["env"]["ellipses"][ellipse][0]
+                y0 = self.params["env"]["ellipses"][ellipse][1]
+                a = self.params["env"]["ellipses"][ellipse][2]
+                b = self.params["env"]["ellipses"][ellipse][3]
+                f = self.params["env"]["ellipses"][ellipse][4]
+                # u = 1.0  # x-position of the center
+                # v = 0.1  # y-position of the center
+                # f = 0.01
+                a = np.sqrt(a * f)  # radius on the x-axis
+                b = np.sqrt(b * f)  # radius on the y-axis
+                t = np.linspace(0, 2 * 3.14, 100)
+                plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
+            plt.grid(color="lightgray", linestyle="--")
+
         # ax.set_yticklabels([])
         # ax.set_xticklabels([])
         # ax.set_xticks([])
@@ -73,19 +103,32 @@ class Visualizer:
         return X1_kp1, X2_kp1
 
     def propagate_true_dynamics(self, x_init, U):
-        x1_list = []
-        x2_list = []
-        X1_k = x_init[0]
-        X2_k = x_init[1]
-        x1_list.append(X1_k.item())
-        x2_list.append(X2_k.item())
+        state_list = []
+        state_list.append(x_init)
         for ele in range(U.shape[0]):
-            X1_kp1, X2_kp1 = self.pendulum_discrete_dyn(X1_k, X2_k, U[ele])
-            x1_list.append(X1_kp1.item())
-            x2_list.append(X2_kp1.item())
-            X1_k = X1_kp1.copy()
-            X2_k = X2_kp1.copy()
-        return x1_list, x2_list
+            state_input = (
+                torch.from_numpy(np.hstack([state_list[-1], U[ele]]))
+                .reshape(1, -1)
+                .float()
+            )
+            state_kp1 = self.agent.env_model.discrete_dyn(state_input)
+            state_list.append(state_kp1.reshape(-1))
+        return np.stack(state_list)
+
+    # def propagate_true_dynamics(self, x_init, U):
+    #     x1_list = []
+    #     x2_list = []
+    #     X1_k = x_init[0]
+    #     X2_k = x_init[1]
+    #     x1_list.append(X1_k.item())
+    #     x2_list.append(X2_k.item())
+    #     for ele in range(U.shape[0]):
+    #         X1_kp1, X2_kp1 = self.pendulum_discrete_dyn(X1_k, X2_k, U[ele])
+    #         x1_list.append(X1_kp1.item())
+    #         x2_list.append(X2_kp1.item())
+    #         X1_k = X1_kp1.copy()
+    #         X2_k = X2_kp1.copy()
+    #     return x1_list, x2_list
 
     def propagate_mean_dyn(self, x_init, U):
         self.agent.Dyn_gp_model["y1"].eval()
@@ -111,7 +154,27 @@ class Visualizer:
             X2_k = X2_kp1.clone()
         return x1_list, x2_list
 
-    def plot_receding_pendulum_traj(self):
+    def plot_car(self, x, y, yaw, l):
+        factor = 0.3
+        l_f = 0.275 * factor
+        l_r = 0.425 * factor
+        W = 0.3 * factor
+        outline = np.array(
+            [[-l_r, l_f, l_f, -l_r, -l_r], [W / 2, W / 2, -W / 2, -W / 2, W / 2]]
+        )
+
+        Rot1 = np.array(
+            [[math.cos(yaw), math.sin(yaw)], [-math.sin(yaw), math.cos(yaw)]]
+        )
+
+        outline = np.matmul(outline.T, Rot1).T
+
+        outline[0, :] += x
+        outline[1, :] += y
+
+        l.set_data(np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten())
+
+    def plot_receding_traj(self):
         rm = []
         ax = self.f_handle["gp"].axes[0]
         physical_state_traj = np.vstack(self.physical_state_traj)
@@ -124,7 +187,7 @@ class Visualizer:
         )
         X = self.state_traj[-1]
         U = self.input_traj[-1]
-        rm.append(ax.plot(X[:, 0::2], X[:, 1::2], linestyle="-"))
+        rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
         pred_true_state = np.vstack(self.true_state_traj[-1])
         rm.append(
             ax.plot(
@@ -179,13 +242,19 @@ class Visualizer:
         self.true_state_traj.append(pred_true_state)
         self.mean_state_traj.append(pred_mean_state)
 
-    def record(self, x_curr, X, U):
+    def record(self, x_curr, X, U, time):
         self.physical_state_traj.append(x_curr)
         self.state_traj.append(X)
         self.input_traj.append(U)
-        x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
+        self.solver_time.append(time)
+        # state_input = torch.from_numpy(
+        #     np.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
+        # ).float()
+        state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U)
+        self.true_state_traj.append(state_kp1)
+        # x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
+        # self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0, 1))
         # x1_mean, x2_mean = self.propagate_mean_dyn(X[0,0:2], U)
-        self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0, 1))
         # self.mean_state_traj.append(torch.Tensor([x1_mean, x2_mean]).transpose(0,1))
 
     def save_data(self):
@@ -195,6 +264,7 @@ class Visualizer:
         data_dict["mean_state_traj"] = self.mean_state_traj
         data_dict["true_state_traj"] = self.true_state_traj
         data_dict["physical_state_traj"] = self.physical_state_traj
+        data_dict["solver_time"] = self.solver_time
         a_file = open(self.save_path + "/data.pkl", "wb")
         # data_dict["meas_traj"] = self.meas_traj
         # data_dict["player_train_pts"] = self.player_train_pts

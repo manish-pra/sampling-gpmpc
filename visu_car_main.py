@@ -14,7 +14,7 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "safe_gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params_pendulum")  # params
+parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=40)  # initialized at origin
@@ -86,7 +86,7 @@ for i in range(0, len(state_traj)):
     )
     # print(true_state_traj[i])
     # temp_obj = visu.plot_receding_pendulum_traj()
-    temp_obj = visu.plot_receding_traj()
+    temp_obj = visu.plot_receding_car_traj()
     # visu.plot_car(
     #     physical_state_traj[i][0],
     #     physical_state_traj[i][1],

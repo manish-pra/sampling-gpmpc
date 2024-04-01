@@ -14,22 +14,24 @@ import matplotlib.pyplot as plt
 
 
 class Agent(object):
-    def __init__(self, params) -> None:
+    def __init__(self, params, env_model) -> None:
         self.my_key = 0
         self.params = params
-        self.nx = self.params["agent"]["dim"]["nx"]
-        self.nu = self.params["agent"]["dim"]["nu"]
-        self.ny = self.params["agent"]["dim"]["ny"]
+        self.env_model = env_model
+        self.g_nx = self.params["agent"]["g_dim"]["nx"]
+        self.g_nu = self.params["agent"]["g_dim"]["nu"]
+        self.g_ny = self.params["agent"]["g_dim"]["ny"]
         self.ns = self.params["agent"]["num_dyn_samples"]
+        self.nx = params["agent"]["dim"]["nx"]
+        self.nu = params["agent"]["dim"]["nu"]
 
-        # TODO: (Manish) replace self.in_dim --> self.nx + self.nu
-        self.in_dim = self.nx + self.nu
+        # TODO: (Manish) replace self.in_dim --> self.g_nx + self.g_nu
+        self.in_dim = self.g_nx + self.g_nu
         self.batch_shape = torch.Size(
-            [self.params["agent"]["num_dyn_samples"], self.ny]
+            [self.params["agent"]["num_dyn_samples"], self.g_ny]
         )
         self.mean_shift_val = params["agent"]["mean_shift_val"]
         self.converged = False
-        self.x_dim = params["optimizer"]["x_dim"]
 
         if self.params["common"]["use_cuda"] and torch.cuda.is_available():
             self.use_cuda = True
@@ -39,54 +41,18 @@ class Agent(object):
         self.Hallcinated_Y_train = None
         self.model_i = None
 
-        self.Hallcinated_X_train = torch.empty(self.ns, self.ny, 0, self.in_dim)
+        self.Hallcinated_X_train = torch.empty(self.ns, self.g_ny, 0, self.in_dim)
         self.Hallcinated_Y_train = torch.empty(
-            self.ns, self.ny, 0, self.in_dim + 1
+            self.ns, self.g_ny, 0, self.in_dim + 1
         )  # NOTE(amon): added+1 to in_dim
         if self.use_cuda:
             self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
             self.Hallcinated_Y_train = self.Hallcinated_Y_train.cuda()
 
-        self.initial_training_data()
+        self.Dyn_gp_X_train, self.Dyn_gp_Y_train = env_model.initial_training_data()
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
-
-    def initial_training_data(self):
-        # Initialize model
-        x1 = torch.linspace(-3.14, 3.14, 11)
-        x2 = torch.linspace(-10, 10, 11)
-        u = torch.linspace(-30, 30, 11)
-        X1, X2, U = torch.meshgrid(x1, x2, u)
-        self.Dyn_gp_X_range = torch.hstack(
-            [X1.reshape(-1, 1), X2.reshape(-1, 1), U.reshape(-1, 1)]
-        )
-
-        if self.params["agent"]["train_data_has_derivatives"]:
-            # need more training data for decent result
-            n_data_x = 7
-            n_data_u = 7
-        else:
-            n_data_x = 5
-            n_data_u = 3
-
-        if self.params["agent"]["prior_dyn_meas"]:
-            x1 = torch.linspace(-2.14, 2.14, n_data_x)
-            # x1 = torch.linspace(-0.57,1.14,5)
-            x2 = torch.linspace(-2.5, 2.5, n_data_x)
-            u = torch.linspace(-8, 8, n_data_u)
-            X1, X2, U = torch.meshgrid(x1, x2, u)
-            self.Dyn_gp_X_train = torch.hstack(
-                [X1.reshape(-1, 1), X2.reshape(-1, 1), U.reshape(-1, 1)]
-            )
-            y1, y2 = self.get_prior_data(self.Dyn_gp_X_train)
-            self.Dyn_gp_Y_train = torch.stack((y1, y2), dim=0)
-        else:
-            self.Dyn_gp_X_train = torch.rand(1, self.in_dim)
-            self.Dyn_gp_Y_train = torch.rand(2, 1, 1 + self.in_dim)
-
-        if not self.params["agent"]["train_data_has_derivatives"]:
-            self.Dyn_gp_Y_train[:, :, 1:] = torch.nan
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling
@@ -99,13 +65,13 @@ class Agent(object):
         # ret_itrs = torch.normal(
         #     torch.zeros(2, n_dyn, 2, H, 4), torch.ones(2, n_dyn, 2, H, 4)
         # )
-        ret_mpc_iters = torch.empty(n_mpc, n_itrs, n_dyn, self.ny, H, self.in_dim + 1)
+        ret_mpc_iters = torch.empty(n_mpc, n_itrs, n_dyn, self.g_ny, H, self.in_dim + 1)
         for j in range(self.params["common"]["num_MPC_itrs"]):
-            ret_itrs = torch.empty(n_itrs, n_dyn, self.ny, H, self.in_dim + 1)
+            ret_itrs = torch.empty(n_itrs, n_dyn, self.g_ny, H, self.in_dim + 1)
             for i in range(self.params["optimizer"]["SEMPC"]["max_sqp_iter"]):
-                ret = torch.empty(0, self.ny, H, self.in_dim + 1)
+                ret = torch.empty(0, self.g_ny, H, self.in_dim + 1)
                 while True:
-                    w = torch.normal(0, 1, size=(1, self.ny, H, self.in_dim + 1))
+                    w = torch.normal(0, 1, size=(1, self.g_ny, H, self.in_dim + 1))
                     if torch.all(w >= -beta) and torch.all(w <= beta):
                         ret = torch.cat([ret, w], dim=0)
                     if ret.shape[0] == n_dyn:
@@ -122,7 +88,7 @@ class Agent(object):
 
     def update_current_state(self, state):
         self.current_state = state
-        self.update_current_location(state[: self.x_dim])
+        self.update_current_location(state[: self.nx])
 
     def update_hallucinated_Dyn_dataset(self, newX, newY):
         self.Hallcinated_X_train = torch.cat([self.Hallcinated_X_train, newX], 2)
@@ -131,7 +97,7 @@ class Agent(object):
     def real_data_batch(self):
         n_pnts, n_dims = self.Dyn_gp_X_train.shape
         self.Dyn_gp_X_train_batch = torch.tile(
-            self.Dyn_gp_X_train, dims=(self.ns, self.ny, 1, 1)
+            self.Dyn_gp_X_train, dims=(self.ns, self.g_ny, 1, 1)
         )
         self.Dyn_gp_Y_train_batch = torch.tile(
             self.Dyn_gp_Y_train, dims=(self.ns, 1, 1, 1)
@@ -168,9 +134,9 @@ class Agent(object):
                 del self.Hallcinated_X_train
                 del self.Hallcinated_Y_train
 
-            self.Hallcinated_X_train = torch.empty(n_sample, self.ny, 0, self.in_dim)
+            self.Hallcinated_X_train = torch.empty(n_sample, self.g_ny, 0, self.in_dim)
             self.Hallcinated_Y_train = torch.empty(
-                n_sample, self.ny, 0, 1 + self.in_dim
+                n_sample, self.g_ny, 0, 1 + self.in_dim
             )
             if self.use_cuda:
                 self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
@@ -187,53 +153,6 @@ class Agent(object):
 
     def get_next_to_go_loc(self):
         return self.planned_measure_loc
-
-    def pendulum_dyn(self, X1, X2, U):
-        """_summary_
-
-        Args:
-            x (_type_): _description_
-            u (_type_): _description_
-        """
-        m = 1
-        l = 1
-        g = 10
-        X1dot = X2.clone()
-        X2dot = -g * torch.sin(X1) / l + U / l
-        train_data_y = torch.hstack([X1dot.reshape(-1, 1), X2dot.reshape(-1, 1)])
-        return train_data_y
-
-    def get_true_gradient(self, x_hat):
-        l = 1
-        g = 10
-        # A = np.array([[0.0, 1.0],
-        #               [-g*np.cos(x_hat[0])/l,0.0]])
-        # B = np.array([[0.0],
-        #               [1/l]])
-        ret = torch.zeros((2, x_hat.shape[0], 3))
-        ret[0, :, 1] = torch.ones(x_hat.shape[0])
-        ret[1, :, 0] = -g * torch.cos(x_hat[:, 0]) / l
-        ret[1, :, 2] = torch.ones(x_hat.shape[0]) / l
-
-        val = self.pendulum_dyn(x_hat[:, 0], x_hat[:, 1], x_hat[:, 2])
-        return torch.hstack([val[:, 0].reshape(-1, 1), ret[0, :, :]]), torch.hstack(
-            [val[:, 1].reshape(-1, 1), ret[1, :, :]]
-        )
-
-    def pendulum_discrete_dyn(self, X1_k, X2_k, U_k):
-        """_summary_
-
-        Args:
-            x (_type_): _description_
-            u (_type_): _description_
-        """
-        m = 1
-        l = 1
-        g = 10
-        dt = self.params["optimizer"]["dt"]
-        X1_kp1 = X1_k + X2_k * dt
-        X2_kp1 = X2_k - g * np.sin(X1_k) * dt / l + U_k * dt / (l * l)
-        return X1_kp1, X2_kp1
 
     def visu(self):
         plt.close()
@@ -267,27 +186,6 @@ class Agent(object):
         exit()
         pass
 
-    def get_prior_data(self, x_hat):
-        l = 1
-        g = 10
-        dt = self.params["optimizer"]["dt"]
-        y1_fx, y2_fx = self.pendulum_discrete_dyn(x_hat[:, 0], x_hat[:, 1], x_hat[:, 2])
-        y1_ret = torch.zeros((x_hat.shape[0], 4))
-        y2_ret = torch.zeros((x_hat.shape[0], 4))
-        y1_ret[:, 0] = y1_fx
-        y1_ret[:, 1] = torch.ones(x_hat.shape[0])
-        y1_ret[:, 2] = torch.ones(x_hat.shape[0]) * dt
-
-        y2_ret[:, 0] = y2_fx
-        y2_ret[:, 1] = (-g * torch.cos(x_hat[:, 0]) / l) * dt
-        y2_ret[:, 2] = torch.ones(x_hat.shape[0])
-        y2_ret[:, 3] = torch.ones(x_hat.shape[0]) * dt / (l * l)
-        # A = np.array([[0.0, 1.0],
-        #               [-g*np.cos(x_hat[0])/l,0.0]])
-        # B = np.array([[0.0],
-        #               [1/l]])
-        return y1_ret, y2_ret
-
     def get_batch_x_hat(self, x_h, u_h):
         x_h = torch.from_numpy(x_h).float()
         u_h = torch.from_numpy(u_h).float()
@@ -295,7 +193,7 @@ class Agent(object):
             x_h.transpose(0, 1)
             .view(
                 self.params["agent"]["num_dyn_samples"],
-                self.x_dim,
+                self.nx,
                 self.params["optimizer"]["H"],
             )
             .transpose(1, 2)
@@ -309,13 +207,41 @@ class Agent(object):
             * u_h
         )
         ret = torch.cat([x_h_batch, u_h_batch], 2)
-        ret_allout = torch.stack([ret] * 2, dim=1)
+        ret_allout = torch.stack([ret] * self.nx, dim=1)
         if self.use_cuda:
             ret_allout = ret_allout.cuda()
         return ret_allout
 
     def mpc_iteration(self, i):
         self.mpc_iter = i
+
+    def dyn_fg_jacobians(self, xu_hat, sqp_iter):
+        # get dynamics value and Jacobians
+        ns = xu_hat.shape[0]
+        nH = xu_hat.shape[2]
+        df_dxu_grad = self.env_model.get_f_known_jacobian(xu_hat)
+        g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
+        # g_xu_hat = xu_hat[:, : self.g_ny, :, [2, 3, 4]]  # phi, v, delta
+        dg_dxu_grad = self.get_batch_gp_sensitivities(g_xu_hat, sqp_iter)
+        if False:  # for debugging the multiplication with B_d logic
+            ch_pad_dg_dxu_grad = torch.zeros_like(df_dxu_grad, device=xu_hat.device)
+            ch_pad_dg_dxu_grad[:, : self.g_ny, :, [0, 3, 4, 5]] = dg_dxu_grad
+            y_sample = df_dxu_grad + ch_pad_dg_dxu_grad
+        else:
+            pad_dg_dxu_grad = torch.zeros(
+                ns, self.g_ny, nH, 1 + self.nx + self.nu, device=xu_hat.device
+            )
+            pad_dg_dxu_grad[:, :, :, self.env_model.pad_g] = dg_dxu_grad
+            B_d = torch.eye(self.nx, self.g_ny, device=xu_hat.device)
+            y_sample = df_dxu_grad + torch.matmul(
+                B_d, pad_dg_dxu_grad.transpose(1, 2)
+            ).transpose(1, 2)
+        gp_val = y_sample[:, :, :, [0]].cpu().numpy()
+        y_grad = y_sample[:, :, :, 1 : 1 + self.nx].cpu().numpy()
+        u_grad = y_sample[:, :, :, 1 + self.nx : 1 + self.nx + self.nu].cpu().numpy()
+        del y_sample
+        del xu_hat
+        return gp_val, y_grad, u_grad  # y, dy/dx, dy/du
 
     def get_batch_gp_sensitivities(self, x_hat, sqp_iter):
         """_summaary_ Derivatives are obtained by sampling from the GP directly. Record those derivatives.
@@ -342,10 +268,10 @@ class Agent(object):
             idx_overwrite = 0
             if self.params["agent"]["true_dyn_as_sample"]:
                 # overwrite next sample with true dynamics
-                y_sample_true_1, y_sample_true_2 = self.get_prior_data(
+                y_sample_true = self.env_model.get_prior_data(
                     x_hat[idx_overwrite, 0, :, :].cpu()
                 )
-                y_sample_true = torch.stack([y_sample_true_1, y_sample_true_2], dim=0)
+                # y_sample_true = torch.stack([y_sample_true_1, y_sample_true_2], dim=0)
                 y_sample[idx_overwrite, :, :, :] = y_sample_true
                 idx_overwrite += 1
 
@@ -358,13 +284,8 @@ class Agent(object):
 
         assert torch.all(x_hat[:, 0, :, :] == x_hat[:, 1, :, :])
         self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
-
-        gp_val = y_sample[:, :, :, [0]].cpu().numpy()
-        y_grad = y_sample[:, :, :, 1 : 1 + self.nx].cpu().numpy()
-        u_grad = y_sample[:, :, :, 1 + self.nx : 1 + self.nx + self.nu].cpu().numpy()
-        del y_sample
         del x_hat
-        return gp_val, y_grad, u_grad  # y, dy/dx1, dy/dx2, dy/du
+        return y_sample
 
     def scale_with_beta(self, lower, upper, beta):
         temp = lower * (1 + beta) / 2 + upper * (1 - beta) / 2

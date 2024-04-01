@@ -19,8 +19,7 @@ class DEMPC:
         self.flag_reached_xt_goal = False
         self.H = self.params["optimizer"]["H"]
         self.n_order = params["optimizer"]["order"]
-        self.x_dim = params["optimizer"]["x_dim"]
-        self.state_dim = self.x_dim
+        self.nx = self.params["agent"]["dim"]["nx"]
         self.agent = agent
 
     def dempc_main(self):
@@ -38,25 +37,23 @@ class DEMPC:
         for i in range(self.params["common"]["num_MPC_itrs"]):
             self.agent.mpc_iteration(i)
             torch.cuda.empty_cache()
-            x_curr = self.agent.current_state[: self.state_dim].reshape(self.state_dim)
+            x_curr = self.agent.current_state[: self.nx].reshape(self.nx)
             if torch.is_tensor(x_curr):
                 x_curr = x_curr.numpy()
             st_curr = np.array(
                 x_curr.tolist() * self.params["agent"]["num_dyn_samples"]
             )
             X, U = self.one_step_planner(st_curr)
-            X1_kp1, X2_kp1 = self.agent.pendulum_discrete_dyn(X[0][0], X[0][1], U[0])
-            self.agent.update_current_state(torch.Tensor([X1_kp1, X2_kp1]))
+            state_input = torch.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
+            state_kp1 = self.agent.env_model.discrete_dyn(state_input)
+            self.agent.update_current_state(state_kp1)
             # propagate the agent to the next state
             print(
                 bcolors.green + "Reached:",
                 i,
                 " ",
-                X1_kp1,
+                state_input,
                 " ",
-                X2_kp1,
-                " ",
-                U[0],
                 bcolors.ENDC,
             )
         return False
@@ -78,10 +75,11 @@ class DEMPC:
         t_0 = timeit.default_timer()
         self.dempc_solver.solve(self.agent)
         t_1 = timeit.default_timer()
-        print("Time to solve", t_1 - t_0)
+        dt = t_1 - t_0
+        print("Time to solve", dt)
         X, U, Sl = self.dempc_solver.get_solution()
         # self.visu.Dyn_gp_model = self.agent.Dyn_gp_model
-        self.visu.record(st_curr, X, U)
+        self.visu.record(st_curr, X, U, dt)
         # print(X,U)
 
         # self.visu.plot_pendulum_traj(X,U)
