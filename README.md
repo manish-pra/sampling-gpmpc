@@ -10,9 +10,20 @@ This repository contains code for the "Safe Gaussian process-based MPC using eff
 1. To run the code, use the following command
 
     ```
-    python3 safe_gpmpc/main.py
+    python3 safe_gpmpc/main.py -i $i -param $param_i
+    ```
+    where,
+    ```
+    $param_i: Name of the param file (see params folder) to pick an algo and the env type 
+    $i      : An integer to run multiple instances
     ```
 
+1. For visualizations/videos use the following script once your experiment is completed
+
+    ```
+    python3 safe_gpmpc/visu_main.py -i $i -param $param_i
+    ```
+    This will generate a video of the simulation in the folder cooresponding to the param file and the instance i.
 <!-- 1. To run the code, use the following command
 
     ```
