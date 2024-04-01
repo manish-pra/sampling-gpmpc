@@ -1,4 +1,6 @@
-# SafeGPMPC
+# Sampling based GPMPC
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 This repository contains code for the "Safe Gaussian process-based MPC using efficient sampling within a sequential quadratic programming framework" work.
 
