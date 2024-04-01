@@ -149,17 +149,26 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
             model_x[:pos_dim] - xg
         ) + w * (model_x[1]).T @ qx @ (model_x[1])
     else:
-        ocp.model.cost_expr_ext_cost = (
-            w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
-            + model_u.T @ (q) @ model_u
-            + (model_x[2::nx]).T @ qx @ (model_x[2::nx])
-            + w * (model_x[1::nx] - b).T @ qx @ (model_x[1::nx] - b)
-        )
-        ocp.model.cost_expr_ext_cost_e = (
-            w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
-            + (model_x[2::nx]).T @ qx @ (model_x[2::nx])
-            + w * (model_x[1::nx] - b).T @ qx @ (model_x[1::nx] - b)
-        )
+        if params["env"]["dynamics"] == "bicycle":
+            ocp.model.cost_expr_ext_cost = (
+                w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
+                + model_u.T @ (q) @ model_u
+                + (model_x[2::nx]).T @ qx @ (model_x[2::nx])
+                + w * (model_x[1::nx] - b).T @ qx @ (model_x[1::nx] - b)
+            )
+            ocp.model.cost_expr_ext_cost_e = (
+                w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
+                + (model_x[2::nx]).T @ qx @ (model_x[2::nx])
+                + w * (model_x[1::nx] - b).T @ qx @ (model_x[1::nx] - b)
+            )
+        else:
+            ocp.model.cost_expr_ext_cost = (
+                w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
+                + model_u.T @ (q) @ model_u
+            )
+            ocp.model.cost_expr_ext_cost_e = (
+                w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
+            )
 
     # if params["algo"]["type"] == "ret_expander" or params["algo"]["type"] == "MPC_expander":
     #     ocp.constraints.idxsh = np.array([1,2])
