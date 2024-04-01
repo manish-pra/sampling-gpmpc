@@ -8,6 +8,7 @@ class CarKinematicsModel(object):
         self.nx = self.params["agent"]["dim"]["nx"]
         self.nu = self.params["agent"]["dim"]["nu"]
         self.g_ny = self.params["agent"]["g_dim"]["ny"]
+        self.pad_g = [0, 3, 4, 5]  # 0, self.g_nx + self.g_nu :
 
     def initial_training_data(self):
         # Initialize model
@@ -102,6 +103,9 @@ class CarKinematicsModel(object):
         # set the derivative of the function w.r.t. control input
         df_dxu_grad[:, 3, :, 6] = dt * torch.ones((ns, nH))  # dV_kpi/acc_k = dt
         return df_dxu_grad
+
+    def get_g_xu_hat(self, xu_hat):
+        return xu_hat[:, : self.g_ny, :, [2, 3, 4]]
 
     def known_dyn(self, xu):
         """_summary_"""

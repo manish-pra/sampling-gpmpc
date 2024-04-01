@@ -5,6 +5,10 @@ import numpy as np
 class Pendulum(object):
     def __init__(self, params):
         self.params = params
+        self.nx = self.params["agent"]["dim"]["nx"]
+        self.nu = self.params["agent"]["dim"]["nu"]
+        self.g_ny = self.params["agent"]["g_dim"]["ny"]
+        self.pad_g = [0, 1, 2, 3]  # 0, self.g_nx + self.g_nu :
 
     def initial_training_data(self):
         # Initialize model
@@ -43,7 +47,8 @@ class Pendulum(object):
         l = 1
         g = 10
         dt = self.params["optimizer"]["dt"]
-        y1_fx, y2_fx = self.discrete_dyn(x_hat[:, 0], x_hat[:, 1], x_hat[:, 2])
+        g_xu = self.unknown_dyn(x_hat)
+        y1_fx, y2_fx = g_xu[:, 0], g_xu[:, 1]
         y1_ret = torch.zeros((x_hat.shape[0], 4))
         y2_ret = torch.zeros((x_hat.shape[0], 4))
         y1_ret[:, 0] = y1_fx
@@ -92,17 +97,43 @@ class Pendulum(object):
             [val[:, 1].reshape(-1, 1), ret[1, :, :]]
         )
 
-    def discrete_dyn(self, X1_k, X2_k, U_k):
-        """_summary_
+    def discrete_dyn(self, xu):
+        return self.unknown_dyn(xu)
 
-        Args:
-            x (_type_): _description_
-            u (_type_): _description_
-        """
+    def unknown_dyn(self, xu):
         m = 1
         l = 1
         g = 10
+        X1_k, X2_k, U_k = xu[:, [0]], xu[:, [1]], xu[:, [2]]
         dt = self.params["optimizer"]["dt"]
         X1_kp1 = X1_k + X2_k * dt
-        X2_kp1 = X2_k - g * np.sin(X1_k) * dt / l + U_k * dt / (l * l)
-        return X1_kp1, X2_kp1
+        X2_kp1 = X2_k - g * torch.sin(X1_k) * dt / l + U_k * dt / (l * l)
+        state_kp1 = torch.hstack([X1_kp1, X2_kp1])
+        return state_kp1
+
+    def get_f_known_jacobian(self, xu):
+        ns = xu.shape[0]
+        nH = xu.shape[2]
+        # dimension is ns, ny, H, nx+nu
+        df_dxu_grad = torch.zeros(
+            (ns, self.nx, nH, 1 + self.nx + self.nu), device=xu.device
+        )
+        return df_dxu_grad
+
+    def get_g_xu_hat(self, xu_hat):
+        return xu_hat
+
+    # def propagate_true_dynamics(self, x_init, U):
+    #     x1_list = []
+    #     x2_list = []
+    #     X1_k = x_init[0]
+    #     X2_k = x_init[1]
+    #     x1_list.append(X1_k.item())
+    #     x2_list.append(X2_k.item())
+    #     for ele in range(U.shape[0]):
+    #         X1_kp1, X2_kp1 = self.discrete_dyn(X1_k, X2_k, U[ele])
+    #         x1_list.append(X1_kp1.item())
+    #         x2_list.append(X2_kp1.item())
+    #         X1_k = X1_kp1.copy()
+    #         X2_k = X2_kp1.copy()
+    #     return x1_list, x2_list

@@ -220,9 +220,10 @@ class Agent(object):
         ns = xu_hat.shape[0]
         nH = xu_hat.shape[2]
         df_dxu_grad = self.env_model.get_f_known_jacobian(xu_hat)
-        g_xu_hat = xu_hat[:, : self.g_ny, :, [2, 3, 4]]  # phi, v, delta
+        g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
+        # g_xu_hat = xu_hat[:, : self.g_ny, :, [2, 3, 4]]  # phi, v, delta
         dg_dxu_grad = self.get_batch_gp_sensitivities(g_xu_hat, sqp_iter)
-        if True:
+        if False:  # for debugging the multiplication with B_d logic
             ch_pad_dg_dxu_grad = torch.zeros_like(df_dxu_grad, device=xu_hat.device)
             ch_pad_dg_dxu_grad[:, : self.g_ny, :, [0, 3, 4, 5]] = dg_dxu_grad
             y_sample = df_dxu_grad + ch_pad_dg_dxu_grad
@@ -230,7 +231,7 @@ class Agent(object):
             pad_dg_dxu_grad = torch.zeros(
                 ns, self.g_ny, nH, 1 + self.nx + self.nu, device=xu_hat.device
             )
-            pad_dg_dxu_grad[:, :, :, [0, 3, 4, 5]] = dg_dxu_grad
+            pad_dg_dxu_grad[:, :, :, self.env_model.pad_g] = dg_dxu_grad
             B_d = torch.eye(self.nx, self.g_ny, device=xu_hat.device)
             y_sample = df_dxu_grad + torch.matmul(
                 B_d, pad_dg_dxu_grad.transpose(1, 2)

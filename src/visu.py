@@ -103,19 +103,32 @@ class Visualizer:
         return X1_kp1, X2_kp1
 
     def propagate_true_dynamics(self, x_init, U):
-        x1_list = []
-        x2_list = []
-        X1_k = x_init[0]
-        X2_k = x_init[1]
-        x1_list.append(X1_k.item())
-        x2_list.append(X2_k.item())
+        state_list = []
+        state_list.append(x_init)
         for ele in range(U.shape[0]):
-            X1_kp1, X2_kp1 = self.pendulum_discrete_dyn(X1_k, X2_k, U[ele])
-            x1_list.append(X1_kp1.item())
-            x2_list.append(X2_kp1.item())
-            X1_k = X1_kp1.copy()
-            X2_k = X2_kp1.copy()
-        return x1_list, x2_list
+            state_input = (
+                torch.from_numpy(np.hstack([state_list[-1], U[ele]]))
+                .reshape(1, -1)
+                .float()
+            )
+            state_kp1 = self.agent.env_model.discrete_dyn(state_input)
+            state_list.append(state_kp1.reshape(-1))
+        return np.stack(state_list)
+
+    # def propagate_true_dynamics(self, x_init, U):
+    #     x1_list = []
+    #     x2_list = []
+    #     X1_k = x_init[0]
+    #     X2_k = x_init[1]
+    #     x1_list.append(X1_k.item())
+    #     x2_list.append(X2_k.item())
+    #     for ele in range(U.shape[0]):
+    #         X1_kp1, X2_kp1 = self.pendulum_discrete_dyn(X1_k, X2_k, U[ele])
+    #         x1_list.append(X1_kp1.item())
+    #         x2_list.append(X2_kp1.item())
+    #         X1_k = X1_kp1.copy()
+    #         X2_k = X2_kp1.copy()
+    #     return x1_list, x2_list
 
     def propagate_mean_dyn(self, x_init, U):
         self.agent.Dyn_gp_model["y1"].eval()
@@ -275,7 +288,7 @@ class Visualizer:
         # state_input = torch.from_numpy(
         #     np.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
         # ).float()
-        state_kp1 = self.agent.env_model.propagate_true_dynamics(X[0][: self.nx], U)
+        state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U)
         self.true_state_traj.append(state_kp1)
         # x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
         # self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0, 1))
