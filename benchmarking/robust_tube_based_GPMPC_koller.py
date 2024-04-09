@@ -1,9 +1,9 @@
 import sys
 import torch
 
-# clone https://github.com/oscarkey/safe-exploration and add it to the path
-# Add path to safe-exploration-cem
-sys.path.append("/home/manish/work/safe-exploration/")
+# clone https://github.com/manish-pra/safe-exploration-koller and add it to the path
+# Add path to safe-exploration-koller
+sys.path.append("/home/manish/work/safe-exploration-koller/")
 from easydict import EasyDict
 from safe_exploration.gp_reachability_pytorch import onestep_reachability
 from safe_exploration.ssm_cem.gp_ssm_cem import GpCemSSM
