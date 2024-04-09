@@ -10,10 +10,11 @@ import dill as pickle
 
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
-from src.environments.pendulum import Pendulum
 from src.agent import Agent
+from src.environments.pendulum import Pendulum
 import numpy as np
 import torch
+import numpy.linalg as nLa
 
 from extra.zoro_code import generate_gp_funs
 from src.GP_model import BatchMultitaskGPModelWithDerivatives_fromParams
@@ -145,6 +146,7 @@ if __name__ == "__main__":
     x_covar = torch.zeros((N + 1, nx, nx))
     x_covar[0, :, :] = torch.zeros((nx, nx))
 
+    ellipse_list = []
     for i in range(N):
 
         inp_current = torch.tile(
@@ -179,17 +181,29 @@ if __name__ == "__main__":
             torch.diag(variance[0, :]),
         )
 
-    std_dev_0 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 0, 0])
-    std_dev_1 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 1, 1])
-    std_dev = np.sqrt(np.array([np.diag(x_covar[i, :, :]) for i in range(N + 1)]))
-    x_plus_std = x_mean + 3 * std_dev
-    x_minus_std = x_mean - 3 * std_dev
-
-    # plot
-    plt.figure()
-    plt.plot(x_mean[:, 0], x_mean[:, 1], label="mean")
-    plt.plot(x_plus_std[:, 0], x_plus_std[:, 1], label="meanplus")
-    plt.plot(x_minus_std[:, 0], x_minus_std[:, 1], label="meanminus")
-    plt.plot([-0.3, 2.4], [2.5, 2.5], "--", color="red")
-    plt.legend()
+        r = nLa.cholesky(x_covar[i + 1, :, :]).T
+        # checks spd inside the function
+        t = np.linspace(0, 2 * np.pi, 100)
+        z = [np.cos(t), np.sin(t)]
+        ellipse = np.dot(5.991 * r, z) + x_mean[[i + 1], :].numpy().T
+        ellipse_list.append(ellipse)
+        plt.plot(ellipse[0, :], ellipse[1, :])
+    a_file = open(save_path_iter + "/ellipse_data.pkl", "wb")
+    pickle.dump(ellipse_list, a_file)
+    a_file.close()
     plt.show()
+
+    # std_dev_0 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 0, 0])
+    # std_dev_1 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 1, 1])
+    # std_dev = np.sqrt(np.array([np.diag(x_covar[i, :, :]) for i in range(N + 1)]))
+    # x_plus_std = x_mean + 3 * std_dev
+    # x_minus_std = x_mean - 3 * std_dev
+
+    # # plot
+    # plt.figure()
+    # plt.plot(x_mean[:, 0], x_mean[:, 1], label="mean")
+    # plt.plot(x_plus_std[:, 0], x_plus_std[:, 1], label="meanplus")
+    # plt.plot(x_minus_std[:, 0], x_minus_std[:, 1], label="meanminus")
+    # plt.plot([-0.3, 2.4], [2.5, 2.5], "--", color="red")
+    # plt.legend()
+    # plt.show()
