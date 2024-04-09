@@ -29,14 +29,17 @@ class Visualizer:
         ax.minorticks_on()
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
+        y_min = self.params["optimizer"]["x_min"][1]
+        y_max = self.params["optimizer"]["x_max"][1]
+        x_min = self.params["optimizer"]["x_min"][0]
+        x_max = self.params["optimizer"]["x_max"][0]
         if self.params["env"]["dynamics"] == "bicycle":
-            y_min = self.params["optimizer"]["x_min"][1]
-            y_max = self.params["optimizer"]["x_max"][1]
+
             ax.add_line(
-                plt.Line2D([-0.3, 2.4], [y_max, y_max], color="red", linestyle="--")
+                plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
             )
             ax.add_line(
-                plt.Line2D([-0.3, 2.4], [y_min, y_min], color="red", linestyle="--")
+                plt.Line2D([x_min, x_max], [y_min, y_min], color="red", linestyle="--")
             )
             # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
             #                 edgecolor='r', fc='None', lw=2)
@@ -60,9 +63,10 @@ class Visualizer:
         # ax.set_xticklabels([])
         # ax.set_xticks([])
         # ax.set_yticks([])
-        # ax.set_aspect('equal', 'box')
-        ax.set_xlim(-0.3, 2.4)
-        ax.set_ylim(-3, 3)
+        ax.set_aspect("equal", "box")
+        ax.set_xlim(x_min, x_max)
+        relax = 0.1
+        ax.set_ylim(y_min - relax, y_max + relax)
         fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
 
         # ax2.set_aspect('equal', 'box')
@@ -155,10 +159,10 @@ class Visualizer:
         return x1_list, x2_list
 
     def plot_car(self, x, y, yaw, l):
-        factor = 0.3
-        l_f = 0.275 * factor
-        l_r = 0.425 * factor
-        W = 0.3 * factor
+        factor = 0.4
+        l_f = self.params["env"]["params"]["lf"]  # 0.275 * factor
+        l_r = self.params["env"]["params"]["lr"]  # 0.425 * factor
+        W = (l_f + l_r) * factor
         outline = np.array(
             [[-l_r, l_f, l_f, -l_r, -l_r], [W / 2, W / 2, -W / 2, -W / 2, W / 2]]
         )
