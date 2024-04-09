@@ -10,6 +10,7 @@ import dill as pickle
 
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
+from src.environments.pendulum import Pendulum
 from src.agent import Agent
 import numpy as np
 import torch
@@ -42,7 +43,7 @@ if __name__ == "__main__":
     workspace = "safe_gpmpc"
 
     parser = argparse.ArgumentParser(description="A foo that bars")
-    parser.add_argument("-param", default="params")  # params
+    parser.add_argument("-param", default="params_pendulum")  # params
 
     parser.add_argument("-env", type=int, default=0)
     parser.add_argument("-i", type=int, default=40123)  # initialized at origin
@@ -53,6 +54,7 @@ if __name__ == "__main__":
         params = yaml.load(file, Loader=yaml.FullLoader)
     params["env"]["i"] = args.i
     params["env"]["name"] = args.env
+    params["common"]["use_cuda"] = False
     print(params)
 
     # random seed
@@ -90,8 +92,9 @@ if __name__ == "__main__":
 
     save_path_iter = save_path + str(traj_iter)
 
+    env_model = Pendulum(params)
     # TODO: abstract data generation from agent and just call the data generation function here
-    agent = Agent(params)
+    agent = Agent(params, env_model)
     train_x = agent.Dyn_gp_X_train_batch[[0], :, :, :]
     train_y = agent.Dyn_gp_Y_train_batch[[0], :, :, :]
 
