@@ -38,8 +38,8 @@ def export_dempc_ocp(params):
         for ellipse in params["env"]["ellipses"]:
             x0 = params["env"]["ellipses"][ellipse][0]
             y0 = params["env"]["ellipses"][ellipse][1]
-            a = 4 * params["env"]["ellipses"][ellipse][2]
-            b = 4 * params["env"]["ellipses"][ellipse][3]
+            a = 7 * params["env"]["ellipses"][ellipse][2]
+            b = 7 * params["env"]["ellipses"][ellipse][3]
             f = params["env"]["ellipses"][ellipse][4]
             for i in range(num_dyn):
                 expr = (model_x[nx * i] - x0).T @ (model_x[nx * i] - x0) / a + (
@@ -127,10 +127,11 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     pos_dim = 1
     nx = params["agent"]["dim"]["nx"]
     nu = params["agent"]["dim"]["nu"]
-    q = 1e-1 * np.diag(np.ones(nu))
-    qx = np.diag(np.ones(pos_dim))
-    xg = params["optimizer"]["x_max"][0]  # p[0]
-    w = p[1]
+    q = 1 * np.diag(np.ones(nu))
+    b = params["env"]["start"][1]
+    xg = np.array([params["optimizer"]["x_max"][0], b, 0, 0])  # p[0]
+    w = params["optimizer"]["w"]
+    qx = np.diag(np.array([w, 16 * w, 1, 0.1]))
 
     # cost
     ocp.cost.cost_type = "EXTERNAL"
@@ -151,16 +152,15 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
         ) + w * (model_x[1]).T @ qx @ (model_x[1])
     else:
         if params["env"]["dynamics"] == "bicycle":
-            ocp.model.cost_expr_ext_cost = (
-                w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
-                + model_u.T @ (q) @ model_u
-                # + (model_x[2::nx]).T @ qx @ (model_x[2::nx])
-                + w * (model_x[1::nx] - b).T @ qx @ (model_x[1::nx] - b) * 10
-            )
+            ocp.model.cost_expr_ext_cost = (model_x[:nx, ::nx] - xg).T @ qx @ (
+                model_x[:nx, ::nx] - xg
+            ) + model_u.T @ (q) @ model_u
             ocp.model.cost_expr_ext_cost_e = (
-                w * (model_x[::nx] - xg).T @ qx @ (model_x[::nx] - xg)
+                (model_x[:nx, ::nx] - xg).T
+                @ qx
+                @ (model_x[:nx, ::nx] - xg)
                 # + (model_x[2::nx]).T @ qx @ (model_x[2::nx])
-                + w * (model_x[1::nx] - b).T @ qx @ (model_x[1::nx] - b) * 10
+                # + w * (model_x[1::nx] - b).T @ qx @ (model_x[1::nx] - b) * 10
             )
         else:
             ocp.model.cost_expr_ext_cost = (

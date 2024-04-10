@@ -64,7 +64,7 @@ class Visualizer:
         # ax.set_xticks([])
         # ax.set_yticks([])
         ax.set_aspect("equal", "box")
-        ax.set_xlim(x_min, x_max)
+        ax.set_xlim(x_min, x_max - 10)
         relax = 0.1
         ax.set_ylim(y_min - relax, y_max + relax)
         fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)

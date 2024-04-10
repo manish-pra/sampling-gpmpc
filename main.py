@@ -6,7 +6,6 @@ import warnings
 import matplotlib.pyplot as plt
 import yaml
 
-
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
