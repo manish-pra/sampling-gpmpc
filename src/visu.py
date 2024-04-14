@@ -57,8 +57,9 @@ class Visualizer:
                 b = np.sqrt(b * f)  # radius on the y-axis
                 t = np.linspace(0, 2 * 3.14, 100)
                 f2 = np.sqrt(7 / 4)
-                plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
+                # plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
                 plt.plot(x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t))
+                self.plot_car_stationary(x0, y0, 0, plt)
             plt.grid(color="lightgray", linestyle="--")
 
         # ax.set_yticklabels([])
@@ -159,6 +160,26 @@ class Visualizer:
             X1_k = X1_kp1.clone()
             X2_k = X2_kp1.clone()
         return x1_list, x2_list
+
+    def plot_car_stationary(self, x, y, yaw, ax):
+        factor = 0.4
+        l_f = self.params["env"]["params"]["lf"]  # 0.275 * factor
+        l_r = self.params["env"]["params"]["lr"]  # 0.425 * factor
+        W = (l_f + l_r) * factor
+        outline = np.array(
+            [[-l_r, l_f, l_f, -l_r, -l_r], [W / 2, W / 2, -W / 2, -W / 2, W / 2]]
+        )
+
+        Rot1 = np.array(
+            [[math.cos(yaw), math.sin(yaw)], [-math.sin(yaw), math.cos(yaw)]]
+        )
+
+        outline = np.matmul(outline.T, Rot1).T
+
+        outline[0, :] += x
+        outline[1, :] += y
+
+        ax.plot(np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten())
 
     def plot_car(self, x, y, yaw, l, l2):
         factor = 0.4
