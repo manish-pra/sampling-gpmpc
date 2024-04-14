@@ -24,9 +24,9 @@ class CarKinematicsModel(object):
         n_data_u = self.params["env"]["n_data_u"]
 
         if self.params["env"]["prior_dyn_meas"]:
-            phi = torch.linspace(-2, 2, n_data_x)
-            v = torch.linspace(-2, 2, n_data_x)
-            delta = torch.linspace(-0.5, 0.5, n_data_u)
+            phi = torch.linspace(-1.14, 1.14, n_data_x)
+            v = torch.linspace(0, 15, n_data_x)
+            delta = torch.linspace(-0.6, 0.6, n_data_u)
             Phi, V, Delta = torch.meshgrid(phi, v, delta)
             Dyn_gp_X_train = torch.hstack(
                 [Phi.reshape(-1, 1), V.reshape(-1, 1), Delta.reshape(-1, 1)]

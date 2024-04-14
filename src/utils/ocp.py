@@ -38,8 +38,8 @@ def export_dempc_ocp(params):
         for ellipse in params["env"]["ellipses"]:
             x0 = params["env"]["ellipses"][ellipse][0]
             y0 = params["env"]["ellipses"][ellipse][1]
-            a = 7 * params["env"]["ellipses"][ellipse][2]
-            b = 7 * params["env"]["ellipses"][ellipse][3]
+            a = params["env"]["ellipses"][ellipse][2]
+            b = params["env"]["ellipses"][ellipse][3]
             f = params["env"]["ellipses"][ellipse][4]
             for i in range(num_dyn):
                 expr = (model_x[nx * i] - x0).T @ (model_x[nx * i] - x0) / a + (
@@ -127,7 +127,7 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     pos_dim = 1
     nx = params["agent"]["dim"]["nx"]
     nu = params["agent"]["dim"]["nu"]
-    q = 1 * np.diag(np.ones(nu))
+    q = 1.5 * np.diag(np.ones(nu))
     b = params["env"]["start"][1]
     xg = np.array([params["optimizer"]["x_max"][0], b, 0, 0])  # p[0]
     w = params["optimizer"]["w"]
@@ -181,9 +181,9 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     # else:
     ns = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
     ocp.constraints.idxsh = np.arange(ns)
-    ocp.cost.zl = 1e5 * np.array([1] * ns)
+    ocp.cost.zl = 1e6 * np.array([1] * ns)
     ocp.cost.zu = 1e5 * np.array([1] * ns)
-    ocp.cost.Zl = 1e5 * np.array([1] * ns)
+    ocp.cost.Zl = 1e6 * np.array([1] * ns)
     ocp.cost.Zu = 1e5 * np.array([1] * ns)
 
     # ocp.cost.cost_type = 'NONLINEAR_LS'
@@ -231,7 +231,7 @@ def dempc_const_val(ocp, params, x_dim, n_order):
 
     if params["env"]["dynamics"] == "bicycle":
         ns = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
-        f = params["env"]["ellipses"]["n1"][4]
+        f = 7 * params["env"]["ellipses"]["n1"][4]
         ocp.constraints.lh = np.array([f] * ns)
         ocp.constraints.uh = np.array([1e8] * ns)
         ocp.constraints.lh_e = np.array([f] * ns)

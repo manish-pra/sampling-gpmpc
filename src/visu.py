@@ -56,7 +56,9 @@ class Visualizer:
                 a = np.sqrt(a * f)  # radius on the x-axis
                 b = np.sqrt(b * f)  # radius on the y-axis
                 t = np.linspace(0, 2 * 3.14, 100)
+                f2 = np.sqrt(7 / 4)
                 plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
+                plt.plot(x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t))
             plt.grid(color="lightgray", linestyle="--")
 
         # ax.set_yticklabels([])
@@ -158,7 +160,7 @@ class Visualizer:
             X2_k = X2_kp1.clone()
         return x1_list, x2_list
 
-    def plot_car(self, x, y, yaw, l):
+    def plot_car(self, x, y, yaw, l, l2):
         factor = 0.4
         l_f = self.params["env"]["params"]["lf"]  # 0.275 * factor
         l_r = self.params["env"]["params"]["lr"]  # 0.425 * factor
@@ -176,7 +178,22 @@ class Visualizer:
         outline[0, :] += x
         outline[1, :] += y
 
-        l.set_data(np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten())
+        l2.set_data(
+            np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten()
+        )
+
+        a = self.params["env"]["ellipses"]["n1"][2]
+        b = self.params["env"]["ellipses"]["n1"][3]
+        f = self.params["env"]["ellipses"]["n1"][4]
+        # u = 1.0  # x-position of the center
+        # v = 0.1  # y-position of the center
+        # f = 0.01
+        a = np.sqrt(a * f)  # radius on the x-axis
+        b = np.sqrt(b * f)  # radius on the y-axis
+        t = np.linspace(0, 2 * 3.14, 100)
+        f2 = np.sqrt(7 / 4)
+
+        l.set_data(x + f2 * a * np.cos(t), y + f2 * b * np.sin(t))
 
     def plot_receding_traj(self):
         rm = []

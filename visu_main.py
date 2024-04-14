@@ -75,6 +75,7 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
 nx = params["agent"]["dim"]["nx"]
 ax = visu.f_handle["gp"].axes[0]
 (l,) = ax.plot([], [], "tab:orange")
+(l2,) = ax.plot([], [], "tab:orange")
 for i in range(0, len(state_traj)):
     mean_state_traj = state_traj[i][:, :nx]
     visu.record_out(
@@ -92,6 +93,7 @@ for i in range(0, len(state_traj)):
         physical_state_traj[i][1],
         physical_state_traj[i][2],
         l,
+        l2,
     )
     visu.writer_gp.grab_frame()
     visu.remove_temp_objects(temp_obj)
