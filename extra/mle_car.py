@@ -32,11 +32,11 @@ with open(workspace + "/params/" + args.param + ".yaml") as file:
 
 params["env"]["n_data_x"] = 11
 params["env"]["n_data_u"] = 11
-idx = 2
+idx = 0
 env_model = CarKinematicsModel(params)
 
 data_X, data_Y = env_model.initial_training_data()
-data_Y = data_Y + torch.randn_like(data_Y) * 0.001
+data_Y = data_Y + torch.randn_like(data_Y) * 0.0001
 data_X = data_X.cuda()
 data_Y = data_Y.cuda()
 g_nx = params["agent"]["g_dim"]["nx"]

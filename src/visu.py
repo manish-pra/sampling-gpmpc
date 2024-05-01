@@ -29,14 +29,17 @@ class Visualizer:
         ax.minorticks_on()
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
+        y_min = self.params["optimizer"]["x_min"][1]
+        y_max = self.params["optimizer"]["x_max"][1]
+        x_min = self.params["optimizer"]["x_min"][0]
+        x_max = self.params["optimizer"]["x_max"][0]
         if self.params["env"]["dynamics"] == "bicycle":
-            y_min = self.params["optimizer"]["x_min"][1]
-            y_max = self.params["optimizer"]["x_max"][1]
+
             ax.add_line(
-                plt.Line2D([-0.3, 2.4], [y_max, y_max], color="red", linestyle="--")
+                plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
             )
             ax.add_line(
-                plt.Line2D([-0.3, 2.4], [y_min, y_min], color="red", linestyle="--")
+                plt.Line2D([x_min, x_max], [y_min, y_min], color="red", linestyle="--")
             )
             # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
             #                 edgecolor='r', fc='None', lw=2)
@@ -53,16 +56,29 @@ class Visualizer:
                 a = np.sqrt(a * f)  # radius on the x-axis
                 b = np.sqrt(b * f)  # radius on the y-axis
                 t = np.linspace(0, 2 * 3.14, 100)
-                plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
+                f2 = np.sqrt(7 / 4)
+                # plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
+                plt.plot(x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t))
+                self.plot_car_stationary(x0, y0, 0, plt)
             plt.grid(color="lightgray", linestyle="--")
+            ax.set_aspect("equal", "box")
+            ax.set_xlim(x_min, x_max - 10)
+            relax = 0.1
+            ax.set_ylim(y_min - relax, y_max + relax)
+        elif self.params["env"]["dynamics"] == "pendulum":
+            ax.add_line(
+                plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
+            )
+            ax.set_aspect("equal", "box")
+            relax = 0.1
+            ax.set_xlim(0 - relax, x_max + relax)
+            ax.set_ylim(0 - relax, y_max + relax)
 
         # ax.set_yticklabels([])
         # ax.set_xticklabels([])
         # ax.set_xticks([])
         # ax.set_yticks([])
-        # ax.set_aspect('equal', 'box')
-        ax.set_xlim(-0.3, 2.4)
-        ax.set_ylim(-3, 3)
+
         fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
 
         # ax2.set_aspect('equal', 'box')
@@ -154,11 +170,11 @@ class Visualizer:
             X2_k = X2_kp1.clone()
         return x1_list, x2_list
 
-    def plot_car(self, x, y, yaw, l):
-        factor = 0.3
-        l_f = 0.275 * factor
-        l_r = 0.425 * factor
-        W = 0.3 * factor
+    def plot_car_stationary(self, x, y, yaw, ax):
+        factor = 0.4
+        l_f = self.params["env"]["params"]["lf"]  # 0.275 * factor
+        l_r = self.params["env"]["params"]["lr"]  # 0.425 * factor
+        W = (l_f + l_r) * factor
         outline = np.array(
             [[-l_r, l_f, l_f, -l_r, -l_r], [W / 2, W / 2, -W / 2, -W / 2, W / 2]]
         )
@@ -172,7 +188,42 @@ class Visualizer:
         outline[0, :] += x
         outline[1, :] += y
 
-        l.set_data(np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten())
+        ax.plot(np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten())
+
+    def plot_car(self, x, y, yaw, l, l2):
+        factor = 0.4
+        l_f = self.params["env"]["params"]["lf"]  # 0.275 * factor
+        l_r = self.params["env"]["params"]["lr"]  # 0.425 * factor
+        W = (l_f + l_r) * factor
+        outline = np.array(
+            [[-l_r, l_f, l_f, -l_r, -l_r], [W / 2, W / 2, -W / 2, -W / 2, W / 2]]
+        )
+
+        Rot1 = np.array(
+            [[math.cos(yaw), math.sin(yaw)], [-math.sin(yaw), math.cos(yaw)]]
+        )
+
+        outline = np.matmul(outline.T, Rot1).T
+
+        outline[0, :] += x
+        outline[1, :] += y
+
+        l2.set_data(
+            np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten()
+        )
+
+        a = self.params["env"]["ellipses"]["n1"][2]
+        b = self.params["env"]["ellipses"]["n1"][3]
+        f = self.params["env"]["ellipses"]["n1"][4]
+        # u = 1.0  # x-position of the center
+        # v = 0.1  # y-position of the center
+        # f = 0.01
+        a = np.sqrt(a * f)  # radius on the x-axis
+        b = np.sqrt(b * f)  # radius on the y-axis
+        t = np.linspace(0, 2 * 3.14, 100)
+        f2 = np.sqrt(7 / 4)
+
+        l.set_data(x + f2 * a * np.cos(t), y + f2 * b * np.sin(t))
 
     def plot_receding_traj(self):
         rm = []

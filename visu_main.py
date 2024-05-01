@@ -14,7 +14,7 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "safe_gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params_pendulum")  # params
+parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=40)  # initialized at origin
@@ -75,6 +75,7 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
 nx = params["agent"]["dim"]["nx"]
 ax = visu.f_handle["gp"].axes[0]
 (l,) = ax.plot([], [], "tab:orange")
+(l2,) = ax.plot([], [], "tab:orange")
 for i in range(0, len(state_traj)):
     mean_state_traj = state_traj[i][:, :nx]
     visu.record_out(
@@ -87,11 +88,13 @@ for i in range(0, len(state_traj)):
     # print(true_state_traj[i])
     # temp_obj = visu.plot_receding_pendulum_traj()
     temp_obj = visu.plot_receding_traj()
-    # visu.plot_car(
-    #     physical_state_traj[i][0],
-    #     physical_state_traj[i][1],
-    #     physical_state_traj[i][2],
-    #     l,
-    # )
+    if params["env"]["dynamics"] == "bicycle":
+        visu.plot_car(
+            physical_state_traj[i][0],
+            physical_state_traj[i][1],
+            physical_state_traj[i][2],
+            l,
+            l2,
+        )
     visu.writer_gp.grab_frame()
     visu.remove_temp_objects(temp_obj)

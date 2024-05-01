@@ -6,7 +6,6 @@ import warnings
 import matplotlib.pyplot as plt
 import yaml
 
-
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
@@ -23,7 +22,7 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "safe_gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params_pendulum")  # params
+parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=40)  # initialized at origin
