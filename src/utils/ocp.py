@@ -127,7 +127,7 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     pos_dim = 1
     nx = params["agent"]["dim"]["nx"]
     nu = params["agent"]["dim"]["nu"]
-    q = 1.5 * np.diag(np.ones(nu))
+    q = 2 * np.diag(np.ones(nu))
     b = params["env"]["start"][1]
     xg = np.array([params["optimizer"]["x_max"][0], b, 0, 0])  # p[0]
     w = params["optimizer"]["w"]
