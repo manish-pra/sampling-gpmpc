@@ -1,11 +1,12 @@
 env:
   start: [0.0, 1.95, 0.0, 0.0] # x,y,theta,v
+  goal_state: [70, 1.95, 0.0, 0.0]
   dynamics: 'bicycle' # "pendulum"
   params: 
     lf: 1.105 #0.55 #1.105, 0.275
     lr: 1.738 #0.85 #1.738, 0.425
   prior_dyn_meas: True 
-  train_data_has_derivatives: True
+  train_data_has_derivatives: False
   n_data_x: 3
   n_data_u: 5
   ellipses: 
@@ -68,6 +69,8 @@ optimizer:
   order: 2
   dt: 0.06 # 0.010
   w: 40
+  Qx: [2, 32, 0.05, 0.005] # [1.0, 1.0, 1.0, 1.0]
+  Qu: [2, 2]
   cost: "expected"
 
 experiment:

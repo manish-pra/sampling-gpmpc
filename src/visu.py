@@ -61,15 +61,24 @@ class Visualizer:
                 plt.plot(x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t))
                 self.plot_car_stationary(x0, y0, 0, plt)
             plt.grid(color="lightgray", linestyle="--")
+            ax.set_aspect("equal", "box")
+            ax.set_xlim(x_min, x_max - 10)
+            relax = 0.1
+            ax.set_ylim(y_min - relax, y_max + relax)
+        elif self.params["env"]["dynamics"] == "pendulum":
+            ax.add_line(
+                plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
+            )
+            ax.set_aspect("equal", "box")
+            relax = 0.1
+            ax.set_xlim(0 - relax, x_max + relax)
+            ax.set_ylim(0 - relax, y_max + relax)
 
         # ax.set_yticklabels([])
         # ax.set_xticklabels([])
         # ax.set_xticks([])
         # ax.set_yticks([])
-        ax.set_aspect("equal", "box")
-        ax.set_xlim(x_min, x_max - 10)
-        relax = 0.1
-        ax.set_ylim(y_min - relax, y_max + relax)
+
         fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
 
         # ax2.set_aspect('equal', 'box')

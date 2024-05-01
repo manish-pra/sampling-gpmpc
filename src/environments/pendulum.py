@@ -23,7 +23,7 @@ class Pendulum(object):
         n_data_x = self.params["env"]["n_data_x"]
         n_data_u = self.params["env"]["n_data_u"]
 
-        if self.params["agent"]["prior_dyn_meas"]:
+        if self.params["env"]["prior_dyn_meas"]:
             x1 = torch.linspace(-2.14, 2.14, n_data_x)
             # x1 = torch.linspace(-0.57,1.14,5)
             x2 = torch.linspace(-2.5, 2.5, n_data_x)

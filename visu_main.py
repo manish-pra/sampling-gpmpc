@@ -88,12 +88,13 @@ for i in range(0, len(state_traj)):
     # print(true_state_traj[i])
     # temp_obj = visu.plot_receding_pendulum_traj()
     temp_obj = visu.plot_receding_traj()
-    visu.plot_car(
-        physical_state_traj[i][0],
-        physical_state_traj[i][1],
-        physical_state_traj[i][2],
-        l,
-        l2,
-    )
+    if params["env"]["dynamics"] == "bicycle":
+        visu.plot_car(
+            physical_state_traj[i][0],
+            physical_state_traj[i][1],
+            physical_state_traj[i][2],
+            l,
+            l2,
+        )
     visu.writer_gp.grab_frame()
     visu.remove_temp_objects(temp_obj)
