@@ -148,60 +148,7 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
         )
     ocp.model.cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u
     ocp.model.cost_expr_ext_cost_e = expr / ns
-    # # either w_max can be decided here or outside
-    # # ocp.model.cost_expr_ext_cost =  w * \
-    # #     (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg) + model_u.T @ (q) @ model_u
-    # # ocp.model.cost_expr_ext_cost_e =  w * (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg)
-    # b = params["env"]["start"][1]
-    # if params["optimizer"]["cost"] == "mean":
-    #     expr = 0
-    #     for i in range(1):
-    #         expr += (
-    #             (model_x[nx * i : nx * (i + 1)] - xg).T
-    #             @ Qx
-    #             @ (model_x[nx * i : nx * (i + 1)] - xg)
-    #         )
-    #     ocp.model.cost_expr_ext_cost = expr + model_u.T @ (Qu) @ model_u
-    #     ocp.model.cost_expr_ext_cost_e = expr
 
-    #     # ocp.model.cost_expr_ext_cost = (
-    #     #     w * (model_x[:pos_dim] - xg).T @ qx @ (model_x[:pos_dim] - xg)
-    #     #     + w * (model_x[1]).T @ qx @ (model_x[1])
-    #     #     + model_u.T @ (q) @ model_u
-    #     # )
-    #     # ocp.model.cost_expr_ext_cost_e = w * (model_x[:pos_dim] - xg).T @ qx @ (
-    #     #     model_x[:pos_dim] - xg
-    #     # ) + w * (model_x[1]).T @ qx @ (model_x[1])
-    # else:
-
-    # if params["env"]["dynamics"] == "bicycle":
-    #     expr = 0
-    #     for i in range(params["agent"]["num_dyn_samples"]):
-    #         expr += (
-    #             (model_x[nx * i : nx * (i + 1)] - xg).T
-    #             @ Qx
-    #             @ (model_x[nx * i : nx * (i + 1)] - xg)
-    #         )
-    #     ocp.model.cost_expr_ext_cost = expr + model_u.T @ (Qu) @ model_u
-    #     ocp.model.cost_expr_ext_cost_e = expr
-    #     # + (model_x[2::nx]).T @ qx @ (model_x[2::nx])
-    #     # + w * (model_x[1::nx] - b).T @ qx @ (model_x[1::nx] - b) * 10
-    # else:
-    #     ocp.model.cost_expr_ext_cost = (
-    #         w * (model_x[::nx] - xg).T @ Qx @ (model_x[::nx] - xg)
-    #         + model_u.T @ (Qu) @ model_u
-    #     )
-    #     ocp.model.cost_expr_ext_cost_e = (
-    #         w * (model_x[::nx] - xg).T @ Qx @ (model_x[::nx] - xg) * 10
-    #     )
-
-    # if params["algo"]["type"] == "ret_expander" or params["algo"]["type"] == "MPC_expander":
-    #     ocp.constraints.idxsh = np.array([1,2])
-    #     ocp.cost.zl = 1e2 * np.array([1,1])
-    #     ocp.cost.zu = 1e1 * np.array([1,0.1])
-    #     ocp.cost.Zl = 1e1 * np.array([[1,0],[0,1]])
-    #     ocp.cost.Zu = 1e1 * np.array([[1,0],[0,1]])
-    # else:
     if params["env"]["dynamics"] == "bicycle":
         ns = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
         ocp.constraints.idxsh = np.arange(ns)
