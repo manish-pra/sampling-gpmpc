@@ -261,9 +261,22 @@ class Agent(object):
         ):
             self.model_i.eval()
             model_i_call = self.model_i(x_hat)
-            y_sample = model_i_call.sample(
+            y_sample_orig = model_i_call.sample(
                 base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
+
+            # check that sampled dynamics are within bounds
+            y_max = model_i_call.mean + self.params["agent"][
+                "Dyn_gp_beta"
+            ] * torch.sqrt(model_i_call.variance)
+            y_min = model_i_call.mean - self.params["agent"][
+                "Dyn_gp_beta"
+            ] * torch.sqrt(model_i_call.variance)
+            y_sample = torch.max(y_sample_orig, y_min)
+            y_sample = torch.min(y_sample, y_max)
+
+            if not torch.allclose(y_sample, y_sample_orig):
+                print(f"y_sample truncated! Reldiff: {torch.norm(y_sample - y_sample_orig)/(torch.norm(y_sample_orig)+1e-6)}")
 
             idx_overwrite = 0
             if self.params["agent"]["true_dyn_as_sample"]:
