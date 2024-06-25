@@ -8,6 +8,9 @@ This repository contains code for the "Safe Gaussian process-based MPC using eff
 
 1. Clone the repository and install the dependencies, especially, [acados](https://docs.acados.org/installation/), [casadi](https://web.casadi.org/get/) and check [requirements.txt](https://github.com/manish-pra/sagempc/blob/main/requirements.txt).
 
+    1. Create new virtual environment
+    2. `pip install -r requirements.txt` (update gpytorch version, gpytorch-1.12.dev28+g392dd41e)
+    3. Install acados
 
 1. To run the code, use the following command
 
