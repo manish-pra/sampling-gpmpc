@@ -30,6 +30,16 @@ class DEMPC_solver(object):
         self.nu = self.params["agent"]["dim"]["nu"]
         self.pos_dim = 1
 
+        # initialize
+        # random initialization
+        x_h = np.random.normal(
+            size=(self.H, self.nx * self.params["agent"]["num_dyn_samples"])
+        )
+        u_h = np.random.normal(size=(self.H, self.nu))  # u_dim
+        for stage in range(self.H):
+            self.ocp_solver.set(stage, "x", x_h[stage, :])
+            self.ocp_solver.set(stage, "u", u_h[stage, :])
+
     def initilization(self, sqp_iter, x_h, u_h):
         for stage in range(self.H):
             # current stage values

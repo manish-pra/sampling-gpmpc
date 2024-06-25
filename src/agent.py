@@ -52,7 +52,7 @@ class Agent(object):
         self.Dyn_gp_X_train, self.Dyn_gp_Y_train = env_model.initial_training_data()
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
-        self.epistimic_random_vector = self.random_vector_within_bounds()
+        # self.epistimic_random_vector = self.random_vector_within_bounds()
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling
@@ -91,8 +91,38 @@ class Agent(object):
         self.update_current_location(state[: self.nx])
 
     def update_hallucinated_Dyn_dataset(self, newX, newY):
-        self.Hallcinated_X_train = torch.cat([self.Hallcinated_X_train, newX], 2)
-        self.Hallcinated_Y_train = torch.cat([self.Hallcinated_Y_train, newY], 2)
+        # eliminate similar data points
+        # newX, newY = self.eliminate_similar_data(newX, newY)
+
+        # calculate distance between new data and existing data
+        # self.model_i.covar_module(self.Hallcinated_X_train)
+        # self.model_i.
+
+        # eliminate_radius = 1e-3
+        # dist = torch.zeros((newX.shape[2], self.Hallcinated_X_train.shape[2]))
+        # for i in range(newX.shape[2]):
+        #     dist[i,:]
+        min_distance = 1e-2
+        X_cond, Y_cond = self.concatenate_real_hallucinated_data()
+        X_all = torch.cat([newX, X_cond], 2)
+        diag = (
+            torch.eye(newX.shape[2] + X_cond.shape[2], newX.shape[2])
+            .unsqueeze(-1)
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
+
+        dist = newX[:, :, None, :, :] - X_all[:, :, :, None, :] + diag
+        dist_norm = torch.norm(dist, dim=-1)
+        filter_these_out = torch.any(dist_norm <= min_distance, dim=2)
+        filter_these_out = torch.any(filter_these_out == True, dim=1)
+        filter_these_out = torch.any(filter_these_out == True, dim=0)
+        self.Hallcinated_X_train = torch.cat(
+            [self.Hallcinated_X_train, newX[:, :, filter_these_out == False, :]], 2
+        )
+        self.Hallcinated_Y_train = torch.cat(
+            [self.Hallcinated_Y_train, newY[:, :, filter_these_out == False, :]], 2
+        )
 
     def real_data_batch(self):
         n_pnts, n_dims = self.Dyn_gp_X_train.shape
@@ -264,6 +294,15 @@ class Agent(object):
             y_sample_orig = model_i_call.sample(
                 base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
+            
+            Y_max = model_i_call.mean + self.params["agent"][
+                "Dyn_gp_beta"
+            ] * torch.sqrt(model_i_call.variance)
+            Y_min = model_i_call.mean - self.params["agent"][
+                "Dyn_gp_beta"
+            ] * torch.sqrt(model_i_call.variance)
+            y_sample = torch.max(y_sample, Y_min)
+            y_sample = torch.min(y_sample, Y_max)
 
             # check that sampled dynamics are within bounds
             y_max = model_i_call.mean + self.params["agent"][
