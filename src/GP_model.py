@@ -71,6 +71,11 @@ class BatchMultitaskGPModelWithDerivatives_fromParams(
     BatchMultitaskGPModelWithDerivatives
 ):
     def __init__(self, train_x, train_y, likelihood, params, batch_shape=None):
+        
+        if params["common"]["use_cuda"] and torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
 
         if batch_shape is None:
             batch_shape = torch.Size(
@@ -84,20 +89,21 @@ class BatchMultitaskGPModelWithDerivatives_fromParams(
             batch_shape=batch_shape,
         )
 
-        self.likelihood.noise = torch.tile(
-            torch.Tensor([params["agent"]["Dyn_gp_noise"]]),
-            dims=(batch_shape[0], batch_shape[1], 1),
-        )
-        self.likelihood.task_noises = torch.tile(
-            torch.Tensor(params["agent"]["Dyn_gp_task_noises"]["val"])
-            * params["agent"]["Dyn_gp_task_noises"]["multiplier"],
-            dims=(batch_shape[0], batch_shape[1], 1),
-        )
-        self.covar_module.base_kernel.lengthscale = torch.tile(
-            torch.Tensor(params["agent"]["Dyn_gp_lengthscale"]["both"]),
-            dims=(batch_shape[0], 1, 1, 1),
-        )
-        self.covar_module.outputscale = torch.tile(
-            torch.Tensor(params["agent"]["Dyn_gp_outputscale"]["both"]),
-            dims=(batch_shape[0], 1),
-        )
+        with torch.device(device):
+            self.likelihood.noise = torch.tile(
+                torch.tensor([params["agent"]["Dyn_gp_noise"]]),
+                dims=(batch_shape[0], batch_shape[1], 1),
+            )
+            self.likelihood.task_noises = torch.tile(
+                torch.tensor(params["agent"]["Dyn_gp_task_noises"]["val"])
+                * params["agent"]["Dyn_gp_task_noises"]["multiplier"],
+                dims=(batch_shape[0], batch_shape[1], 1),
+            )
+            self.covar_module.base_kernel.lengthscale = torch.tile(
+                torch.tensor(params["agent"]["Dyn_gp_lengthscale"]["both"]),
+                dims=(batch_shape[0], 1, 1, 1),
+            )
+            self.covar_module.outputscale = torch.tile(
+                torch.tensor(params["agent"]["Dyn_gp_outputscale"]["both"]),
+                dims=(batch_shape[0], 1),
+            )

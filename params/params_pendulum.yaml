@@ -6,13 +6,6 @@ env:
   train_data_has_derivatives: True
   n_data_x: 3
   n_data_u: 5
-  params: 
-    lf: 0.275 #0.55 #1.105
-    lr: 0.425 #0.85 #1.738
-  ellipses: 
-    n1 : [1, 0.1414, 2, 1.0, 0.01]  # x0, y0, a, b, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
-    n2 : [0.4, 0.4, 2, 1.0, 0.01]
-    n3 : [1.6, 0.4, 2, 1.0, 0.01]
 
 agent:
   g_dim :
@@ -47,8 +40,8 @@ visu:
   show_current_loc: False
 
 common:
-  use_cuda : True
-  num_MPC_itrs : 50
+  use_cuda : False
+  num_MPC_itrs : 1
 
 optimizer:
   H : 30 # horizon
@@ -63,7 +56,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 2
+    max_sqp_iter: 20
     tol_nlp: 1.0e-4 
   Tf: 1  # sampling time = Tf/H
   order: 2

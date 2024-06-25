@@ -226,7 +226,7 @@ def dempc_set_options(ocp, params):
     ocp.dims.N = params["optimizer"]["H"]
     ocp.solver_options.tf = params["optimizer"]["Tf"]
 
-    ocp.solver_options.qp_solver_warm_start = 1
+    # ocp.solver_options.qp_solver_warm_start = 1
     # set options
     ocp.solver_options.qp_solver = "FULL_CONDENSING_HPIPM"  # FULL_CONDENSING_QPOASES
     # PARTIAL_CONDENSING_HPIPM, FULL_CONDENSING_QPOASES, FULL_CONDENSING_HPIPM,
@@ -235,7 +235,7 @@ def dempc_set_options(ocp, params):
     ocp.solver_options.levenberg_marquardt = 1.0e-1
     ocp.solver_options.integrator_type = "DISCRETE"  #'IRK'  # IRK , DISCRETE
     # ocp.solver_options.print_level = 1
-    ocp.solver_options.nlp_solver_ext_qp_res = 1
+    # ocp.solver_options.nlp_solver_ext_qp_res = 1
     ocp.solver_options.nlp_solver_type = "SQP_RTI"  # SQP_RTI, SQP
     # ocp.solver_options.tol = 1e-6
     # ocp.solver_options.regularize_method = 'CONVEXIFY'

@@ -35,8 +35,13 @@ class Agent(object):
 
         if self.params["common"]["use_cuda"] and torch.cuda.is_available():
             self.use_cuda = True
+            self.torch_device = torch.device("cuda")
+            torch.set_default_device(self.torch_device)
         else:
             self.use_cuda = False
+            self.torch_device = torch.device("cpu")
+            torch.set_default_device(self.torch_device)
+
         self.Hallcinated_X_train = None
         self.Hallcinated_Y_train = None
         self.model_i = None
@@ -71,7 +76,7 @@ class Agent(object):
             for i in range(self.params["optimizer"]["SEMPC"]["max_sqp_iter"]):
                 ret = torch.empty(0, self.g_ny, H, self.in_dim + 1)
                 while True:
-                    w = torch.normal(0, 1, size=(1, self.g_ny, H, self.in_dim + 1))
+                    w = torch.normal(0, 1, size=(1, self.g_ny, H, self.in_dim + 1),device=self.torch_device)
                     if torch.all(w >= -beta) and torch.all(w <= beta):
                         ret = torch.cat([ret, w], dim=0)
                     if ret.shape[0] == n_dyn:
@@ -102,7 +107,7 @@ class Agent(object):
         # dist = torch.zeros((newX.shape[2], self.Hallcinated_X_train.shape[2]))
         # for i in range(newX.shape[2]):
         #     dist[i,:]
-        min_distance = 1e-2
+        min_distance = 1e-3
         X_cond, Y_cond = self.concatenate_real_hallucinated_data()
         X_all = torch.cat([newX, X_cond], 2)
         diag = (

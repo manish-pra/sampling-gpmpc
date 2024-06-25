@@ -140,7 +140,7 @@ class DEMPC_solver(object):
             # self.ocp_solver.print_statistics()
             print("cost", self.ocp_solver.get_cost())
             residuals = self.ocp_solver.get_residuals()
-
+            print("residuals", residuals)
             # print("statistics", self.ocp_solver.get_stats("statistics"))
             if max(residuals) < self.tol_nlp:
                 print("Residual less than tol", max(residuals), " ", self.tol_nlp)

@@ -11,8 +11,11 @@ import dill as pickle
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
+from src.environments.pendulum import Pendulum
+from src.environments.car_model import CarKinematicsModel
 import numpy as np
 import torch
+
 import gpytorch
 import copy
 
@@ -22,11 +25,10 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "safe_gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params")  # params
+parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=40)  # initialized at origin
-parser.add_argument("-repeat", type=int, default=1)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -69,16 +71,22 @@ if args.i != -1:
 if not os.path.exists(save_path + str(traj_iter)):
     os.makedirs(save_path + str(traj_iter))
 
+if params["env"]["dynamics"] == "pendulum":
+    env_model = Pendulum(params)
+elif params["env"]["dynamics"] == "bicycle":
+    env_model = CarKinematicsModel(params)
+else:
+    raise ValueError("Unknown dynamics model")
+
+agent = Agent(params, env_model)
+
 # get saved input trajectory
 input_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/40/data.pkl"
+    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/1/data.pkl"
     # "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/_static/reachable_set_input.pkl"
 )
 with open(input_data_path, "rb") as input_data_file:
     input_gpmpc_data = pickle.load(input_data_file)
-
-agent = Agent(params)
-# visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 
 # 4) Set the initial state
 # agent.update_current_state(np.array(params["env"]["start"]))
@@ -104,7 +112,7 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 2
+num_repeat = 100
 X_traj_list = [
     [copy.deepcopy(X_traj) for i in range(params["optimizer"]["H"] + 1)]
     for i in range(num_repeat)
@@ -121,7 +129,7 @@ for j in range(num_repeat):
     print(
         f"Repeats: {j}/{num_repeat}, Samples: {agent.batch_shape[0]*j}/{num_repeat*agent.batch_shape[0]}"
     )
-    agent = Agent(params)
+    agent = Agent(params, env_model)
 
     for i in range(params["optimizer"]["H"]):
         # train model on data points
@@ -177,16 +185,13 @@ with open(save_path + str(traj_iter) + "/X_traj_list.pkl", "wb") as f:
     pickle.dump(X_traj_list, f)
 
 # plot trajectories
-
-for i in range(num_repeat * agent.batch_shape[0]):
-    x_plot = np.array(
-        [
-            X_traj_list[i][:, 0, 0, 0 : agent.nx].detach().numpy()
-            for i in range(params["optimizer"]["H"])
-        ]
-    )
-    for i in range(agent.batch_shape[0]):
-        plt.plot(x_plot[:, i, 0], x_plot[:, i, 1])
+x_plot = np.array(
+    [
+        X_traj_list[i][:, 0, 0, 0 : agent.nx].detach().cpu().numpy()
+        for i in range(params["optimizer"]["H"])
+    ]
+)
+plt.plot(x_plot[:, :, 0], x_plot[:, :, 1])
 
 plt.show()
 # de_mpc = DEMPC(params, visu, agent)
