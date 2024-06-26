@@ -29,13 +29,13 @@ plt.tight_layout(pad=0.0)
 plt.xlim(-0.1, 1.45)
 
 GT_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/1/X_traj_list.pkl"
+    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/2/X_traj_list.pkl"
 )
 GT_sampling_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/1/X_traj_list.pkl"
+    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/2/X_traj_list.pkl"
 )
 sampling_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/1/data.pkl"
+    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/2/data.pkl"
 )
 
 H = 31

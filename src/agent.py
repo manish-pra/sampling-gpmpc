@@ -292,11 +292,9 @@ class Agent(object):
             _type_: in numpy format
         """
 
-        with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(
-            50
-        ), gpytorch.settings.observation_nan_policy(
+        with torch.no_grad(), gpytorch.settings.observation_nan_policy(
             "mask"
-        ):
+        ), gpytorch.settings.fast_computations(covar_root_decomposition=False, log_prob=False, solves=False):
             self.model_i.eval()
             model_i_call = self.model_i(x_hat)
             y_sample_orig = model_i_call.sample(
