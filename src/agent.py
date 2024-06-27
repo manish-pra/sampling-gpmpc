@@ -107,11 +107,12 @@ class Agent(object):
         # dist = torch.zeros((newX.shape[2], self.Hallcinated_X_train.shape[2]))
         # for i in range(newX.shape[2]):
         #     dist[i,:]
-        min_distance = 1e-3
+        min_distance = 1e-4
         X_cond, Y_cond = self.concatenate_real_hallucinated_data()
         X_all = torch.cat([newX, X_cond], 2)
+        # X_all = torch.cat([newX, self.Hallcinated_X_train], 2)
         diag = (
-            torch.eye(newX.shape[2] + X_cond.shape[2], newX.shape[2])
+            torch.eye(X_all.shape[2], newX.shape[2])
             .unsqueeze(-1)
             .unsqueeze(0)
             .unsqueeze(0)
@@ -131,6 +132,12 @@ class Agent(object):
         self.Hallcinated_Y_train = torch.cat(
             [self.Hallcinated_Y_train, newY[:, :, filter_these_out == False, :]], 2
         )
+        # self.Hallcinated_X_train = torch.cat(
+        #     [self.Hallcinated_X_train, newX[:, :, :, :]], 2
+        # )
+        # self.Hallcinated_Y_train = torch.cat(
+        #     [self.Hallcinated_Y_train, newY[:, :, :, :]], 2
+        # )
 
     def real_data_batch(self):
         n_pnts, n_dims = self.Dyn_gp_X_train.shape
@@ -294,23 +301,32 @@ class Agent(object):
 
         with torch.no_grad(), gpytorch.settings.observation_nan_policy(
             "mask"
-        ), gpytorch.settings.fast_computations(covar_root_decomposition=False, log_prob=False, solves=False):
+        ), gpytorch.settings.fast_computations(
+            covar_root_decomposition=False, 
+            log_prob=False, 
+            solves=False
+        ), gpytorch.settings.cholesky_jitter(
+            float_value=1e-6, 
+            double_value=1e-6, 
+            half_value=1e-6
+        ):
             self.model_i.eval()
-            model_i_call = self.model_i(x_hat)
-            y_sample_orig = model_i_call.sample(
+            self.model_i_call = self.model_i(x_hat)
+            y_sample_orig = self.model_i_call.sample(
                 base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
 
             # check that sampled dynamics are within bounds
-            y_max = model_i_call.mean + self.params["agent"][
+            y_max = self.model_i_call.mean + self.params["agent"][
                 "Dyn_gp_beta"
-            ] * torch.sqrt(model_i_call.variance)
-            y_min = model_i_call.mean - self.params["agent"][
+            ] * torch.sqrt(self.model_i_call.variance)
+            y_min = self.model_i_call.mean - self.params["agent"][
                 "Dyn_gp_beta"
-            ] * torch.sqrt(model_i_call.variance)
+            ] * torch.sqrt(self.model_i_call.variance)
             y_sample = torch.max(y_sample_orig, y_min)
             y_sample = torch.min(y_sample, y_max)
-
+            self.model_i_samples = y_sample
+            
             if not torch.allclose(y_sample, y_sample_orig):
                 print(f"y_sample truncated! Reldiff: {torch.norm(y_sample - y_sample_orig)/(torch.norm(y_sample_orig)+1e-6)}")
 
@@ -326,7 +342,7 @@ class Agent(object):
 
             if self.params["agent"]["mean_as_dyn_sample"]:
                 # overwrite next sample with mean
-                y_sample[[idx_overwrite], :, :, :] = model_i_call.mean[
+                y_sample[[idx_overwrite], :, :, :] = self.model_i_call.mean[
                     [idx_overwrite], :, :, :
                 ]
                 idx_overwrite += 1

@@ -191,14 +191,14 @@ def dempc_set_options(ocp, params):
     # PARTIAL_CONDENSING_QPDUNES, PARTIAL_CONDENSING_OSQP, FULL_CONDENSING_DAQP
     # ocp.solver_options.hessian_approx = "GAUSS_NEWTON"  # 'GAUSS_NEWTON', 'EXACT'
     ocp.solver_options.hessian_approx = "EXACT"  # 'GAUSS_NEWTON', 'EXACT'
-    ocp.solver_options.levenberg_marquardt = 1.0e-1
+    ocp.solver_options.levenberg_marquardt = 1.0
     ocp.solver_options.integrator_type = "DISCRETE"  #'IRK'  # IRK , DISCRETE
     # ocp.solver_options.print_level = 1
     # ocp.solver_options.nlp_solver_ext_qp_res = 1
-    # ocp.solver_options.nlp_solver_type = "SQP_RTI"  # SQP_RTI, SQP
-    ocp.solver_options.nlp_solver_type = "SQP"  # SQP_RTI, SQP
+    ocp.solver_options.nlp_solver_type = "SQP_RTI"  # SQP_RTI, SQP
+    # ocp.solver_options.nlp_solver_type = "SQP"  # SQP_RTI, SQP
     # ocp.solver_options.rti_log_residuals = 1
-    ocp.solver_options.nlp_solver_max_iter = 100
+    # ocp.solver_options.nlp_solver_max_iter = 100
     # ocp.solver_options.tol = 1e-6
     # ocp.solver_options.regularize_method = 'CONVEXIFY'
     # ocp.solver_options.globalization = 'FIXED_STEP'
