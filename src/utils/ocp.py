@@ -195,13 +195,13 @@ def dempc_set_options(ocp, params):
     ocp.solver_options.integrator_type = "DISCRETE"  #'IRK'  # IRK , DISCRETE
     # ocp.solver_options.print_level = 1
     # ocp.solver_options.nlp_solver_ext_qp_res = 1
-    ocp.solver_options.nlp_solver_type = "SQP_RTI"  # SQP_RTI, SQP
-    # ocp.solver_options.nlp_solver_type = "SQP"  # SQP_RTI, SQP
+    # ocp.solver_options.nlp_solver_type = "SQP_RTI"  # SQP_RTI, SQP
+    ocp.solver_options.nlp_solver_type = "SQP"  # SQP_RTI, SQP
     # ocp.solver_options.rti_log_residuals = 1
-    # ocp.solver_options.nlp_solver_max_iter = 100
+    ocp.solver_options.nlp_solver_max_iter = 3
     # ocp.solver_options.tol = 1e-6
     # ocp.solver_options.regularize_method = 'CONVEXIFY'
-    # ocp.solver_options.globalization = 'FIXED_STEP'
+    ocp.solver_options.globalization = 'MERIT_BACKTRACKING' # 'MERIT_BACKTRACKING', 'FIXED_STEP'
     # ocp.solver_options.alpha_min = 1e-2
     # ocp.solver_options.__initialize_t_slacks = 0
     # ocp.solver_options.regularize_method = 'CONVEXIFY'

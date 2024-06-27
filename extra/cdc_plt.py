@@ -15,7 +15,8 @@ plot_GT_sampling = True
 plot_sampling_MPC = True
 plot_cautious_MPC = False
 plot_safe_MPC = False
-filename = "safe_uncertainity.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
+i = 2
+filename = f"safe_uncertainity_{i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
 TEXTWIDTH = 16
 # set_figure_params(serif=True, fontsize=14)
@@ -29,13 +30,13 @@ plt.tight_layout(pad=0.0)
 plt.xlim(-0.1, 1.45)
 
 GT_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/2/X_traj_list.pkl"
+    f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/X_traj_list.pkl"
 )
 GT_sampling_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/2/X_traj_list.pkl"
+    f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/X_traj_list.pkl"
 )
 sampling_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/2/data.pkl"
+    f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/data.pkl"
 )
 
 H = 31

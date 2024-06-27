@@ -107,7 +107,7 @@ class Agent(object):
         # dist = torch.zeros((newX.shape[2], self.Hallcinated_X_train.shape[2]))
         # for i in range(newX.shape[2]):
         #     dist[i,:]
-        min_distance = 1e-4
+        min_distance = 1e-6
         X_cond, Y_cond = self.concatenate_real_hallucinated_data()
         X_all = torch.cat([newX, X_cond], 2)
         # X_all = torch.cat([newX, self.Hallcinated_X_train], 2)
@@ -316,6 +316,21 @@ class Agent(object):
                 base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
 
+            beta_confidence = self.params["agent"][
+                "Dyn_gp_beta"
+            ] * torch.sqrt(self.model_i_call.variance)
+            beta_confidence_norm = torch.linalg.norm(beta_confidence)
+            mean_diff_norm = torch.linalg.norm(y_sample_orig - self.model_i_call.mean)
+            mean_norm = torch.linalg.norm(self.model_i_call.mean)
+            print(f"beta_confidence_rel: {beta_confidence_norm / (mean_norm+1e-6)}")
+            print(f"mean_diff_orig: {torch.linalg.norm(mean_diff_norm)}")
+            
+            set_sample_to_mean = False
+            if beta_confidence_norm / (mean_norm+1e-6) < 1e-2:
+                y_sample_orig = self.model_i_call.mean
+                set_sample_to_mean = True
+                print("Set sample to mean")
+
             # check that sampled dynamics are within bounds
             y_max = self.model_i_call.mean + self.params["agent"][
                 "Dyn_gp_beta"
@@ -325,8 +340,10 @@ class Agent(object):
             ] * torch.sqrt(self.model_i_call.variance)
             y_sample = torch.max(y_sample_orig, y_min)
             y_sample = torch.min(y_sample, y_max)
+            # y_sample = y_sample_orig
+
             self.model_i_samples = y_sample
-            
+
             if not torch.allclose(y_sample, y_sample_orig):
                 print(f"y_sample truncated! Reldiff: {torch.norm(y_sample - y_sample_orig)/(torch.norm(y_sample_orig)+1e-6)}")
 
@@ -348,7 +365,9 @@ class Agent(object):
                 idx_overwrite += 1
 
         assert torch.all(x_hat[:, 0, :, :] == x_hat[:, 1, :, :])
-        self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
+
+        if set_sample_to_mean:
+            self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
         del x_hat
         return y_sample
 
