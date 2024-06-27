@@ -76,7 +76,12 @@ class Agent(object):
             for i in range(self.params["optimizer"]["SEMPC"]["max_sqp_iter"]):
                 ret = torch.empty(0, self.g_ny, H, self.in_dim + 1)
                 while True:
-                    w = torch.normal(0, 1, size=(1, self.g_ny, H, self.in_dim + 1),device=self.torch_device)
+                    w = torch.normal(
+                        0,
+                        1,
+                        size=(1, self.g_ny, H, self.in_dim + 1),
+                        device=self.torch_device,
+                    )
                     if torch.all(w >= -beta) and torch.all(w <= beta):
                         ret = torch.cat([ret, w], dim=0)
                     if ret.shape[0] == n_dyn:
@@ -107,37 +112,72 @@ class Agent(object):
         # dist = torch.zeros((newX.shape[2], self.Hallcinated_X_train.shape[2]))
         # for i in range(newX.shape[2]):
         #     dist[i,:]
-        min_distance = 1e-6
+        min_distance = 1e-3
         X_cond, Y_cond = self.concatenate_real_hallucinated_data()
-        X_all = torch.cat([newX, X_cond], 2)
+        # X_all = torch.cat([newX, X_cond], 2)
         # X_all = torch.cat([newX, self.Hallcinated_X_train], 2)
-        diag = (
-            torch.eye(X_all.shape[2], newX.shape[2])
-            .unsqueeze(-1)
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
+        # diag = (
+        #     torch.eye(X_all.shape[2], newX.shape[2])
+        #     .unsqueeze(-1)
+        #     .unsqueeze(0)
+        #     .unsqueeze(0)
+        # )
 
-        if self.use_cuda:
-            diag = diag.cuda()
+        # if self.use_cuda:
+        #     diag = diag.cuda()
 
-        dist = newX[:, :, None, :, :] - X_all[:, :, :, None, :] + diag
-        dist_norm = torch.norm(dist, dim=-1)
+        # dist = newX[:, :, None, :, :] - X_all[:, dist:, :, None, :] + diag
+        dist = newX[:, :, None, :, :] - X_cond[:, :, :, None, :]
+        dist_norm = torch.linalg.vector_norm(dist, dim=-1)
         filter_these_out = torch.any(dist_norm <= min_distance, dim=2)
-        filter_these_out = torch.any(filter_these_out == True, dim=1)
-        filter_these_out = torch.any(filter_these_out == True, dim=0)
-        self.Hallcinated_X_train = torch.cat(
-            [self.Hallcinated_X_train, newX[:, :, filter_these_out == False, :]], 2
+
+        # set filtered out points to nan
+        filter_these_out_x = filter_these_out.unsqueeze(-1).tile(
+            1, 1, 1, (self.nx + self.nu)
         )
-        self.Hallcinated_Y_train = torch.cat(
-            [self.Hallcinated_Y_train, newY[:, :, filter_these_out == False, :]], 2
+        filter_these_out_y = filter_these_out.unsqueeze(-1).tile(
+            1, 1, 1, (self.nx + self.nu + 1)
         )
+        newX_filter = newX.clone()
+        newY_filter = newY.clone()
+        # newX_filter[filter_these_out_x] = torch.nan
+        newY_filter[filter_these_out_y] = torch.nan
+
+        # check if point should be filtered for all samples
+        # filter_these_out_all = torch.all(filter_these_out, dim=0, keepdim=True).tile(self.ns, 1, 1, 1)
+        filter_these_out_all = torch.all(filter_these_out, dim=0)
+        filter_these_out_all = torch.any(filter_these_out_all, dim=0)
+        # filter_these_out_all_x = filter_these_out_all.tile(1,1,1,(self.nx + self.nu))
+        # filter_these_out_all_y = filter_these_out_all.tile(1,1,1,(self.nx + self.nu + 1))
+
+        # remove from newX
+        newX_filter_all = newX_filter[:, :, filter_these_out_all == False, :]
+        newY_filter_all = newY_filter[:, :, filter_these_out_all == False, :]
+
+        # filter_these_out = torch.any(filter_these_out == True, dim=1)
+        # filter_these_out = torch.any(filter_these_out == True, dim=0)
+        # self.Hallcinated_X_train = torch.cat(
+        #     [self.Hallcinated_X_train, newX[:, :, filter_these_out == False, :]], 2
+        # )
+        # self.Hallcinated_Y_train = torch.cat(
+        #     [self.Hallcinated_Y_train, newY[:, :, filter_these_out == False, :]], 2
+        # )
         # self.Hallcinated_X_train = torch.cat(
         #     [self.Hallcinated_X_train, newX[:, :, :, :]], 2
         # )
         # self.Hallcinated_Y_train = torch.cat(
         #     [self.Hallcinated_Y_train, newY[:, :, :, :]], 2
         # )
+        self.Hallcinated_X_train = torch.cat(
+            [self.Hallcinated_X_train, newX_filter_all], 2
+        )
+        self.Hallcinated_Y_train = torch.cat(
+            [self.Hallcinated_Y_train, newY_filter_all], 2
+        )
+
+        print(
+            f"Filtered out {torch.sum(filter_these_out_all)} points, still nan: {torch.sum(torch.isnan(newY_filter_all[:,0,:,0]),dim=1)}"
+        )
 
     def real_data_batch(self):
         n_pnts, n_dims = self.Dyn_gp_X_train.shape
@@ -302,13 +342,9 @@ class Agent(object):
         with torch.no_grad(), gpytorch.settings.observation_nan_policy(
             "mask"
         ), gpytorch.settings.fast_computations(
-            covar_root_decomposition=False, 
-            log_prob=False, 
-            solves=False
+            covar_root_decomposition=False, log_prob=False, solves=False
         ), gpytorch.settings.cholesky_jitter(
-            float_value=1e-6, 
-            double_value=1e-6, 
-            half_value=1e-6
+            float_value=1e-6, double_value=1e-6, half_value=1e-6
         ):
             self.model_i.eval()
             self.model_i_call = self.model_i(x_hat)
@@ -316,20 +352,42 @@ class Agent(object):
                 base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
 
-            beta_confidence = self.params["agent"][
-                "Dyn_gp_beta"
-            ] * torch.sqrt(self.model_i_call.variance)
+            beta_confidence = self.params["agent"]["Dyn_gp_beta"] * torch.sqrt(
+                self.model_i_call.variance
+            )
             beta_confidence_norm = torch.linalg.norm(beta_confidence)
             mean_diff_norm = torch.linalg.norm(y_sample_orig - self.model_i_call.mean)
             mean_norm = torch.linalg.norm(self.model_i_call.mean)
             print(f"beta_confidence_rel: {beta_confidence_norm / (mean_norm+1e-6)}")
+            beta_confidence_rel_all = np.array(
+                [
+                    torch.linalg.norm(beta_confidence[s, :, :, :])
+                    / (torch.linalg.norm(self.model_i_call.mean[s, :, :, :]) + 1e-6)
+                    for s in range(self.ns)
+                ]
+            )
+            # print(f"beta_confidence_rel_all: {beta_confidence_rel_all}")
+            print(f": {beta_confidence_norm / (mean_norm+1e-6)}")
             print(f"mean_diff_orig: {torch.linalg.norm(mean_diff_norm)}")
-            
-            set_sample_to_mean = False
-            if beta_confidence_norm / (mean_norm+1e-6) < 1e-2:
-                y_sample_orig = self.model_i_call.mean
-                set_sample_to_mean = True
-                print("Set sample to mean")
+
+            variance_numerically_zero = self.model_i_call.variance <= 1.001e-6
+            variance_numerically_zero_all_outputs = torch.all(
+                variance_numerically_zero, dim=-1, keepdim=True
+            ).tile(1, 1, 1, self.nx + self.nu + 1)
+            variance_numerically_zero_num = torch.zeros_like(self.model_i_call.variance)
+            variance_numerically_zero_num[
+                variance_numerically_zero_all_outputs == True
+            ] = 1
+            set_sample_to_mean = [False] * self.ns
+            # for s in range(self.ns):
+            # if beta_confidence_rel_all[s] < 5e-3:
+            # y_sample_orig[s,:,:,:] = self.model_i_call.mean[s,:,:,:]
+            y_sample_orig = (
+                variance_numerically_zero_num * self.model_i_call.mean
+                + (1 - variance_numerically_zero_num) * y_sample_orig
+            )
+            # set_sample_to_mean[s] = True
+            # print(f"Set sample to mean: {set_sample_to_mean}")
 
             # check that sampled dynamics are within bounds
             y_max = self.model_i_call.mean + self.params["agent"][
@@ -345,7 +403,9 @@ class Agent(object):
             self.model_i_samples = y_sample
 
             if not torch.allclose(y_sample, y_sample_orig):
-                print(f"y_sample truncated! Reldiff: {torch.norm(y_sample - y_sample_orig)/(torch.norm(y_sample_orig)+1e-6)}")
+                print(
+                    f"y_sample truncated! Reldiff: {torch.norm(y_sample - y_sample_orig)/(torch.norm(y_sample_orig)+1e-6)}"
+                )
 
             idx_overwrite = 0
             if self.params["agent"]["true_dyn_as_sample"]:
@@ -366,8 +426,9 @@ class Agent(object):
 
         assert torch.all(x_hat[:, 0, :, :] == x_hat[:, 1, :, :])
 
-        if set_sample_to_mean:
-            self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
+        # if not set_sample_to_mean:
+        self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
+
         del x_hat
         return y_sample
 

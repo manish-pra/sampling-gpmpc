@@ -198,7 +198,7 @@ def dempc_set_options(ocp, params):
     # ocp.solver_options.nlp_solver_type = "SQP_RTI"  # SQP_RTI, SQP
     ocp.solver_options.nlp_solver_type = "SQP"  # SQP_RTI, SQP
     # ocp.solver_options.rti_log_residuals = 1
-    ocp.solver_options.nlp_solver_max_iter = 3
+    ocp.solver_options.nlp_solver_max_iter = 5
     # ocp.solver_options.tol = 1e-6
     # ocp.solver_options.regularize_method = 'CONVEXIFY'
     ocp.solver_options.globalization = 'MERIT_BACKTRACKING' # 'MERIT_BACKTRACKING', 'FIXED_STEP'

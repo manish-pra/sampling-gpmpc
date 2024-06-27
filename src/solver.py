@@ -216,19 +216,19 @@ class DEMPC_solver(object):
             plt.close()
 
             # 3d scatter plot of all input points
-            X_input_orig_past.append(X_input_orig)
-            for s in range(self.params["agent"]["num_dyn_samples"]):
-                fig = plt.figure()
-                ax = fig.add_subplot(111, projection='3d')
-                for i,X in enumerate(X_input_orig_past):
-                    # print(f"i={i}, alpha={1.0-0.9**(i+1)}")
-                    ax.scatter(X[s,0,:,0],X[s,0,:,1],X[s,0,:,2], alpha=1/len(X_input_orig_past)*(i+1), marker='x')
-                ax.set_xlabel('theta_dot')
-                ax.set_ylabel('theta')
-                ax.set_zlabel('u')
-                # plt.show()
-                fig.savefig(f"pendulum_scatter_s{s}_i{sqp_iter}.png", dpi=600)
-                plt.close()
+            # X_input_orig_past.append(X_input_orig)
+            # for s in range(self.params["agent"]["num_dyn_samples"]):
+            #     fig = plt.figure()
+            #     ax = fig.add_subplot(111, projection='3d')
+            #     for i,X in enumerate(X_input_orig_past):
+            #         # print(f"i={i}, alpha={1.0-0.9**(i+1)}")
+            #         ax.scatter(X[s,0,:,0],X[s,0,:,1],X[s,0,:,2], alpha=1/len(X_input_orig_past)*(i+1), marker='x')
+            #     ax.set_xlabel('theta_dot')
+            #     ax.set_ylabel('theta')
+            #     ax.set_zlabel('u')
+            #     # plt.show()
+            #     fig.savefig(f"pendulum_scatter_s{s}_i{sqp_iter}.png", dpi=600)
+            #     plt.close()
 
             # difference between sampled value and mean
             diff_mean_samples = np.linalg.norm(mean_call - samples_call)/(np.linalg.norm(mean_call)+1e-6)
