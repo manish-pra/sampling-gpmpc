@@ -131,6 +131,30 @@ for j in range(num_repeat):
     )
     agent = Agent(params, env_model)
 
+    # pre-condition with random sampled data points
+    X_along_traj = (
+        torch.tensor(
+            input_gpmpc_data["state_traj"][0][0 : params["optimizer"]["H"], :].reshape(
+                params["optimizer"]["H"], -1, 2
+            )
+        )
+        .unsqueeze(2)
+        .permute(1, 2, 0, 3)
+        .tile(1, agent.batch_shape[1], 1, 1)
+    )
+    U_along_traj = torch.tensor(input_gpmpc_input_traj)
+    U_along_traj_tile = torch.tile(
+        U_along_traj, (agent.batch_shape[0], agent.batch_shape[1], 1, 1)
+    )
+    X_inp_random_list = []
+    X_inp_opt = torch.cat((X_along_traj, U_along_traj_tile), dim=-1)
+    X_inp_random_list.append(X_inp_opt)
+    n_random_conditionings = 10
+    for i in range(n_random_conditionings):
+
+        X_inp_random = torch.randn_like(X_inp_opt) * 0.1 + X_inp_opt
+        X_inp_random_list.append(X_inp_random)
+
     for i in range(params["optimizer"]["H"]):
         # train model on data points
         agent.train_hallucinated_dynGP(i)
@@ -144,10 +168,14 @@ for j in range(num_repeat):
         X_traj_list[j][i][:, :, :, agent.nx : agent.nx + agent.nu] = U_tile
 
         # sample functions from GP
-        with gpytorch.settings.fast_pred_var(), torch.no_grad(), gpytorch.settings.max_cg_iterations(
-            50
-        ), gpytorch.settings.observation_nan_policy(
+        with torch.no_grad(), gpytorch.settings.observation_nan_policy(
             "mask"
+        ), gpytorch.settings.fast_computations(
+            covar_root_decomposition=False, log_prob=False, solves=False
+        ), gpytorch.settings.cholesky_jitter(
+            float_value=self.params["agent"]["Dyn_gp_jitter"],
+            double_value=self.params["agent"]["Dyn_gp_jitter"],
+            half_value=self.params["agent"]["Dyn_gp_jitter"],
         ):
             model_i_call = agent.model_i(X_traj_list[j][i])
             # TODO: truncate

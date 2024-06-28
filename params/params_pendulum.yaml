@@ -35,6 +35,7 @@ agent:
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
+  Dyn_gp_variance_is_zero: 1.0e-6
   Dyn_gp_min_data_dist: 1.0e-3
 
 visu:

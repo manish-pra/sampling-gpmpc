@@ -331,7 +331,7 @@ class Agent(object):
             print(f"mean_diff_orig: {mean_diff_norm / (mean_norm + 1e-6)}")
             variance_numerically_zero = (
                 self.model_i_call.variance
-                <= 1.001 * self.params["agent"]["Dyn_gp_jitter"]
+                <= self.params["agent"]["Dyn_gp_variance_is_zero"]
             )
             variance_numerically_zero_all_outputs = torch.all(
                 variance_numerically_zero, dim=-1, keepdim=True
