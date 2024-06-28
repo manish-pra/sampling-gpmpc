@@ -69,7 +69,7 @@ class DEMPC_solver(object):
 
             x_h_e = self.ocp_solver.get(self.H, "x")
             lam_e = self.ocp_solver.get(self.H, "lam")
-            t_e = self.ocp_solver.get(self.H, "t")           
+            t_e = self.ocp_solver.get(self.H, "t")
 
             pi = np.array(pi)
             lam = np.array(lam)
@@ -114,10 +114,20 @@ class DEMPC_solver(object):
 
             min_dist = np.zeros((self.params["agent"]["num_dyn_samples"],))
             for s in range(self.params["agent"]["num_dyn_samples"]):
-                train_inputs_i = player.model_i.train_inputs[0][s,0,:,:]
-                train_inputs_i_diff = train_inputs_i[None,:,:] - train_inputs_i[:,None,:]
-                train_inputs_i_diff_norm = torch.norm(train_inputs_i_diff, dim=-1)
-                train_inputs_i_diff_norm_plus_diag = train_inputs_i_diff_norm + torch.eye(train_inputs_i_diff_norm.shape[0])
+                train_inputs_i = player.model_i.train_inputs[0][s, 0, :, :]
+                train_targets_i = player.model_i.train_targets[s, 0, :, :]
+                train_targets_i_nan = torch.all(torch.isnan(train_targets_i), dim=1)
+                train_inputs_i_diff = (
+                    train_inputs_i[None, train_targets_i_nan == False, :]
+                    - train_inputs_i[train_targets_i_nan == False, None, :]
+                )
+                train_inputs_i_diff_norm = torch.linalg.vector_norm(
+                    train_inputs_i_diff, dim=-1
+                )
+                train_inputs_i_diff_norm_plus_diag = (
+                    train_inputs_i_diff_norm
+                    + torch.eye(train_inputs_i_diff_norm.shape[0])
+                )
                 min_dist[s] = torch.min(train_inputs_i_diff_norm_plus_diag)
 
             print(f"min_dist: {min_dist}")
@@ -132,33 +142,61 @@ class DEMPC_solver(object):
             #     [X1.reshape(-1, 1), X2.reshape(-1, 1), U.reshape(-1, 1)]
             # )
             n_supersample = 10
-            n_test_points = (self.H-1)*n_supersample+1
-            X_input = torch.zeros((self.params["agent"]["num_dyn_samples"], self.nx, n_test_points, self.nx + self.nu))
-            X_input_orig = torch.zeros((self.params["agent"]["num_dyn_samples"], self.nx, self.H, self.nx + self.nu))
+            n_test_points = (self.H - 1) * n_supersample + 1
+            X_input = torch.zeros(
+                (
+                    self.params["agent"]["num_dyn_samples"],
+                    self.nx,
+                    n_test_points,
+                    self.nx + self.nu,
+                )
+            )
+            X_input_orig = torch.zeros(
+                (
+                    self.params["agent"]["num_dyn_samples"],
+                    self.nx,
+                    self.H,
+                    self.nx + self.nu,
+                )
+            )
             x_input_interp = []
             x_input_len = []
             x_input_arr = []
             for s in range(self.params["agent"]["num_dyn_samples"]):
-                x_input = np.vstack(
-                    (x_h[:,2*s], x_h[:,2*s+1], u_h.flatten())
-                ).T
+                x_input = np.vstack((x_h[:, 2 * s], x_h[:, 2 * s + 1], u_h.flatten())).T
                 x_input_arr.append(x_input)
                 # supersample points between points in x_input
-                x_input_interp_s = np.zeros((n_test_points, self.nx+self.nu))
+                x_input_interp_s = np.zeros((n_test_points, self.nx + self.nu))
                 x_input_len_s = np.zeros(n_test_points)
-                for i in range(self.H-1):
-                    x_input_len_s[1+i*n_supersample:1+(i+1)*n_supersample] = np.linalg.norm(x_input[i+1,0:self.nx]-x_input[i,0:self.nx]) / n_supersample
-                    x_input_interp_s[i*n_supersample:(i+1)*n_supersample,:] = np.linspace(x_input[i,:], x_input[i+1,:], n_supersample, endpoint=False)
-                x_input_interp_s[-1,:] = x_input[-1,:]
+                for i in range(self.H - 1):
+                    x_input_len_s[
+                        1 + i * n_supersample : 1 + (i + 1) * n_supersample
+                    ] = (
+                        np.linalg.norm(
+                            x_input[i + 1, 0 : self.nx] - x_input[i, 0 : self.nx]
+                        )
+                        / n_supersample
+                    )
+                    x_input_interp_s[i * n_supersample : (i + 1) * n_supersample, :] = (
+                        np.linspace(
+                            x_input[i, :],
+                            x_input[i + 1, :],
+                            n_supersample,
+                            endpoint=False,
+                        )
+                    )
+                x_input_interp_s[-1, :] = x_input[-1, :]
 
-                X_input_orig[s,:,:,:] = torch.tensor(x_input)
-                X_input[s,:,:,:] = torch.tensor(x_input_interp_s)
+                X_input_orig[s, :, :, :] = torch.tensor(x_input)
+                X_input[s, :, :, :] = torch.tensor(x_input_interp_s)
                 x_input_interp.append(x_input_interp_s)
                 x_input_len.append(x_input_len_s)
-            
+
             with torch.no_grad(), gpytorch.settings.observation_nan_policy(
-                    "mask"
-                ), gpytorch.settings.fast_computations(covar_root_decomposition=False, log_prob=False, solves=False):
+                "mask"
+            ), gpytorch.settings.fast_computations(
+                covar_root_decomposition=False, log_prob=False, solves=False
+            ):
                 predictions = player.model_i(X_input)
                 mean = predictions.mean.detach().numpy()
                 # var = predictions.variance.detach().numpy()
@@ -182,21 +220,46 @@ class DEMPC_solver(object):
             fig, ax = plt.subplots(1, 2)
             for s in range(self.params["agent"]["num_dyn_samples"]):
                 x_input_plot = np.cumsum(x_input_len[s])
-                x_input_plot /= (x_input_plot[-1]+1e-10)
-                h_plot = ax[0].plot(x_input_plot, mean[s,0,:,0], label=f"mean {s}")
+                x_input_plot /= x_input_plot[-1] + 1e-10
+                h_plot = ax[0].plot(x_input_plot, mean[s, 0, :, 0], label=f"mean {s}")
                 h_plot_arr.append(h_plot)
                 # ax[0].fill_between(x_input_plot, mean[s,0,:,0]-2*np.sqrt(var[s,0,:,0]), mean[s,0,:,0]+2*np.sqrt(var[s,0,:,0]), alpha=0.2, color=h_plot[0].get_color())
-                ax[0].fill_between(x_input_plot, lower[s,0,:,0], upper[s,0,:,0], alpha=0.2, color=h_plot[0].get_color())
+                ax[0].fill_between(
+                    x_input_plot,
+                    lower[s, 0, :, 0],
+                    upper[s, 0, :, 0],
+                    alpha=0.2,
+                    color=h_plot[0].get_color(),
+                )
                 # ax[0].plot(x_input_plot, samples[s,0,:,0], label=f"sample {s}")
-                ax[0].plot(x_input_plot[0::n_supersample], samples_call[s,0,:,0], label=f"sample {s}", color=h_plot[0].get_color(), linestyle='None', marker='x')
-                #vertical line
+                ax[0].plot(
+                    x_input_plot[0::n_supersample],
+                    samples_call[s, 0, :, 0],
+                    label=f"sample {s}",
+                    color=h_plot[0].get_color(),
+                    linestyle="None",
+                    marker="x",
+                )
+                # vertical line
                 # for x_vline in x_input_plot[0::n_supersample]:
                 #     ax[0].axvline(x=x_vline, color='k', linestyle='-', linewidth=0.5, alpha=0.3)
 
-                ax[1].plot(np.hstack((x_h[:,s*self.nx],x_h_e[s*self.nx])), np.hstack((x_h[:,s*self.nx+1],x_h_e[s*self.nx+1])), "-d", label="x_h", color=h_plot[0].get_color())
+                ax[1].plot(
+                    np.hstack((x_h[:, s * self.nx], x_h_e[s * self.nx])),
+                    np.hstack((x_h[:, s * self.nx + 1], x_h_e[s * self.nx + 1])),
+                    "-d",
+                    label="x_h",
+                    color=h_plot[0].get_color(),
+                )
 
             # horizontal line at theta_dot
-            ax[1].axhline(y=self.params["optimizer"]["x_max"][1], color='k', linestyle='-', linewidth=0.5, alpha=0.3)
+            ax[1].axhline(
+                y=self.params["optimizer"]["x_max"][1],
+                color="k",
+                linestyle="-",
+                linewidth=0.5,
+                alpha=0.3,
+            )
 
             # ax[0].legend()
             ax[0].set_title("GP models")
@@ -231,7 +294,9 @@ class DEMPC_solver(object):
             #     plt.close()
 
             # difference between sampled value and mean
-            diff_mean_samples = np.linalg.norm(mean_call - samples_call)/(np.linalg.norm(mean_call)+1e-6)
+            diff_mean_samples = np.linalg.norm(mean_call - samples_call) / (
+                np.linalg.norm(mean_call) + 1e-6
+            )
             print(f"diff_mean_samples: {diff_mean_samples}")
 
             # status = self.ocp_solver.solve()
@@ -252,7 +317,6 @@ class DEMPC_solver(object):
             print("residuals (after solve)", residuals)
             # print("statistics", self.ocp_solver.get_stats("statistics"))
             self.ocp_solver.print_statistics()
-
 
             # if self.ocp_solver.status != 0:
             #     print("acados returned status {} in closed loop solve".format(
