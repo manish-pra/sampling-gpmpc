@@ -90,7 +90,7 @@ with open(input_data_path, "rb") as input_data_file:
 # 4) Set the initial state
 # agent.update_current_state(np.array(params["env"]["start"]))
 
-input_gpmpc_timestep = 0
+input_gpmpc_timestep = -1
 input_gpmpc_input_traj = input_gpmpc_data["input_traj"][input_gpmpc_timestep]
 
 # initialize initial condition for each sample
@@ -126,9 +126,9 @@ sqrt_beta = params["agent"]["Dyn_gp_beta"]
 # pre-condition with random sampled data points
 X_along_traj = (
     torch.tensor(
-        input_gpmpc_data["state_traj"][0][0 : params["optimizer"]["H"], :].reshape(
-            params["optimizer"]["H"], -1, 2
-        ),
+        input_gpmpc_data["state_traj"][input_gpmpc_timestep][
+            0 : params["optimizer"]["H"], :
+        ].reshape(params["optimizer"]["H"], -1, 2),
         dtype=torch.float32,
     )
     .unsqueeze(2)
@@ -146,8 +146,13 @@ X_inp_random_list = []
 X_inp_opt = torch.cat((X_along_traj, U_along_traj_tile), dim=-1)
 X_inp_opt_mean = torch.mean(X_inp_opt, dim=0, keepdim=True)
 X_inp_random_list.append(X_inp_opt)
-n_random_conditionings = 3
+
+n_random_conditionings = 0
 random_conditioning_scale = 0.1
+
+# load GP model data from file
+X_train = input_gpmpc_data["gp_model_after_solve_train_X"][input_gpmpc_timestep]
+Y_train = input_gpmpc_data["gp_model_after_solve_train_Y"][input_gpmpc_timestep]
 
 for j in range(num_repeat):
 
@@ -155,6 +160,9 @@ for j in range(num_repeat):
         f"Repeats: {j}/{num_repeat}, Samples: {agent.batch_shape[0]*j}/{num_repeat*agent.batch_shape[0]}"
     )
     agent = Agent(params, env_model)
+    agent.Dyn_gp_X_train_batch = X_train
+    agent.Dyn_gp_Y_train_batch = Y_train
+    # agent.model_i = gp_model
 
     for i_randinit in range(n_random_conditionings + params["optimizer"]["H"]):
         i = i_randinit - n_random_conditionings
@@ -187,6 +195,23 @@ for j in range(num_repeat):
             Y_sample = model_i_call.sample(
                 # base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
             )
+
+            variance_numerically_zero = (
+                self.model_i_call.variance
+                <= self.params["agent"]["Dyn_gp_variance_is_zero"]
+            )
+            variance_numerically_zero_all_outputs = torch.all(
+                variance_numerically_zero, dim=-1, keepdim=True
+            ).tile(1, 1, 1, self.nx + self.nu + 1)
+            variance_numerically_zero_num = torch.zeros_like(self.model_i_call.variance)
+            variance_numerically_zero_num[
+                variance_numerically_zero_all_outputs == True
+            ] = 1
+            Y_sample = (
+                variance_numerically_zero_num * self.model_i_call.mean
+                + (1 - variance_numerically_zero_num) * Y_sample
+            )
+
             Y_max = model_i_call.mean + sqrt_beta * torch.sqrt(model_i_call.variance)
             Y_min = model_i_call.mean - sqrt_beta * torch.sqrt(model_i_call.variance)
             Y_sample = torch.max(Y_sample, Y_min)

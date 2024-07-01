@@ -5,6 +5,7 @@ import matplotlib.animation as manimation
 import dill as pickle
 from matplotlib.patches import Ellipse
 import math
+import copy
 
 
 class Visualizer:
@@ -15,6 +16,9 @@ class Visualizer:
         self.mean_state_traj = []
         self.true_state_traj = []
         self.physical_state_traj = []
+        # self.gp_model_after_solve = []
+        self.gp_model_after_solve_train_X = []
+        self.gp_model_after_solve_train_Y = []
         self.solver_time = []
         self.save_path = path
         self.agent = agent
@@ -293,11 +297,16 @@ class Visualizer:
         self.true_state_traj.append(pred_true_state)
         self.mean_state_traj.append(pred_mean_state)
 
-    def record(self, x_curr, X, U, time):
+    def record(self, x_curr, X, U, time, record_gp_model=True):
         self.physical_state_traj.append(x_curr)
         self.state_traj.append(X)
         self.input_traj.append(U)
         self.solver_time.append(time)
+
+        if record_gp_model:
+            # self.gp_model_after_solve.append(copy.deepcopy(self.agent.model_i))
+            self.gp_model_after_solve_train_X.append(self.agent.model_i.train_inputs[0])
+            self.gp_model_after_solve_train_Y.append(self.agent.model_i.train_targets)
         # state_input = torch.from_numpy(
         #     np.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
         # ).float()
@@ -316,6 +325,9 @@ class Visualizer:
         data_dict["true_state_traj"] = self.true_state_traj
         data_dict["physical_state_traj"] = self.physical_state_traj
         data_dict["solver_time"] = self.solver_time
+        # data_dict["gp_model_after_solve"] = self.gp_model_after_solve
+        data_dict["gp_model_after_solve_train_X"] = self.gp_model_after_solve_train_X
+        data_dict["gp_model_after_solve_train_Y"] = self.gp_model_after_solve_train_Y
         a_file = open(self.save_path + "/data.pkl", "wb")
         # data_dict["meas_traj"] = self.meas_traj
         # data_dict["player_train_pts"] = self.player_train_pts
@@ -333,4 +345,5 @@ class Visualizer:
         self.mean_state_traj = data_dict["mean_state_traj"]
         self.true_state_traj = data_dict["true_state_traj"]
         self.physical_state_traj = data_dict["physical_state_traj"]
+        self.gp_model_after_solve = data_dict["gp_model_after_solve"]
         a_file.close()
