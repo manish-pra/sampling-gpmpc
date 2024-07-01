@@ -12,6 +12,8 @@ from gpytorch.kernels import (
 from src.GP_model import BatchMultitaskGPModelWithDerivatives_fromParams
 import matplotlib.pyplot as plt
 
+torch.set_default_dtype(torch.float64)
+
 
 class Agent(object):
     def __init__(self, params, env_model) -> None:
@@ -299,7 +301,18 @@ class Agent(object):
         Returns:
             _type_: in numpy format
         """
+        assert torch.all(x_hat[:, 0, :, :] == x_hat[:, 1, :, :])
 
+        y_sample = self.sample_gp(
+            x_hat, base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
+        )
+
+        self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
+
+        del x_hat
+        return y_sample
+
+    def sample_gp(self, x_input, base_samples=None, debug=True):
         with torch.no_grad(), gpytorch.settings.observation_nan_policy(
             "mask"
         ), gpytorch.settings.fast_computations(
@@ -310,25 +323,41 @@ class Agent(object):
             half_value=self.params["agent"]["Dyn_gp_jitter"],
         ):
             self.model_i.eval()
-            self.model_i_call = self.model_i(x_hat)
-            y_sample_orig = self.model_i_call.sample(
-                base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
+            self.model_i_call = self.model_i(x_input)
+            y_sample = self.model_i_call.sample(base_samples=base_samples)
+            y_train = self.model_i.train_targets
+            x_train = self.model_i.train_inputs[0]
+
+            # find too close points and overwrite with closest y-value
+            min_distance = self.params["agent"]["Dyn_gp_min_data_dist"]
+            dist = x_input[:, :, None, :, :] - x_train[:, :, :, None, :]
+            dist_norm = torch.linalg.vector_norm(dist, dim=-1)
+            dist_too_small = (
+                torch.any(dist_norm <= min_distance, dim=2)
+                .unsqueeze(-1)
+                .tile(1, 1, 1, self.nx + self.nu + 1)
+            )
+            min_dist_input, min_dist_input_index = torch.min(dist_norm, dim=2)
+            # create tuple of tensors with indices of closest training data point
+            # Assuming y_train and min_dist_input_index are already defined and have the shapes mentioned above
+            A, B, C, D = y_train.shape
+            E = min_dist_input_index.shape[2]
+            # Create indices for the first and second dimensions
+            i1 = torch.arange(A).view(A, 1, 1).expand(A, B, E)  # Shape: (A, B, E)
+            i2 = torch.arange(B).view(1, B, 1).expand(A, B, E)  # Shape: (A, B, E)
+            # Use these indices to gather the elements from y_train
+            y_sample_closest_train = y_train[i1, i2, min_dist_input_index, :]
+
+            y_sample = torch.where(
+                dist_too_small,
+                y_sample_closest_train,
+                y_sample,
             )
 
-            beta_confidence = self.params["agent"]["Dyn_gp_beta"] * torch.sqrt(
-                self.model_i_call.variance
-            )
-            mean_diff_norm = torch.linalg.norm(y_sample_orig - self.model_i_call.mean)
-            mean_norm = torch.linalg.norm(self.model_i_call.mean)
-            beta_confidence_rel_all = np.array(
-                [
-                    torch.linalg.norm(beta_confidence[s, :, :, :])
-                    / (torch.linalg.norm(self.model_i_call.mean[s, :, :, :]) + 1e-6)
-                    for s in range(self.ns)
-                ]
-            )
-            # print(f"beta_confidence_rel_all: {beta_confidence_rel_all}")
-            print(f"mean_diff_orig: {mean_diff_norm / (mean_norm + 1e-6)}")
+            # check if variance is numerically zero
+            # std_rel = torch.sqrt(self.model_i_call.variance) / (
+            #     self.model_i_call.mean + self.params["agent"]["Dyn_gp_variance_is_zero"]
+            # )
             variance_numerically_zero = (
                 self.model_i_call.variance
                 <= self.params["agent"]["Dyn_gp_variance_is_zero"]
@@ -340,9 +369,9 @@ class Agent(object):
             variance_numerically_zero_num[
                 variance_numerically_zero_all_outputs == True
             ] = 1
-            y_sample_orig = (
+            y_sample = (
                 variance_numerically_zero_num * self.model_i_call.mean
-                + (1 - variance_numerically_zero_num) * y_sample_orig
+                + (1 - variance_numerically_zero_num) * y_sample
             )
 
             # check that sampled dynamics are within bounds
@@ -352,16 +381,10 @@ class Agent(object):
             y_min = self.model_i_call.mean - self.params["agent"][
                 "Dyn_gp_beta"
             ] * torch.sqrt(self.model_i_call.variance)
-            y_sample = torch.max(y_sample_orig, y_min)
+            y_sample = torch.max(y_sample, y_min)
             y_sample = torch.min(y_sample, y_max)
-            # y_sample = y_sample_orig
 
             self.model_i_samples = y_sample
-
-            if not torch.allclose(y_sample, y_sample_orig):
-                print(
-                    f"y_sample truncated! Reldiff: {torch.norm(y_sample - y_sample_orig)/(torch.norm(y_sample_orig)+1e-6)}"
-                )
 
             idx_overwrite = 0
             if self.params["agent"]["true_dyn_as_sample"]:
@@ -380,13 +403,22 @@ class Agent(object):
                 ]
                 idx_overwrite += 1
 
-        assert torch.all(x_hat[:, 0, :, :] == x_hat[:, 1, :, :])
+            if debug:
+                # print min and max variance
+                print(
+                    f"Min variance: {torch.tensor([torch.min(self.model_i_call.variance)])}, Max variance: {torch.tensor([torch.max(self.model_i_call.variance)])}"
+                )
+                print(
+                    f"Replaced samples with training data: {np.array(torch.count_nonzero(dist_too_small[:,0,:,0],dim=1))}"
+                )
+                print(
+                    f"Variance numerically zero (all outputs): {torch.sum(variance_numerically_zero_num[:,:,:,0], dim=(1,2), dtype=torch.int32)}"
+                )
+                print(
+                    f"y_sample truncated! Reldiff: {torch.norm(y_sample - y_sample)/(torch.norm(y_sample)+1e-6)}"
+                )
 
-        # if not set_sample_to_mean:
-        self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
-
-        del x_hat
-        return y_sample
+            return y_sample
 
     def scale_with_beta(self, lower, upper, beta):
         temp = lower * (1 + beta) / 2 + upper * (1 - beta) / 2

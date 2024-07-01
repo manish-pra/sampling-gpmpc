@@ -217,7 +217,7 @@ class DEMPC_solver(object):
 
             # plot GP model
             h_plot_arr = []
-            fig, ax = plt.subplots(1, 2)
+            fig, ax = plt.subplots(1, 3)
             for s in range(self.params["agent"]["num_dyn_samples"]):
                 x_input_plot = np.cumsum(x_input_len[s])
                 x_input_plot /= x_input_plot[-1] + 1e-10
@@ -274,6 +274,10 @@ class DEMPC_solver(object):
             ax[1].set_ylabel("theta_dot")
             ax[1].set_xlim([-0.2, 2.2])
             ax[1].set_ylim([-0.2, 2.7])
+
+            # ax[2].plot(u_h)
+            ax[2].stairs(u_h.flatten(), np.linspace(0, self.H, self.H + 1))
+
             # plt.show()
             plt.savefig(f"pendulum_{sqp_iter}.png", dpi=600)
             plt.close()

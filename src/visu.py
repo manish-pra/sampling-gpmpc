@@ -117,7 +117,7 @@ class Visualizer:
         m = 1
         l = 1
         g = 10
-        dt = self.params["optimizer"]["dt"]
+        dt = self.params["optimizer"]["H"] / self.params["optimizer"]["Tf"]
         X1_kp1 = X1_k + X2_k * dt
         X2_kp1 = X2_k - g * np.sin(X1_k) * dt / l + U_k * dt / (l * l)
         return X1_kp1, X2_kp1
