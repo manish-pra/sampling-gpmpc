@@ -50,7 +50,6 @@ env_load_path = (
     + params["experiment"]["folder"]
     + "/env_"
     + str(args.env)
-    + "/"
 )
 
 # torch.cuda.memory._record_memory_history(enabled=True)
@@ -82,7 +81,7 @@ agent = Agent(params, env_model)
 
 # get saved input trajectory
 input_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/1/data.pkl"
+    f"{save_path}{str(args.i)}/data.pkl"
     # "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/_static/reachable_set_input.pkl"
 )
 with open(input_data_path, "rb") as input_data_file:
@@ -173,9 +172,9 @@ for j in range(num_repeat):
         ), gpytorch.settings.fast_computations(
             covar_root_decomposition=False, log_prob=False, solves=False
         ), gpytorch.settings.cholesky_jitter(
-            float_value=self.params["agent"]["Dyn_gp_jitter"],
-            double_value=self.params["agent"]["Dyn_gp_jitter"],
-            half_value=self.params["agent"]["Dyn_gp_jitter"],
+            float_value=agent.params["agent"]["Dyn_gp_jitter"],
+            double_value=agent.params["agent"]["Dyn_gp_jitter"],
+            half_value=agent.params["agent"]["Dyn_gp_jitter"],
         ):
             model_i_call = agent.model_i(X_traj_list[j][i])
             # TODO: truncate
