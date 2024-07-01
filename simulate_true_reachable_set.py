@@ -153,6 +153,7 @@ random_conditioning_scale = 0.1
 # load GP model data from file
 X_train = input_gpmpc_data["gp_model_after_solve_train_X"][input_gpmpc_timestep]
 Y_train = input_gpmpc_data["gp_model_after_solve_train_Y"][input_gpmpc_timestep]
+print(f"Number of data points (from X_train.shape): {X_train.shape}")
 
 for j in range(num_repeat):
 
@@ -193,22 +194,22 @@ for j in range(num_repeat):
         ):
             model_i_call = agent.model_i(X_inp)
             Y_sample = model_i_call.sample(
-                # base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
+                # base_samples=agent.epistimic_random_vector[agent.mpc_iter][sqp_iter]
             )
 
             variance_numerically_zero = (
-                self.model_i_call.variance
-                <= self.params["agent"]["Dyn_gp_variance_is_zero"]
+                model_i_call.variance
+                <= agent.params["agent"]["Dyn_gp_variance_is_zero"]
             )
             variance_numerically_zero_all_outputs = torch.all(
                 variance_numerically_zero, dim=-1, keepdim=True
-            ).tile(1, 1, 1, self.nx + self.nu + 1)
-            variance_numerically_zero_num = torch.zeros_like(self.model_i_call.variance)
+            ).tile(1, 1, 1, agent.nx + agent.nu + 1)
+            variance_numerically_zero_num = torch.zeros_like(model_i_call.variance)
             variance_numerically_zero_num[
                 variance_numerically_zero_all_outputs == True
             ] = 1
             Y_sample = (
-                variance_numerically_zero_num * self.model_i_call.mean
+                variance_numerically_zero_num * model_i_call.mean
                 + (1 - variance_numerically_zero_num) * Y_sample
             )
 
