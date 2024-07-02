@@ -111,21 +111,12 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 5
-max_repeat_per_file = 2
+num_repeat = 50000
+max_repeat_per_file = 1000
 num_files = num_repeat // max_repeat_per_file
 n_random_conditionings = 0
 random_conditioning_scale = 0.1
 condition_on_solver_data = False
-
-X_traj_list = [
-    [copy.deepcopy(X_traj) for i in range(params["optimizer"]["H"] + 1)]
-    for i in range(max_repeat_per_file)
-]
-Y_traj_list = [
-    [copy.deepcopy(Y_traj) for i in range(params["optimizer"]["H"])]
-    for i in range(max_repeat_per_file)
-]
 
 sqrt_beta = params["agent"]["Dyn_gp_beta"]
 
@@ -148,10 +139,6 @@ U_along_traj = torch.tensor(
 U_along_traj_tile = torch.tile(
     U_along_traj, (agent.batch_shape[0], agent.batch_shape[1], 1, 1)
 )
-X_inp_random_list = []
-X_inp_opt = torch.cat((X_along_traj, U_along_traj_tile), dim=-1)
-X_inp_opt_mean = torch.mean(X_inp_opt, dim=0, keepdim=True)
-X_inp_random_list.append(X_inp_opt)
 
 # load GP model data from file
 X_train = input_gpmpc_data["gp_model_after_solve_train_X"][input_gpmpc_timestep]
@@ -159,8 +146,22 @@ Y_train = input_gpmpc_data["gp_model_after_solve_train_Y"][input_gpmpc_timestep]
 print(f"Number of data points (from X_train.shape): {X_train.shape}")
 
 for k in range(num_files):
+    X_traj_list = [
+        [copy.deepcopy(X_traj) for i in range(params["optimizer"]["H"] + 1)]
+        for i in range(max_repeat_per_file)
+    ]
+    Y_traj_list = [
+        [copy.deepcopy(Y_traj) for i in range(params["optimizer"]["H"])]
+        for i in range(max_repeat_per_file)
+    ]
+
+    X_inp_random_list = []
+    X_inp_opt = torch.cat((X_along_traj, U_along_traj_tile), dim=-1)
+    X_inp_opt_mean = torch.mean(X_inp_opt, dim=0, keepdim=True)
+    X_inp_random_list.append(X_inp_opt)
+
     for j in range(max_repeat_per_file):
-        i_repeat = j + k*max_repeat_per_file
+        i_repeat = j + k * max_repeat_per_file
         print(
             f"Repeats: {i_repeat}/{num_repeat}, Samples: {agent.batch_shape[0]*i_repeat}/{num_repeat*agent.batch_shape[0]}"
         )
@@ -181,7 +182,9 @@ for k in range(num_files):
                 X_inp = X_inp_random_list[i_randinit]
             else:
                 # get control input into right shape to stack with Y_perm
-                U_single = torch.tensor(input_gpmpc_input_traj[i, :], dtype=torch.float32)
+                U_single = torch.tensor(
+                    input_gpmpc_input_traj[i, :], dtype=torch.float32
+                )
                 U_tile = torch.tile(
                     U_single, (agent.batch_shape[0], agent.batch_shape[1], 1, 1)
                 )
@@ -219,8 +222,12 @@ for k in range(num_files):
                     + (1 - variance_numerically_zero_num) * Y_sample
                 )
 
-                Y_max = model_i_call.mean + sqrt_beta * torch.sqrt(model_i_call.variance)
-                Y_min = model_i_call.mean - sqrt_beta * torch.sqrt(model_i_call.variance)
+                Y_max = model_i_call.mean + sqrt_beta * torch.sqrt(
+                    model_i_call.variance
+                )
+                Y_min = model_i_call.mean - sqrt_beta * torch.sqrt(
+                    model_i_call.variance
+                )
                 Y_sample = torch.max(Y_sample, Y_min)
                 Y_sample = torch.min(Y_sample, Y_max)
 
@@ -229,7 +236,9 @@ for k in range(num_files):
 
             if i_randinit < n_random_conditionings:
                 X_inp_random = (
-                    torch.randn_like(X_inp_opt) * X_inp_opt_mean * random_conditioning_scale
+                    torch.randn_like(X_inp_opt)
+                    * X_inp_opt_mean
+                    * random_conditioning_scale
                     + X_inp_opt
                 )
                 X_inp_random_list.append(X_inp_random)
@@ -253,7 +262,6 @@ for k in range(num_files):
     ]
     # X_flatten = torch.cat(X_traj_list)
     Y_traj_list = [item for sublist in Y_traj_list for item in sublist]
-
 
     with open(f"{save_path}{traj_iter}/X_traj_list_{k}.pkl", "wb") as f:
         pickle.dump(X_traj_list, f)
