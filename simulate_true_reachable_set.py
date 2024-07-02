@@ -111,14 +111,20 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 100
+num_repeat = 5
+max_repeat_per_file = 2
+num_files = num_repeat // max_repeat_per_file
+n_random_conditionings = 0
+random_conditioning_scale = 0.1
+condition_on_solver_data = False
+
 X_traj_list = [
     [copy.deepcopy(X_traj) for i in range(params["optimizer"]["H"] + 1)]
-    for i in range(num_repeat)
+    for i in range(max_repeat_per_file)
 ]
 Y_traj_list = [
     [copy.deepcopy(Y_traj) for i in range(params["optimizer"]["H"])]
-    for i in range(num_repeat)
+    for i in range(max_repeat_per_file)
 ]
 
 sqrt_beta = params["agent"]["Dyn_gp_beta"]
@@ -147,110 +153,110 @@ X_inp_opt = torch.cat((X_along_traj, U_along_traj_tile), dim=-1)
 X_inp_opt_mean = torch.mean(X_inp_opt, dim=0, keepdim=True)
 X_inp_random_list.append(X_inp_opt)
 
-n_random_conditionings = 0
-random_conditioning_scale = 0.1
-
 # load GP model data from file
 X_train = input_gpmpc_data["gp_model_after_solve_train_X"][input_gpmpc_timestep]
 Y_train = input_gpmpc_data["gp_model_after_solve_train_Y"][input_gpmpc_timestep]
 print(f"Number of data points (from X_train.shape): {X_train.shape}")
 
-for j in range(num_repeat):
+for k in range(num_files):
+    for j in range(max_repeat_per_file):
+        i_repeat = j + k*max_repeat_per_file
+        print(
+            f"Repeats: {i_repeat}/{num_repeat}, Samples: {agent.batch_shape[0]*i_repeat}/{num_repeat*agent.batch_shape[0]}"
+        )
+        agent = Agent(params, env_model)
 
-    print(
-        f"Repeats: {j}/{num_repeat}, Samples: {agent.batch_shape[0]*j}/{num_repeat*agent.batch_shape[0]}"
-    )
-    agent = Agent(params, env_model)
-    agent.Dyn_gp_X_train_batch = X_train
-    agent.Dyn_gp_Y_train_batch = Y_train
-    # agent.model_i = gp_model
+        if condition_on_solver_data:
+            agent.Dyn_gp_X_train_batch = X_train
+            agent.Dyn_gp_Y_train_batch = Y_train
+        # agent.model_i = gp_model
 
-    for i_randinit in range(n_random_conditionings + params["optimizer"]["H"]):
-        i = i_randinit - n_random_conditionings
-        # train model on data points
-        agent.train_hallucinated_dynGP(i)
-        agent.model_i.eval()
+        for i_randinit in range(n_random_conditionings + params["optimizer"]["H"]):
+            i = i_randinit - n_random_conditionings
+            # train model on data points
+            agent.train_hallucinated_dynGP(i)
+            agent.model_i.eval()
 
-        if i_randinit < n_random_conditionings:
-            X_inp = X_inp_random_list[i_randinit]
-        else:
-            # get control input into right shape to stack with Y_perm
-            U_single = torch.tensor(input_gpmpc_input_traj[i, :], dtype=torch.float32)
-            U_tile = torch.tile(
-                U_single, (agent.batch_shape[0], agent.batch_shape[1], 1, 1)
-            )
-            X_traj_list[j][i][:, :, :, agent.nx : agent.nx + agent.nu] = U_tile
-            X_inp = X_traj_list[j][i]
+            if i_randinit < n_random_conditionings:
+                X_inp = X_inp_random_list[i_randinit]
+            else:
+                # get control input into right shape to stack with Y_perm
+                U_single = torch.tensor(input_gpmpc_input_traj[i, :], dtype=torch.float32)
+                U_tile = torch.tile(
+                    U_single, (agent.batch_shape[0], agent.batch_shape[1], 1, 1)
+                )
+                X_traj_list[j][i][:, :, :, agent.nx : agent.nx + agent.nu] = U_tile
+                X_inp = X_traj_list[j][i]
 
-        # sample functions from GP
-        with torch.no_grad(), gpytorch.settings.observation_nan_policy(
-            "mask"
-        ), gpytorch.settings.fast_computations(
-            covar_root_decomposition=False, log_prob=False, solves=False
-        ), gpytorch.settings.cholesky_jitter(
-            float_value=agent.params["agent"]["Dyn_gp_jitter"],
-            double_value=agent.params["agent"]["Dyn_gp_jitter"],
-            half_value=agent.params["agent"]["Dyn_gp_jitter"],
-        ):
-            model_i_call = agent.model_i(X_inp)
-            Y_sample = model_i_call.sample(
-                # base_samples=agent.epistimic_random_vector[agent.mpc_iter][sqp_iter]
-            )
+            # sample functions from GP
+            with torch.no_grad(), gpytorch.settings.observation_nan_policy(
+                "mask"
+            ), gpytorch.settings.fast_computations(
+                covar_root_decomposition=False, log_prob=False, solves=False
+            ), gpytorch.settings.cholesky_jitter(
+                float_value=agent.params["agent"]["Dyn_gp_jitter"],
+                double_value=agent.params["agent"]["Dyn_gp_jitter"],
+                half_value=agent.params["agent"]["Dyn_gp_jitter"],
+            ):
+                model_i_call = agent.model_i(X_inp)
+                Y_sample = model_i_call.sample(
+                    # base_samples=agent.epistimic_random_vector[agent.mpc_iter][sqp_iter]
+                )
 
-            variance_numerically_zero = (
-                model_i_call.variance
-                <= agent.params["agent"]["Dyn_gp_variance_is_zero"]
-            )
-            variance_numerically_zero_all_outputs = torch.all(
-                variance_numerically_zero, dim=-1, keepdim=True
-            ).tile(1, 1, 1, agent.nx + agent.nu + 1)
-            variance_numerically_zero_num = torch.zeros_like(model_i_call.variance)
-            variance_numerically_zero_num[
-                variance_numerically_zero_all_outputs == True
-            ] = 1
-            Y_sample = (
-                variance_numerically_zero_num * model_i_call.mean
-                + (1 - variance_numerically_zero_num) * Y_sample
-            )
+                variance_numerically_zero = (
+                    model_i_call.variance
+                    <= agent.params["agent"]["Dyn_gp_variance_is_zero"]
+                )
+                variance_numerically_zero_all_outputs = torch.all(
+                    variance_numerically_zero, dim=-1, keepdim=True
+                ).tile(1, 1, 1, agent.nx + agent.nu + 1)
+                variance_numerically_zero_num = torch.zeros_like(model_i_call.variance)
+                variance_numerically_zero_num[
+                    variance_numerically_zero_all_outputs == True
+                ] = 1
+                Y_sample = (
+                    variance_numerically_zero_num * model_i_call.mean
+                    + (1 - variance_numerically_zero_num) * Y_sample
+                )
 
-            Y_max = model_i_call.mean + sqrt_beta * torch.sqrt(model_i_call.variance)
-            Y_min = model_i_call.mean - sqrt_beta * torch.sqrt(model_i_call.variance)
-            Y_sample = torch.max(Y_sample, Y_min)
-            Y_sample = torch.min(Y_sample, Y_max)
+                Y_max = model_i_call.mean + sqrt_beta * torch.sqrt(model_i_call.variance)
+                Y_min = model_i_call.mean - sqrt_beta * torch.sqrt(model_i_call.variance)
+                Y_sample = torch.max(Y_sample, Y_min)
+                Y_sample = torch.min(Y_sample, Y_max)
 
-        # condition on sampled values
-        agent.update_hallucinated_Dyn_dataset(X_inp, Y_sample)
+            # condition on sampled values
+            agent.update_hallucinated_Dyn_dataset(X_inp, Y_sample)
 
-        if i_randinit < n_random_conditionings:
-            X_inp_random = (
-                torch.randn_like(X_inp_opt) * X_inp_opt_mean * random_conditioning_scale
-                + X_inp_opt
-            )
-            X_inp_random_list.append(X_inp_random)
-            continue
+            if i_randinit < n_random_conditionings:
+                X_inp_random = (
+                    torch.randn_like(X_inp_opt) * X_inp_opt_mean * random_conditioning_scale
+                    + X_inp_opt
+                )
+                X_inp_random_list.append(X_inp_random)
+                continue
 
-        Y_traj_list[j][i] = Y_sample
-        # duplicate Y values for batching in X
-        Y_stack = torch.stack([Y_traj_list[j][i][:, :, :, 0]] * agent.nx, dim=-1)
-        # permute dimensions such that output becomes input for X
-        Y_perm = Y_stack.permute(0, 3, 2, 1)
+            Y_traj_list[j][i] = Y_sample
+            # duplicate Y values for batching in X
+            Y_stack = torch.stack([Y_traj_list[j][i][:, :, :, 0]] * agent.nx, dim=-1)
+            # permute dimensions such that output becomes input for X
+            Y_perm = Y_stack.permute(0, 3, 2, 1)
 
-        # stack U with Y_perm to propagate to next state
-        X_traj_list[j][i + 1][:, :, :, 0 : agent.nx] = Y_perm
-        # X_traj_list[i + 1] = torch.cat((Y_perm, U_tile), dim=-1)
+            # stack U with Y_perm to propagate to next state
+            X_traj_list[j][i + 1][:, :, :, 0 : agent.nx] = Y_perm
+            # X_traj_list[i + 1] = torch.cat((Y_perm, U_tile), dim=-1)
 
-# save trajectories
-# flatten list
-X_traj_list = [
-    torch.cat([X_traj_list[j][i] for j in range(num_repeat)], dim=0)
-    for i in range(params["optimizer"]["H"] + 1)
-]
-# X_flatten = torch.cat(X_traj_list)
-Y_traj_list = [item for sublist in Y_traj_list for item in sublist]
+    # save trajectories
+    # flatten list
+    X_traj_list = [
+        torch.cat([X_traj_list[j][i] for j in range(max_repeat_per_file)], dim=0)
+        for i in range(params["optimizer"]["H"] + 1)
+    ]
+    # X_flatten = torch.cat(X_traj_list)
+    Y_traj_list = [item for sublist in Y_traj_list for item in sublist]
 
 
-with open(save_path + str(traj_iter) + "/X_traj_list.pkl", "wb") as f:
-    pickle.dump(X_traj_list, f)
+    with open(f"{save_path}{traj_iter}/X_traj_list_{k}.pkl", "wb") as f:
+        pickle.dump(X_traj_list, f)
 
 # plot trajectories
 x_plot = np.array(
