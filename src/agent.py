@@ -331,7 +331,13 @@ class Agent(object):
             # find too close points and overwrite with closest y-value
             min_distance = self.params["agent"]["Dyn_gp_min_data_dist"]
             dist = x_input[:, :, None, :, :] - x_train[:, :, :, None, :]
+            y_train_isnan = (
+                torch.any(torch.isnan(y_train), dim=3)
+                .unsqueeze(-1)
+                .tile(1, 1, 1, self.params["optimizer"]["H"])
+            )
             dist_norm = torch.linalg.vector_norm(dist, dim=-1)
+            dist_norm[y_train_isnan] = torch.tensor(float("inf"))
             dist_too_small = (
                 torch.any(dist_norm <= min_distance, dim=2)
                 .unsqueeze(-1)
@@ -353,6 +359,8 @@ class Agent(object):
                 y_sample_closest_train,
                 y_sample,
             )
+
+            assert not torch.any(torch.isnan(y_sample))
 
             # check if variance is numerically zero
             variance_numerically_zero = (
