@@ -355,9 +355,6 @@ class Agent(object):
             )
 
             # check if variance is numerically zero
-            # std_rel = torch.sqrt(self.model_i_call.variance) / (
-            #     self.model_i_call.mean + self.params["agent"]["Dyn_gp_variance_is_zero"]
-            # )
             variance_numerically_zero = (
                 self.model_i_call.variance
                 <= self.params["agent"]["Dyn_gp_variance_is_zero"]
