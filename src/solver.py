@@ -196,6 +196,10 @@ class DEMPC_solver(object):
                 "mask"
             ), gpytorch.settings.fast_computations(
                 covar_root_decomposition=False, log_prob=False, solves=False
+            ), gpytorch.settings.cholesky_jitter(
+                float_value=self.params["agent"]["Dyn_gp_jitter"],
+                double_value=self.params["agent"]["Dyn_gp_jitter"],
+                half_value=self.params["agent"]["Dyn_gp_jitter"],
             ):
                 predictions = player.model_i(X_input)
                 mean = predictions.mean.detach().numpy()
