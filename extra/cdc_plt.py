@@ -1,21 +1,24 @@
 # sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
-import sys
+import sys, os
+
 sys.path.append("/home/amon/Repositories/safe_gpmpc")
 
 import dill as pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull, convex_hull_plot_2d
+
 # from plotting_utilities.plotting_utilities.utilities import *
 from pathlib import Path
+
 # from src.visu import propagate_true_dynamics
 
-plot_GT = True
+plot_GT = False
 plot_GT_sampling = True
 plot_sampling_MPC = True
 plot_cautious_MPC = False
 plot_safe_MPC = False
-i = 2
+i = 9
 filename = f"safe_uncertainity_{i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
 TEXTWIDTH = 16
@@ -29,26 +32,22 @@ plt.tight_layout(pad=0.0)
 # plt.plot(x1_smpc, x2_smpc, alpha=0.7)
 plt.xlim(-0.1, 1.45)
 
-GT_data_path = (
-    f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/X_traj_list.pkl"
-)
-GT_sampling_data_path = (
-    f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/X_traj_list.pkl"
-)
-sampling_data_path = (
-    f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/data.pkl"
-)
+prefix_X_traj_list = "X_traj_list"
+GT_data_path = f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/"
+GT_sampling_data_path = f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/"
+sampling_data_path = f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/data.pkl"
 
 H = 31
 
 if plot_GT:
+    # TODO: add compatibility with multiple-files for X_traj_list (see below)
     # Load GT_uncertainity data
     a_file = open(GT_data_path, "rb")
     true_gpmpc_data = pickle.load(a_file)
     a_file.close()
     true_gpmpc_data_numpy = np.array([np.array(x.cpu()) for x in true_gpmpc_data])
     H_GT, N_samples, nx, _, nxu = true_gpmpc_data_numpy.shape
-    assert(H_GT == H)
+    assert H_GT == H
 
     theta_loc = np.linspace(0.0, 2.0, 100)
     theta_dot_list = []
@@ -99,24 +98,45 @@ if plot_sampling_MPC:
         )
 
 if plot_GT_sampling:
-    a_file = open(GT_sampling_data_path, "rb")
-    sampling_gpmpc_data = pickle.load(a_file)
-    a_file.close()
-    sampling_gpmpc_data_np = np.array([np.array(x.cpu()) for x in true_gpmpc_data])
-    H_GT, N_samples, nx, _, nxu = sampling_gpmpc_data_np.shape
-    assert(H_GT == H)
+    # find all files with name prefix_X_traj_list_i in directory (i is integer) of GT_sampling_data_path
+    all_files_at_GT_sampling_data_path = os.listdir(GT_sampling_data_path)
 
-    # Plot convex hull
-    state_traj = sampling_gpmpc_data_np[:, :, 0, 0, 0:2]
-    # plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color="tab:blue")
+    hull_points = []
+    for file in all_files_at_GT_sampling_data_path:
+        if not file.startswith(prefix_X_traj_list):
+            continue
+
+        traj_iter = file.split("_")[-1].split(".")[0]
+
+        a_file = open(os.path.join(GT_sampling_data_path, file), "rb")
+        sampling_gpmpc_data = pickle.load(a_file)
+        a_file.close()
+        sampling_gpmpc_data_np = np.array(
+            [np.array(x.cpu()) for x in sampling_gpmpc_data]
+        )
+        H_GT, N_samples, nx, _, nxu = sampling_gpmpc_data_np.shape
+        assert H_GT == H
+
+        # Plot convex hull
+        state_traj = sampling_gpmpc_data_np[:, :, 0, 0, 0:2]
+        # plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color="tab:blue")
+        for i in range(1, H):
+            # pts_i = state_traj[0][i].reshape(-1, 2)
+            pts_i = state_traj[i]
+            hull = ConvexHull(pts_i)
+            if i - 1 < len(hull_points):
+                hull_points[i - 1] = np.vstack(
+                    [hull_points[i - 1], hull.points[hull.vertices]]
+                )
+            else:
+                hull_points.append(hull.points[hull.vertices])
+
     for i in range(1, H):
-        # pts_i = state_traj[0][i].reshape(-1, 2)
-        pts_i = state_traj[i]
-        hull = ConvexHull(pts_i)
+        hull = ConvexHull(hull_points[i - 1])
         stack_vertices = np.hstack([hull.vertices, hull.vertices[0]])
         plt.plot(
-            pts_i[stack_vertices, 0],
-            pts_i[stack_vertices, 1],
+            hull.points[stack_vertices, 0],
+            hull.points[stack_vertices, 1],
             alpha=0.7,
             color="tab:red",
             lw=1.5,
