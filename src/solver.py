@@ -104,13 +104,12 @@ class DEMPC_solver(object):
             t_0 = timeit.default_timer()
             status = self.ocp_solver.solve()
             t_1 = timeit.default_timer()
-            print("Time taken for SQP iteration", t_1 - t_0)
+            print("Time taken for QP solve", t_1 - t_0)
             # self.ocp_solver.print_statistics()
+            # print("statistics", self.ocp_solver.get_stats("statistics"))
             print("cost", self.ocp_solver.get_cost())
             residuals = self.ocp_solver.get_residuals(recompute=True)
             print("residuals (after solve)", residuals)
-            # print("statistics", self.ocp_solver.get_stats("statistics"))
-            self.ocp_solver.print_statistics()
 
             # if self.ocp_solver.status != 0:
             #     print("acados returned status {} in closed loop solve".format(
