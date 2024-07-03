@@ -95,6 +95,25 @@ class Agent(object):
             ret_mpc_iters = ret_mpc_iters.cuda()
         return ret_mpc_iters
 
+    def get_min_dist_train_data(self):
+        min_dist = np.zeros((self.params["agent"]["num_dyn_samples"],))
+        for s in range(self.params["agent"]["num_dyn_samples"]):
+            train_inputs_i = self.model_i.train_inputs[0][s, 0, :, :]
+            train_targets_i = self.model_i.train_targets[s, 0, :, :]
+            train_targets_i_nan = torch.all(torch.isnan(train_targets_i), dim=1)
+            train_inputs_i_diff = (
+                train_inputs_i[None, train_targets_i_nan == False, :]
+                - train_inputs_i[train_targets_i_nan == False, None, :]
+            )
+            train_inputs_i_diff_norm = torch.linalg.vector_norm(
+                train_inputs_i_diff, dim=-1
+            )
+            train_inputs_i_diff_norm_plus_diag = train_inputs_i_diff_norm + torch.eye(
+                train_inputs_i_diff_norm.shape[0]
+            )
+            min_dist[s] = torch.min(train_inputs_i_diff_norm_plus_diag)
+        return min_dist
+
     def update_current_location(self, loc):
         self.current_location = loc
 
