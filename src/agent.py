@@ -328,6 +328,23 @@ class Agent(object):
             y_train = self.model_i.train_targets
             x_train = self.model_i.train_inputs[0]
 
+            # check if variance is numerically zero
+            variance_numerically_zero = (
+                self.model_i_call.variance
+                <= self.params["agent"]["Dyn_gp_variance_is_zero"]
+            )
+            variance_numerically_zero_all_outputs = torch.all(
+                variance_numerically_zero, dim=-1, keepdim=True
+            ).tile(1, 1, 1, self.nx + self.nu + 1)
+            variance_numerically_zero_num = torch.zeros_like(self.model_i_call.variance)
+            variance_numerically_zero_num[
+                variance_numerically_zero_all_outputs == True
+            ] = 1
+            y_sample = (
+                variance_numerically_zero_num * self.model_i_call.mean
+                + (1 - variance_numerically_zero_num) * y_sample
+            )
+
             # find too close points and overwrite with closest y-value
             min_distance = self.params["agent"]["Dyn_gp_min_data_dist"]
             dist = x_input[:, :, None, :, :] - x_train[:, :, :, None, :]
@@ -361,23 +378,6 @@ class Agent(object):
             )
 
             assert not torch.any(torch.isnan(y_sample))
-
-            # check if variance is numerically zero
-            variance_numerically_zero = (
-                self.model_i_call.variance
-                <= self.params["agent"]["Dyn_gp_variance_is_zero"]
-            )
-            variance_numerically_zero_all_outputs = torch.all(
-                variance_numerically_zero, dim=-1, keepdim=True
-            ).tile(1, 1, 1, self.nx + self.nu + 1)
-            variance_numerically_zero_num = torch.zeros_like(self.model_i_call.variance)
-            variance_numerically_zero_num[
-                variance_numerically_zero_all_outputs == True
-            ] = 1
-            y_sample = (
-                variance_numerically_zero_num * self.model_i_call.mean
-                + (1 - variance_numerically_zero_num) * y_sample
-            )
 
             # check that sampled dynamics are within bounds
             y_max = self.model_i_call.mean + self.params["agent"][
