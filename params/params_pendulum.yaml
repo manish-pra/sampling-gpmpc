@@ -35,7 +35,7 @@ agent:
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
-  Dyn_gp_variance_is_zero: 1.001e-6
+  Dyn_gp_variance_is_zero: 1.1e-6
   Dyn_gp_min_data_dist: 1.0e-4
 
 visu:
@@ -59,7 +59,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 20
+    max_sqp_iter: 30
     tol_nlp: 1.0e-4 
   Tf: 1.0  # sampling time = Tf/H
   order: 2
@@ -69,6 +69,9 @@ optimizer:
   Qx: [50, 0] # [1.0, 1.0, 1.0, 1.0]  
   Qu: [0.1]
   cost: "expected" 
+  options: {
+    levenberg_marquardt: 1.0
+  }
 
 experiment:
   name: "DEMPC" #

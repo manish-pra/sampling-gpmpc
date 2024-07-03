@@ -19,7 +19,7 @@ import torch
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
-workspace = "safe_gpmpc"
+workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car")  # params

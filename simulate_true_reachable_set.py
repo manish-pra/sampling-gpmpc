@@ -22,7 +22,7 @@ import copy
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
-workspace = "safe_gpmpc"
+workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car")  # params
@@ -111,7 +111,7 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 50000
+num_repeat = 10000
 max_repeat_per_file = 1000
 num_files = num_repeat // max_repeat_per_file
 n_random_conditionings = 0

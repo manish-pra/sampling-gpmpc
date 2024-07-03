@@ -1,7 +1,6 @@
 # sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
 import sys, os
-
-sys.path.append("/home/amon/Repositories/safe_gpmpc")
+sys.path.append("sampling-gpmpc")
 
 import dill as pickle
 import numpy as np
@@ -18,7 +17,7 @@ plot_GT_sampling = True
 plot_sampling_MPC = True
 plot_cautious_MPC = False
 plot_safe_MPC = False
-i = 9
+i = 22
 filename = f"safe_uncertainity_{i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
 TEXTWIDTH = 16
@@ -33,9 +32,9 @@ plt.tight_layout(pad=0.0)
 plt.xlim(-0.1, 1.45)
 
 prefix_X_traj_list = "X_traj_list"
-GT_data_path = f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/"
-GT_sampling_data_path = f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/"
-sampling_data_path = f"/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/data.pkl"
+GT_data_path = f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum_{i}/{i}/"
+GT_sampling_data_path = f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum_{i}/{i}/"
+sampling_data_path = f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum_{i}/{i}/data.pkl"
 
 H = 31
 
