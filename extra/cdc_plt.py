@@ -1,5 +1,7 @@
 # sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
 import sys, os
+from scipy.spatial.distance import pdist, squareform
+
 
 sys.path.append("sampling-gpmpc")
 
@@ -8,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull, convex_hull_plot_2d
 
-# from plotting_utilities.plotting_utilities.utilities import *
+from plotting_utilities.plotting_utilities.utilities import *
 from pathlib import Path
 
 # from src.visu import propagate_true_dynamics
@@ -22,15 +24,14 @@ i = 22
 filename = f"safe_uncertainity_{i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
 TEXTWIDTH = 16
-# set_figure_params(serif=True, fontsize=14)
-f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
-# f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
+set_figure_params(serif=True, fontsize=14)
+# f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
+f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
 ax = f.axes
-plt.ylabel(r"$\theta$")
-plt.xlabel(r"$\dot{\theta}$")
+plt.xlabel(r"$\theta$")
+plt.ylabel(r"$\omega$")
 plt.tight_layout(pad=0.0)
 # plt.plot(x1_smpc, x2_smpc, alpha=0.7)
-plt.xlim(-0.1, 1.45)
 
 prefix_X_traj_list = "X_traj_list"
 GT_data_path = f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/"
@@ -42,7 +43,7 @@ sampling_data_path = (
 )
 
 H = 31
-
+color = "powderblue"  # "lightblue"
 if plot_GT:
     # TODO: add compatibility with multiple-files for X_traj_list (see below)
     # Load GT_uncertainity data
@@ -80,8 +81,8 @@ if plot_sampling_MPC:
     # Plot convex hull
     state_traj = sampling_gpmpc_data["state_traj"]
     pts_i = state_traj[0][0].reshape(-1, 2)
-    plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color="tab:blue")
-    for i in range(1, H):
+    plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color=color)
+    for i in range(1, H - 1):
         pts_i = state_traj[0][i].reshape(-1, 2)
         hull = ConvexHull(pts_i)
         # plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color="tab:blue")
@@ -100,6 +101,9 @@ if plot_sampling_MPC:
             color="tab:green",
             lw=1.5,
         )
+    x1_true = sampling_gpmpc_data["true_state_traj"][0][:, 0]
+    x2_true = sampling_gpmpc_data["true_state_traj"][0][:, 1]
+
 
 if plot_GT_sampling:
     # find all files with name prefix_X_traj_list_i in directory (i is integer) of GT_sampling_data_path
@@ -135,23 +139,91 @@ if plot_GT_sampling:
             else:
                 hull_points.append(hull.points[hull.vertices])
 
-    for i in range(1, H):
-        hull = ConvexHull(hull_points[i - 1])
+    # pt1 = []
+    # pt2 = []
+    # pt1.append(state_traj[0][0])
+    # pt2.append(state_traj[0][0])
+    # for i in range(H - 1):
+    #     hull = ConvexHull(hull_points[i])
+    #     # stack_vertices = np.hstack([hull.vertices, hull.vertices[0]])
+    #     hull_corners = hull.points[hull.vertices]
+    #     distances = pdist(hull_corners, "seuclidean")
+    #     # max_distance_index = np.argmax(distances)
+    #     # max_distance = distances[max_distance_index]
+    #     square = squareform(distances)
+    #     for j in [-1]:
+    #         indices = np.unravel_index(np.argsort(square, axis=None)[j], square.shape)
+    #         point_1 = hull_corners[indices[0]]
+    #         point_2 = hull_corners[indices[1]]
+    #         if point_1[0] > point_2[0]:
+    #             point_1, point_2 = point_2, point_1
+    #         elif point_1[1] < point_2[1]:
+    #             point_1, point_2 = point_2, point_1
+
+    #         pt1.append(point_1)
+    #         pt2.append(point_2)
+
+    # plt.plot(
+    #     [point_1[0], point_2[0]],
+    #     [point_1[1], point_2[1]],
+    #     color="tab:blue",
+    # )
+    # poly = np.array(pt1 + pt2[::-1])
+    # plt.fill(poly[:, 0], poly[:, 1], alpha=0.5, color="tab:blue")
+    # plt.fill(
+    #     hull_points[i - 1][stack_vertices1, 0],
+    #     hull_points[i - 1][stack_vertices1, 1],
+    #     hull_points[i][stack_vertices1, 0],
+    #     hull_points[i][stack_vertices1, 1],
+    #     alpha=0.7,
+    #     color="tab:blue",
+    #     lw=1.5,
+    # )
+    # x_cords = np.concatenate(
+    #     [hull_points[i - 1][stack_vertices1, 0], hull_points[i][stack_vertices2, 0]]
+    # )
+    # y_cords = np.concatenate(
+    #     [hull_points[i - 1][stack_vertices1, 1], hull_points[i][stack_vertices2, 1]]
+    # )
+    # plt.fill(x_cords, y_cords, alpha=0.7, color="tab:blue", lw=1.5)
+    # for i in range(H - 1):
+    #     hull = ConvexHull(hull_points[i])
+    #     stack_vertices = np.hstack([hull.vertices, hull.vertices[0]])
+    #     plt.plot(
+    #         hull.points[stack_vertices, 0],
+    #         hull.points[stack_vertices, 1],
+    #         alpha=0.1,
+    #         color="tab:red",
+    #         lw=2,
+    #     )
+
+    hull_points.insert(0, np.array([[0, 0]]))
+    for i in range(H - 1):
+        hull = ConvexHull(np.concatenate([hull_points[i], hull_points[i + 1]]))
         stack_vertices = np.hstack([hull.vertices, hull.vertices[0]])
         plt.fill(
             hull.points[stack_vertices, 0],
             hull.points[stack_vertices, 1],
-            alpha=0.5,
-            color="tab:blue",
+            alpha=1,
+            color=color,
             lw=0,
         )
-        # plt.fill_between(
-        #     hull.points[stack_vertices, 0],
-        #     hull.points[stack_vertices, 1],
-        #     alpha=0.5,
-        #     color="tab:blue",
-        #     lw=1.5,
-        # )
+    plt.fill(
+        np.array([-100, -100]),
+        alpha=1,
+        color=color,
+        lw=0,
+        label="True uncertainty",
+    )
+    # hull = ConvexHull(np.concatenate([np.array([[0, 0]]), hull_points[0]]))
+    # stack_vertices = np.hstack([hull.vertices, hull.vertices[0]])
+    # plt.fill(
+    #     hull.points[stack_vertices, 0],
+    #     hull.points[stack_vertices, 1],
+    #     alpha=1,
+    #     color=color,
+    #     lw=0,
+    # )
 
 if plot_cautious_MPC:
     ellipse_list_path = "/home/manish/work/MPC_Dyn/safe_gpmpc/experiments/pendulum/env_0/params/40123/ellipse_data.pkl"
@@ -171,10 +243,11 @@ if plot_safe_MPC:
     for ellipse in ellipse_list:
         plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:red")
 
-
+plt.plot(x1_true, x2_true, color="black", label="True dynamics")
 plt.plot([-0.1, 2.2], [2.5, 2.5], color="red", linestyle="--")
-plt.xlim(-0.1, 1.45)
+plt.xlim(-0.1, 0.9)
 plt.ylim(-0.1, 2.7)
+plt.legend()
 fname = Path().resolve().joinpath("figures")
 fname.mkdir(exist_ok=True)
 # adapt_figure_size_from_axes(ax)
