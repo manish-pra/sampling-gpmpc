@@ -124,7 +124,7 @@ ax.add_line(plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="-
 ax.add_line(plt.Line2D([x_min, x_max], [y_min, y_min], color="red", linestyle="--"))
 ax.add_line(
     plt.Line2D(
-        [x_min, x_max], [y_ref, y_ref], color="cyan", linestyle=(0, (5, 10)), lw=3
+        [x_min, x_max], [y_ref, y_ref], color="cyan", linestyle=(0, (5, 5)), lw=2
     )
 )
 
@@ -138,7 +138,7 @@ for ellipse in params["env"]["ellipses"]:
     b = np.sqrt(b * f)  # radius on the y-axis
     t = np.linspace(0, 2 * 3.14, 100)
     f2 = np.sqrt(7 / 4)
-    plt.plot(x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t), color="black")
+    plt.plot(x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t), color="black", alpha=0.6)
     plot_car(
         x0,
         y0,
@@ -195,7 +195,10 @@ plot_car(
     physical_state_traj[idx3][2],
     "tab:brown",
 )
-plt.plot(x3 + f2 * a * np.cos(t), y3 + f2 * b * np.sin(t), color="tab:brown")
+alpha = 0.6
+plt.plot(
+    x3 + f2 * a * np.cos(t), y3 + f2 * b * np.sin(t), color="tab:brown", alpha=alpha
+)
 
 x2, y2 = physical_state_traj[idx2][0], physical_state_traj[idx2][1]
 plot_car(
@@ -205,7 +208,9 @@ plot_car(
     "tab:brown",
 )
 
-plt.plot(x2 + f2 * a * np.cos(t), y2 + f2 * b * np.sin(t), color="tab:brown")
+plt.plot(
+    x2 + f2 * a * np.cos(t), y2 + f2 * b * np.sin(t), color="tab:brown", alpha=alpha
+)
 
 x1, y1 = physical_state_traj[idx1][0], physical_state_traj[idx1][1]
 plot_car(
@@ -215,7 +220,9 @@ plot_car(
     "tab:brown",
 )
 
-plt.plot(x1 + f2 * a * np.cos(t), y1 + f2 * b * np.sin(t), color="tab:brown")
+plt.plot(
+    x1 + f2 * a * np.cos(t), y1 + f2 * b * np.sin(t), color="tab:brown", alpha=alpha
+)
 
 
 ax.set_yticklabels([])
