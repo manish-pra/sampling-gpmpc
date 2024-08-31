@@ -1,5 +1,6 @@
 # sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
 import sys, os
+
 sys.path.append("sampling-gpmpc")
 
 import dill as pickle
@@ -32,9 +33,13 @@ plt.tight_layout(pad=0.0)
 plt.xlim(-0.1, 1.45)
 
 prefix_X_traj_list = "X_traj_list"
-GT_data_path = f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum_{i}/{i}/"
-GT_sampling_data_path = f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum_{i}/{i}/"
-sampling_data_path = f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum_{i}/{i}/data.pkl"
+GT_data_path = f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/"
+GT_sampling_data_path = (
+    f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/"
+)
+sampling_data_path = (
+    f"sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/{i}/data.pkl"
+)
 
 H = 31
 
@@ -133,13 +138,20 @@ if plot_GT_sampling:
     for i in range(1, H):
         hull = ConvexHull(hull_points[i - 1])
         stack_vertices = np.hstack([hull.vertices, hull.vertices[0]])
-        plt.plot(
+        plt.fill(
             hull.points[stack_vertices, 0],
             hull.points[stack_vertices, 1],
-            alpha=0.7,
-            color="tab:red",
-            lw=1.5,
+            alpha=0.5,
+            color="tab:blue",
+            lw=0,
         )
+        # plt.fill_between(
+        #     hull.points[stack_vertices, 0],
+        #     hull.points[stack_vertices, 1],
+        #     alpha=0.5,
+        #     color="tab:blue",
+        #     lw=1.5,
+        # )
 
 if plot_cautious_MPC:
     ellipse_list_path = "/home/manish/work/MPC_Dyn/safe_gpmpc/experiments/pendulum/env_0/params/40123/ellipse_data.pkl"
