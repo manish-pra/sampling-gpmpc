@@ -6,7 +6,7 @@ import os
 import warnings
 import sys
 
-sys.path.insert(0, "/home/manish/work/MPC_Dyn/safe_gpmpc")
+sys.path.insert(0, "/home/manish/work/MPC_Dyn/sampling-gpmpc")
 import matplotlib.pyplot as plt
 import yaml
 import dill as pickle
@@ -21,13 +21,13 @@ plt.rcParams["figure.figsize"] = [12, 6]
 filename = "car_trajectory_final"
 
 
-workspace = "safe_gpmpc"
+workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=41)  # initialized at origin
+parser.add_argument("-i", type=str, default="44_final")  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file

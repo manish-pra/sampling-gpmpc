@@ -131,6 +131,7 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     xg = np.array(params["env"]["goal_state"])
     w = params["optimizer"]["w"]
     Qx = np.diag(np.array(params["optimizer"]["Qx"]))
+    # Qxe = np.diag(np.array(params["optimizer"]["Qxe"]))
 
     # cost
     ocp.cost.cost_type = "EXTERNAL"
