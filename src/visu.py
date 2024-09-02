@@ -27,8 +27,8 @@ class Visualizer:
         # fig_gp.tight_layout(pad=0)
         ax.grid(which="both", axis="both")
         ax.minorticks_on()
-        # ax.set_xlabel("X")
-        # ax.set_ylabel("Y")
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
         y_min = self.params["optimizer"]["x_min"][1]
         y_max = self.params["optimizer"]["x_max"][1]
         x_min = self.params["optimizer"]["x_min"][0]
@@ -84,6 +84,7 @@ class Visualizer:
             plt.yticks([])
             plt.xlim([-2.14, 70 + relax])
             plt.tight_layout(pad=0.3)
+
         elif self.params["env"]["dynamics"] == "pendulum":
             ax.add_line(
                 plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
@@ -207,12 +208,14 @@ class Visualizer:
         outline[0, :] += x
         outline[1, :] += y
 
+
         ax.plot(
             np.array(outline[0, :]).flatten(),
             np.array(outline[1, :]).flatten(),
             "black",
             lw=2,
         )
+
 
     def plot_car(self, x, y, yaw, l, l2):
         factor = 0.4

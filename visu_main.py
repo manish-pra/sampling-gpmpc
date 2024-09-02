@@ -76,6 +76,7 @@ nx = params["agent"]["dim"]["nx"]
 ax = visu.f_handle["gp"].axes[0]
 (l,) = ax.plot([], [], "tab:brown", alpha=0.5)
 (l2,) = ax.plot([], [], "tab:brown", lw=2)
+
 for i in range(0, len(state_traj)):
     mean_state_traj = state_traj[i][:, :nx]
     visu.record_out(
