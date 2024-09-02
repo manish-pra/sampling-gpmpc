@@ -6,7 +6,7 @@ import os
 import warnings
 import sys
 
-sys.path.insert(0, "/home/manish/work/MPC_Dyn/safe_gpmpc")
+sys.path.insert(0, "/home/manish/work/MPC_Dyn/sampling-gpmpc")
 import matplotlib.pyplot as plt
 import yaml
 import dill as pickle
@@ -18,16 +18,16 @@ warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
 
-filename = "car_trajectory"
+filename = "car_trajectory_final"
 
 
-workspace = "safe_gpmpc"
+workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=40)  # initialized at origin
+parser.add_argument("-i", type=str, default="44_final")  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -90,11 +90,11 @@ nx = params["agent"]["dim"]["nx"]
 (l,) = ax.plot([], [], "tab:brown")
 
 
-def plot_car(x, y, yaw, l):
-    factor = 0.2
-    l_f = 0.275 * factor
-    l_r = 0.425 * factor
-    W = 0.3 * factor
+def plot_car(x, y, yaw, color):
+    factor = 0.4
+    l_f = params["env"]["params"]["lf"]  # 0.275 * factor
+    l_r = params["env"]["params"]["lr"]  # 0.425 * factor
+    W = (l_f + l_r) * factor
     outline = np.array(
         [[-l_r, l_f, l_f, -l_r, -l_r], [W / 2, W / 2, -W / 2, -W / 2, W / 2]]
     )
@@ -108,7 +108,7 @@ def plot_car(x, y, yaw, l):
     plt.plot(
         np.array(outline[0, :]).flatten(),
         np.array(outline[1, :]).flatten(),
-        "tab:brown",
+        color,
         linewidth=2,
     )
     # l.set_data(np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten())
@@ -116,8 +116,17 @@ def plot_car(x, y, yaw, l):
 
 y_min = params["optimizer"]["x_min"][1]
 y_max = params["optimizer"]["x_max"][1]
-ax.add_line(plt.Line2D([-0.3, 2.4], [y_max, y_max], color="red", linestyle="--"))
-ax.add_line(plt.Line2D([-0.3, 2.4], [y_min, y_min], color="red", linestyle="--"))
+x_min = params["optimizer"]["x_min"][0]
+x_max = params["optimizer"]["x_max"][0]
+y_ref = params["env"]["goal_state"][1]
+
+ax.add_line(plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--"))
+ax.add_line(plt.Line2D([x_min, x_max], [y_min, y_min], color="red", linestyle="--"))
+ax.add_line(
+    plt.Line2D(
+        [x_min, x_max], [y_ref, y_ref], color="cyan", linestyle=(0, (5, 5)), lw=2
+    )
+)
 
 for ellipse in params["env"]["ellipses"]:
     x0 = params["env"]["ellipses"][ellipse][0]
@@ -128,43 +137,91 @@ for ellipse in params["env"]["ellipses"]:
     a = np.sqrt(a * f)  # radius on the x-axis
     b = np.sqrt(b * f)  # radius on the y-axis
     t = np.linspace(0, 2 * 3.14, 100)
-    plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t), color="black")
+    f2 = np.sqrt(7 / 4)
+    plt.plot(x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t), color="black", alpha=0.6)
+    plot_car(
+        x0,
+        y0,
+        0,
+        "black",
+    )
 
 
 state_traj = np.stack(state_traj)
-ax.plot(state_traj[-1, :, ::4], state_traj[-1, :, 1::4], alpha=0.5, lw=1)
-ax.plot(state_traj[20, :, ::4], state_traj[20, :, 1::4], alpha=0.5, lw=1)
 
-true_state_traj = np.stack(true_state_traj)
-ax.plot(
-    true_state_traj[-1, :, ::4],
-    true_state_traj[-1, :, 1::4],
-    color="black",
-    lw=1.5,
-)
-ax.plot(
-    true_state_traj[20, :, ::4],
-    true_state_traj[20, :, 1::4],
-    color="black",
-    lw=1.5,
-)
+idx1 = 36
+idx2 = 90
+idx3 = -1
 
 physical_state_traj = np.stack(physical_state_traj)
 ax.plot(physical_state_traj[:, 0], physical_state_traj[:, 1], color="tab:blue", lw=2)
 
+ax.plot(state_traj[idx3, :, ::4], state_traj[idx3, :, 1::4], alpha=0.5, lw=1)
+ax.plot(state_traj[idx1, :, ::4], state_traj[idx1, :, 1::4], alpha=0.5, lw=1)
+ax.plot(state_traj[idx2, :, ::4], state_traj[idx2, :, 1::4], alpha=0.5, lw=1)
 
-plot_car(
-    physical_state_traj[-1][0],
-    physical_state_traj[-1][1],
-    physical_state_traj[-1][2],
-    l,
+true_state_traj = np.stack(true_state_traj)
+ax.plot(
+    true_state_traj[idx3, :, ::4],
+    true_state_traj[idx3, :, 1::4],
+    color="black",
+    lw=1.5,
+)
+ax.plot(
+    true_state_traj[idx1, :, ::4],
+    true_state_traj[idx1, :, 1::4],
+    color="black",
+    lw=1.5,
+)
+ax.plot(
+    true_state_traj[idx2, :, ::4],
+    true_state_traj[idx2, :, 1::4],
+    color="black",
+    lw=1.5,
 )
 
+a = params["env"]["ellipses"]["n1"][2]
+b = params["env"]["ellipses"]["n1"][3]
+f = params["env"]["ellipses"]["n1"][4]
+a = np.sqrt(a * f)  # radius on the x-axis
+b = np.sqrt(b * f)  # radius on the y-axis
+t = np.linspace(0, 2 * 3.14, 100)
+f2 = np.sqrt(7 / 4)
+
+x3, y3 = physical_state_traj[idx3][0], physical_state_traj[idx3][1]
 plot_car(
-    physical_state_traj[20][0],
-    physical_state_traj[20][1],
-    physical_state_traj[20][2],
-    l,
+    x3,
+    y3,
+    physical_state_traj[idx3][2],
+    "tab:brown",
+)
+alpha = 0.6
+plt.plot(
+    x3 + f2 * a * np.cos(t), y3 + f2 * b * np.sin(t), color="tab:brown", alpha=alpha
+)
+
+x2, y2 = physical_state_traj[idx2][0], physical_state_traj[idx2][1]
+plot_car(
+    x2,
+    y2,
+    physical_state_traj[idx2][2],
+    "tab:brown",
+)
+
+plt.plot(
+    x2 + f2 * a * np.cos(t), y2 + f2 * b * np.sin(t), color="tab:brown", alpha=alpha
+)
+
+x1, y1 = physical_state_traj[idx1][0], physical_state_traj[idx1][1]
+plot_car(
+    x1,
+    y1,
+    physical_state_traj[idx1][2],
+    "tab:brown",
+)
+
+plt.plot(
+    x1 + f2 * a * np.cos(t), y1 + f2 * b * np.sin(t), color="tab:brown", alpha=alpha
 )
 
 
@@ -172,6 +229,7 @@ ax.set_yticklabels([])
 ax.set_xticklabels([])
 plt.xticks([])
 plt.yticks([])
+plt.xlim([-2.14, 70])
 plt.tight_layout(pad=0.0)
 
 plt.savefig("figures/" + filename + ".pdf")

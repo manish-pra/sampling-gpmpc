@@ -11,13 +11,13 @@ from src.visu import Visualizer
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
-workspace = "safe_gpmpc"
+workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=40)  # initialized at origin
+parser.add_argument("-i", type=str, default="44_final")  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -74,8 +74,9 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
 # load data)
 nx = params["agent"]["dim"]["nx"]
 ax = visu.f_handle["gp"].axes[0]
-(l,) = ax.plot([], [], "tab:orange")
-(l2,) = ax.plot([], [], "tab:orange")
+(l,) = ax.plot([], [], "tab:brown", alpha=0.5)
+(l2,) = ax.plot([], [], "tab:brown", lw=2)
+
 for i in range(0, len(state_traj)):
     mean_state_traj = state_traj[i][:, :nx]
     visu.record_out(

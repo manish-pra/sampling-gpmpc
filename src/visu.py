@@ -23,7 +23,7 @@ class Visualizer:
             self.initialize_plot_handles(path)
 
     def initialize_plot_handles(self, path):
-        fig_gp, ax = plt.subplots(figsize=(16 / 2.4, 16 / 2.4))
+        fig_gp, ax = plt.subplots(figsize=(16 / 2.4, 1.8 / 2.4))
         # fig_gp.tight_layout(pad=0)
         ax.grid(which="both", axis="both")
         ax.minorticks_on()
@@ -34,12 +34,23 @@ class Visualizer:
         x_min = self.params["optimizer"]["x_min"][0]
         x_max = self.params["optimizer"]["x_max"][0]
         if self.params["env"]["dynamics"] == "bicycle":
+            x_max = self.params["optimizer"]["x_max"][0]
+            y_ref = self.params["env"]["goal_state"][1]
 
             ax.add_line(
                 plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
             )
             ax.add_line(
                 plt.Line2D([x_min, x_max], [y_min, y_min], color="red", linestyle="--")
+            )
+            ax.add_line(
+                plt.Line2D(
+                    [x_min, x_max],
+                    [y_ref, y_ref],
+                    color="cyan",
+                    linestyle=(0, (5, 5)),
+                    lw=2,
+                )
             )
             # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
             #                 edgecolor='r', fc='None', lw=2)
@@ -58,13 +69,22 @@ class Visualizer:
                 t = np.linspace(0, 2 * 3.14, 100)
                 f2 = np.sqrt(7 / 4)
                 # plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
-                plt.plot(x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t))
+                plt.plot(
+                    x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t), "black", alpha=0.5
+                )
                 self.plot_car_stationary(x0, y0, 0, plt)
-            plt.grid(color="lightgray", linestyle="--")
+            # plt.grid(color="lightgray", linestyle="--")
             ax.set_aspect("equal", "box")
             ax.set_xlim(x_min, x_max - 10)
-            relax = 0.1
-            ax.set_ylim(y_min - relax, y_max + relax)
+            relax = 0
+            # ax.set_ylim(y_min - relax, y_max + relax)
+            ax.set_yticklabels([])
+            ax.set_xticklabels([])
+            plt.xticks([])
+            plt.yticks([])
+            plt.xlim([-2.14, 70 + relax])
+            plt.tight_layout(pad=0.3)
+
         elif self.params["env"]["dynamics"] == "pendulum":
             ax.add_line(
                 plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
@@ -91,7 +111,7 @@ class Visualizer:
         self.writer_gp = self.get_frame_writer()
         self.writer_dyn = self.get_frame_writer()
         self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200)
-        self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=200)
+        self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=300)
 
     def get_frame_writer(self):
         # FFMpegWriter = manimation.writers['ffmpeg']
@@ -188,7 +208,14 @@ class Visualizer:
         outline[0, :] += x
         outline[1, :] += y
 
-        ax.plot(np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten())
+
+        ax.plot(
+            np.array(outline[0, :]).flatten(),
+            np.array(outline[1, :]).flatten(),
+            "black",
+            lw=2,
+        )
+
 
     def plot_car(self, x, y, yaw, l, l2):
         factor = 0.4
