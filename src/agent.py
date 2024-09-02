@@ -254,8 +254,8 @@ class Agent(object):
         pass
 
     def get_batch_x_hat(self, x_h, u_h):
-        x_h = torch.from_numpy(x_h).float()
-        u_h = torch.from_numpy(u_h).float()
+        x_h = torch.tensor(x_h)
+        u_h = torch.tensor(u_h)
         x_h_batch = (
             x_h.transpose(0, 1)
             .view(
@@ -433,7 +433,7 @@ class Agent(object):
                     f"Min variance: {torch.tensor([torch.min(self.model_i_call.variance)])}, Max variance: {torch.tensor([torch.max(self.model_i_call.variance)])}"
                 )
                 print(
-                    f"Replaced samples with training data: {np.array(torch.count_nonzero(dist_too_small[:,0,:,0],dim=1))}"
+                    f"Replaced samples with training data: {np.array(torch.count_nonzero(dist_too_small[:,0,:,0],dim=1).detach().cpu())}"
                 )
                 print(
                     f"Variance numerically zero (all outputs): {torch.sum(variance_numerically_zero_num[:,:,:,0], dim=(1,2), dtype=torch.int32)}"
