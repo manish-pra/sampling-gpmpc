@@ -3,6 +3,7 @@ import timeit
 import casadi as ca
 import numpy as np
 import torch
+import gpytorch
 import matplotlib.pyplot as plt
 from acados_template import AcadosOcpSolver, AcadosSimSolver
 
@@ -14,12 +15,12 @@ from src.utils.ocp import export_dempc_ocp
 class DEMPC_solver(object):
     def __init__(self, params) -> None:
         self.params = params
-        ocp = export_dempc_ocp(params)
+        self.ocp = export_dempc_ocp(params)
         self.name_prefix = (
             "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
         )
         self.ocp_solver = AcadosOcpSolver(
-            ocp, json_file=self.name_prefix + "acados_ocp_sempc.json"
+            self.ocp, json_file=self.name_prefix + "acados_ocp_sempc.json"
         )
         self.ocp_solver.store_iterate(self.name_prefix + "ocp_initialization.json")
 
@@ -30,56 +31,17 @@ class DEMPC_solver(object):
         self.nu = self.params["agent"]["dim"]["nu"]
         self.pos_dim = 1
 
-    def initilization(self, sqp_iter, x_h, u_h):
-        for stage in range(self.H):
-            # current stage values
-            x_h[stage, :] = self.ocp_solver.get(stage, "x")
-            u_h[stage, :] = self.ocp_solver.get(stage, "u")
-        x_h[self.H, :] = self.ocp_solver.get(self.H, "x")
-        if sqp_iter == 0:
-            x_h_old = x_h.copy()
-            u_h_old = u_h.copy()
-            if (
-                self.params["algo"]["type"] == "ret_expander"
-                or self.params["algo"]["type"] == "MPC_expander"
-            ):
-                u_h_old[:, -self.x_dim :] = x_h_old[:-1, : self.x_dim].copy()
-            # initialize the first SQP iteration.
-            for stage in range(self.H):
-                if stage < (self.H - self.Hm):
-                    # current stage values
-                    x_init = x_h_old[stage + self.Hm, :].copy()
-                    u_init = u_h_old[stage + self.Hm, :].copy()
-                    x_init[-1] = (
-                        x_h_old[stage + self.Hm, -1] - x_h_old[self.Hm, -1]
-                    ).copy()
-                    self.ocp_solver.set(stage, "x", x_init)
-                    self.ocp_solver.set(stage, "u", u_init)
-                    x_h[stage, :] = x_init.copy()
-                    u_h[stage, :] = u_init.copy()
-                    half_time = x_init[-1].copy()
-                else:
-                    dt = (1.0 - half_time) / self.Hm
-                    x_init = x_h_old[self.H, :].copy()  # reached the final state
-                    x_init[-1] = half_time + dt * (stage - self.Hm)
-                    z_init = x_init[0 : self.x_dim]
-                    if (
-                        self.params["algo"]["type"] == "ret_expander"
-                        or self.params["algo"]["type"] == "MPC_expander"
-                    ):
-                        u_init = np.concatenate([np.array([0.0, 0.0, dt]), z_init])
-                    else:
-                        u_init = np.array([0.0, 0.0, dt])
-                    self.ocp_solver.set(stage, "x", x_init)
-                    self.ocp_solver.set(stage, "u", u_init)
-                    x_h[stage, :] = x_init.copy()
-                    u_h[stage, :] = u_init.copy()
-            self.ocp_solver.set(self.H, "x", x_init)
-            x_init[-1] = half_time + dt * (self.H - self.Hm)
-            x_h[self.H, :] = x_init.copy()
-        return x_h, u_h
+        # initialize
+        # random initialization
+        # x_h = np.random.normal(
+        #     size=(self.H, self.nx * self.params["agent"]["num_dyn_samples"])
+        # )
+        # u_h = np.random.normal(size=(self.H, self.nu))  # u_dim
+        # for stage in range(self.H):
+        #     self.ocp_solver.set(stage, "x", x_h[stage, :])
+        #     self.ocp_solver.set(stage, "u", u_h[stage, :])
 
-    def solve(self, player):
+    def solve(self, player, plot_pendulum=False):
         # self.ocp_solver.store_iterate(self.name_prefix + 'ocp_initialization.json', overwrite=True)
         x_h = np.zeros((self.H, self.nx * self.params["agent"]["num_dyn_samples"]))
         u_h = np.zeros((self.H, self.nu))  # u_dim
@@ -87,15 +49,27 @@ class DEMPC_solver(object):
         # w[int(self.H/2)] = self.params["optimizer"]["w"]
         w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
+        X_input_orig_past = []
 
         for sqp_iter in range(self.max_sqp_iter):
-            self.ocp_solver.options_set("rti_phase", 1)
+            # self.ocp_solver.options_set("rti_phase", 1)
             # x_h, u_h = self.initilization(sqp_iter, x_h, u_h)
+            x_h_old = x_h.copy()
+            u_h_old = u_h.copy()
             for stage in range(self.H):
                 # current stage values
                 x_h[stage, :] = self.ocp_solver.get(stage, "x")
                 u_h[stage, :] = self.ocp_solver.get(stage, "u")
-            # x_h[self.H, :] = self.ocp_solver.get(self.H, "x") --> not needed, no corresponding u
+
+            x_h_e = self.ocp_solver.get(self.H, "x")
+
+            x_diff = np.linalg.norm(x_h - x_h_old) / (np.linalg.norm(x_h_old) + 1e-6)
+            u_diff = np.linalg.norm(u_h - u_h_old) / (np.linalg.norm(u_h_old) + 1e-6)
+            print(f"x_diff = {x_diff}, u_diff = {u_diff}")
+
+            if x_diff < self.tol_nlp and u_diff < self.tol_nlp and sqp_iter > 0:
+                print("Converged")
+                break
 
             # create model with updated data
             player.train_hallucinated_dynGP(sqp_iter)
@@ -103,11 +77,9 @@ class DEMPC_solver(object):
             # sample the gradients
             gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
             del batch_x_hat
-            # gp_val, gp_grad = player.get_gp_sensitivities(np.hstack([x_h, u_h]), "mean", 0)
-            # gp_val, gp_grad = player.get_true_gradient(np.hstack([x_h,u_h]))
+
             for stage in range(self.H):
                 p_lin = np.empty(0)
-                # TODO (manish) remove num_dyn for loop --> use dim manipulation
                 for i in range(self.params["agent"]["num_dyn_samples"]):
                     p_lin = np.concatenate(
                         [
@@ -120,26 +92,33 @@ class DEMPC_solver(object):
                     )
                 p_lin = np.hstack([p_lin, u_h[stage], xg[stage], w[stage]])
                 self.ocp_solver.set(stage, "p", p_lin)
-            status = self.ocp_solver.solve()
 
-            self.ocp_solver.options_set("rti_phase", 2)
+            # status = self.ocp_solver.solve()
+            # self.ocp_solver.options_set("rti_phase", 2)
+            residuals = self.ocp_solver.get_residuals(recompute=True)
+            print("residuals (before solve)", residuals)
+            # if max(residuals) < self.tol_nlp and sqp  _iter > 0:
+            #     print("Residual less than tol", max(residuals), " ", self.tol_nlp)
+            #     break
+
             t_0 = timeit.default_timer()
             status = self.ocp_solver.solve()
             t_1 = timeit.default_timer()
-            print("Time taken for SQP iteration", t_1 - t_0)
+            print("Time taken for QP solve", t_1 - t_0)
             # self.ocp_solver.print_statistics()
-            print("cost", self.ocp_solver.get_cost())
-            residuals = self.ocp_solver.get_residuals()
-
             # print("statistics", self.ocp_solver.get_stats("statistics"))
-            if max(residuals) < self.tol_nlp:
-                print("Residual less than tol", max(residuals), " ", self.tol_nlp)
-                break
+            print("cost", self.ocp_solver.get_cost())
+            residuals = self.ocp_solver.get_residuals(recompute=True)
+            print("residuals (after solve)", residuals)
+
             # if self.ocp_solver.status != 0:
             #     print("acados returned status {} in closed loop solve".format(
             #         self.ocp_solver.status))
             #     self.ocp_solver.reset()
             #     self.ocp_solver.load_iterate(self.name_prefix + 'ocp_initialization.json')
+
+            if plot_pendulum:
+                self.plot_iterates_pendulum(sqp_iter, player, x_h, x_h_e, u_h)
 
     def get_solution(self):
         nx = self.ocp_solver.acados_ocp.model.x.size()[0]
@@ -159,3 +138,163 @@ class DEMPC_solver(object):
 
     def get_solver_status():
         return None
+
+    def plot_iterates_pendulum(
+        self, sqp_iter, player, x_h, x_h_e, u_h, n_supersample=10
+    ):
+        n_test_points = (self.H - 1) * n_supersample + 1
+        X_input = torch.zeros(
+            (
+                self.params["agent"]["num_dyn_samples"],
+                self.nx,
+                n_test_points,
+                self.nx + self.nu,
+            )
+        )
+        X_input_orig = torch.zeros(
+            (
+                self.params["agent"]["num_dyn_samples"],
+                self.nx,
+                self.H,
+                self.nx + self.nu,
+            )
+        )
+        x_input_interp = []
+        x_input_len = []
+        x_input_arr = []
+        for s in range(self.params["agent"]["num_dyn_samples"]):
+            x_input = np.vstack((x_h[:, 2 * s], x_h[:, 2 * s + 1], u_h.flatten())).T
+            x_input_arr.append(x_input)
+            # supersample points between points in x_input
+            x_input_interp_s = np.zeros((n_test_points, self.nx + self.nu))
+            x_input_len_s = np.zeros(n_test_points)
+            for i in range(self.H - 1):
+                x_input_len_s[1 + i * n_supersample : 1 + (i + 1) * n_supersample] = (
+                    np.linalg.norm(
+                        x_input[i + 1, 0 : self.nx] - x_input[i, 0 : self.nx]
+                    )
+                    / n_supersample
+                )
+                x_input_interp_s[i * n_supersample : (i + 1) * n_supersample, :] = (
+                    np.linspace(
+                        x_input[i, :],
+                        x_input[i + 1, :],
+                        n_supersample,
+                        endpoint=False,
+                    )
+                )
+            x_input_interp_s[-1, :] = x_input[-1, :]
+
+            X_input_orig[s, :, :, :] = torch.tensor(x_input)
+            X_input[s, :, :, :] = torch.tensor(x_input_interp_s)
+            x_input_interp.append(x_input_interp_s)
+            x_input_len.append(x_input_len_s)
+
+        with torch.no_grad(), gpytorch.settings.observation_nan_policy(
+            "mask"
+        ), gpytorch.settings.fast_computations(
+            covar_root_decomposition=False, log_prob=False, solves=False
+        ), gpytorch.settings.cholesky_jitter(
+            float_value=self.params["agent"]["Dyn_gp_jitter"],
+            double_value=self.params["agent"]["Dyn_gp_jitter"],
+            half_value=self.params["agent"]["Dyn_gp_jitter"],
+        ):
+            predictions = player.model_i(X_input)
+            mean = predictions.mean.detach().numpy()
+            # var = predictions.variance.detach().numpy()
+            lower, upper = predictions.confidence_region()
+            lower = lower.detach().numpy()
+            upper = upper.detach().numpy()
+            # samples = predictions.sample().detach().numpy()
+            # samples = player.model_i_samples
+
+        predictions_call = player.model_i_call
+        mean_call = predictions_call.mean.detach().numpy()
+        # var = predictions.variance.detach().numpy()
+        lower_call, upper_call = predictions_call.confidence_region()
+        lower_call = lower_call.detach().numpy()
+        upper_call = upper_call.detach().numpy()
+        # samples = predictions.sample().detach().numpy()
+        samples_call = player.model_i_samples.detach().numpy()
+
+        # plot GP model
+        h_plot_arr = []
+        fig, ax = plt.subplots(1, 3)
+        for s in range(self.params["agent"]["num_dyn_samples"]):
+            x_input_plot = np.cumsum(x_input_len[s])
+            x_input_plot /= x_input_plot[-1] + 1e-10
+            h_plot = ax[0].plot(x_input_plot, mean[s, 0, :, 0], label=f"mean {s}")
+            h_plot_arr.append(h_plot)
+            # ax[0].fill_between(x_input_plot, mean[s,0,:,0]-2*np.sqrt(var[s,0,:,0]), mean[s,0,:,0]+2*np.sqrt(var[s,0,:,0]), alpha=0.2, color=h_plot[0].get_color())
+            ax[0].fill_between(
+                x_input_plot,
+                lower[s, 0, :, 0],
+                upper[s, 0, :, 0],
+                alpha=0.2,
+                color=h_plot[0].get_color(),
+            )
+            # ax[0].plot(x_input_plot, samples[s,0,:,0], label=f"sample {s}")
+            ax[0].plot(
+                x_input_plot[0::n_supersample],
+                samples_call[s, 0, :, 0],
+                label=f"sample {s}",
+                color=h_plot[0].get_color(),
+                linestyle="None",
+                marker="x",
+            )
+            # vertical line
+            # for x_vline in x_input_plot[0::n_supersample]:
+            #     ax[0].axvline(x=x_vline, color='k', linestyle='-', linewidth=0.5, alpha=0.3)
+
+            ax[1].plot(
+                np.hstack((x_h[:, s * self.nx], x_h_e[s * self.nx])),
+                np.hstack((x_h[:, s * self.nx + 1], x_h_e[s * self.nx + 1])),
+                "-d",
+                label="x_h",
+                color=h_plot[0].get_color(),
+            )
+
+        # horizontal line at theta_dot
+        ax[1].axhline(
+            y=self.params["optimizer"]["x_max"][1],
+            color="k",
+            linestyle="-",
+            linewidth=0.5,
+            alpha=0.3,
+        )
+
+        # ax[0].legend()
+        ax[0].set_title("GP models")
+        ax[0].set_xlabel("x")
+        ax[0].set_ylabel("g(x)")
+        ax[0].set_xlim([0.0, 1.0])
+        ax[0].set_ylim([-0.1, 1.8])
+
+        # ax[1].legend()
+        ax[1].set_title("Trajectories")
+        ax[1].set_xlabel("theta")
+        ax[1].set_ylabel("theta_dot")
+        ax[1].set_xlim([-0.2, 2.2])
+        ax[1].set_ylim([-0.2, 2.7])
+
+        # ax[2].plot(u_h)
+        ax[2].stairs(u_h.flatten(), np.linspace(0, self.H, self.H + 1))
+
+        # plt.show()
+        plt.savefig(f"pendulum_{sqp_iter}.png", dpi=600)
+        plt.close()
+
+        # 3d scatter plot of all input points
+        # X_input_orig_past.append(X_input_orig)
+        # for s in range(self.params["agent"]["num_dyn_samples"]):
+        #     fig = plt.figure()
+        #     ax = fig.add_subplot(111, projection='3d')
+        #     for i,X in enumerate(X_input_orig_past):
+        #         # print(f"i={i}, alpha={1.0-0.9**(i+1)}")
+        #         ax.scatter(X[s,0,:,0],X[s,0,:,1],X[s,0,:,2], alpha=1/len(X_input_orig_past)*(i+1), marker='x')
+        #     ax.set_xlabel('theta_dot')
+        #     ax.set_ylabel('theta')
+        #     ax.set_zlabel('u')
+        #     # plt.show()
+        #     fig.savefig(f"pendulum_scatter_s{s}_i{sqp_iter}.png", dpi=600)
+        #     plt.close()

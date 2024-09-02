@@ -82,47 +82,6 @@ def dempc_const_expr(x_dim, n_order, params):
     return 1, p_lin
 
 
-def concat_const_val(ocp, params):
-    x_dim = params["agent"]["dim"]["nx"]
-    if (
-        params["algo"]["type"] == "ret_expander"
-        or params["algo"]["type"] == "MPC_expander"
-    ):
-        lbx = np.array(params["optimizer"]["x_min"])[:x_dim]
-        ubx = np.array(params["optimizer"]["x_max"])[:x_dim]
-        ocp.constraints.lbu = np.concatenate(
-            [ocp.constraints.lbu, np.array([params["optimizer"]["dt"]]), lbx]
-        )
-        ocp.constraints.ubu = np.concatenate(
-            [ocp.constraints.ubu, np.array([1.0]), ubx]
-        )
-        ocp.constraints.idxbu = np.arange(ocp.constraints.idxbu.shape[0] + 1 + x_dim)
-    else:
-        ocp.constraints.lbu = np.concatenate(
-            [ocp.constraints.lbu, np.array([params["optimizer"]["dt"]])]
-        )
-        ocp.constraints.ubu = np.concatenate([ocp.constraints.ubu, np.array([1.0])])
-        ocp.constraints.idxbu = np.concatenate(
-            [ocp.constraints.idxbu, np.array([ocp.model.u.shape[0] - 1])]
-        )
-
-    # ocp.constraints.x0 = np.concatenate(
-    #     [ocp.constraints.x0, np.array([0.0])])
-
-    ocp.constraints.lbx_e = np.concatenate([ocp.constraints.lbx_e, np.array([1.0])])
-    ocp.constraints.ubx_e = np.concatenate([ocp.constraints.ubx_e, np.array([1.0])])
-    ocp.constraints.idxbx_e = np.concatenate(
-        [ocp.constraints.idxbx_e, np.array([ocp.model.x.shape[0] - 1])]
-    )
-
-    ocp.constraints.lbx = np.concatenate([ocp.constraints.lbx, np.array([0])])
-    ocp.constraints.ubx = np.concatenate([ocp.constraints.ubx, np.array([2])])
-    ocp.constraints.idxbx = np.concatenate(
-        [ocp.constraints.idxbx, np.array([ocp.model.x.shape[0] - 1])]
-    )
-    return ocp
-
-
 def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     pos_dim = 1
     nx = params["agent"]["dim"]["nx"]
@@ -226,20 +185,26 @@ def dempc_set_options(ocp, params):
     ocp.dims.N = params["optimizer"]["H"]
     ocp.solver_options.tf = params["optimizer"]["Tf"]
 
-    ocp.solver_options.qp_solver_warm_start = 1
+    # ocp.solver_options.qp_solver_warm_start = 1
     # set options
     ocp.solver_options.qp_solver = "FULL_CONDENSING_HPIPM"  # FULL_CONDENSING_QPOASES
     # PARTIAL_CONDENSING_HPIPM, FULL_CONDENSING_QPOASES, FULL_CONDENSING_HPIPM,
     # PARTIAL_CONDENSING_QPDUNES, PARTIAL_CONDENSING_OSQP, FULL_CONDENSING_DAQP
-    ocp.solver_options.hessian_approx = "GAUSS_NEWTON"  # 'GAUSS_NEWTON', 'EXACT'
-    ocp.solver_options.levenberg_marquardt = 1.0e-1
+    # ocp.solver_options.hessian_approx = "GAUSS_NEWTON"  # 'GAUSS_NEWTON', 'EXACT'
+    ocp.solver_options.hessian_approx = "EXACT"  # 'GAUSS_NEWTON', 'EXACT'
+    ocp.solver_options.levenberg_marquardt = params["optimizer"]["options"]["levenberg_marquardt"]
     ocp.solver_options.integrator_type = "DISCRETE"  #'IRK'  # IRK , DISCRETE
     # ocp.solver_options.print_level = 1
-    ocp.solver_options.nlp_solver_ext_qp_res = 1
+    # ocp.solver_options.nlp_solver_ext_qp_res = 1
     ocp.solver_options.nlp_solver_type = "SQP_RTI"  # SQP_RTI, SQP
+    # ocp.solver_options.nlp_solver_type = "SQP"  # SQP_RTI, SQP
+    # ocp.solver_options.rti_log_residuals = 1
+    # ocp.solver_options.nlp_solver_max_iter = 100
     # ocp.solver_options.tol = 1e-6
     # ocp.solver_options.regularize_method = 'CONVEXIFY'
-    # ocp.solver_options.globalization = 'FIXED_STEP'
+    # ocp.solver_options.globalization = (
+    #     "MERIT_BACKTRACKING"  # 'MERIT_BACKTRACKING', 'FIXED_STEP'
+    # )
     # ocp.solver_options.alpha_min = 1e-2
     # ocp.solver_options.__initialize_t_slacks = 0
     # ocp.solver_options.regularize_method = 'CONVEXIFY'
