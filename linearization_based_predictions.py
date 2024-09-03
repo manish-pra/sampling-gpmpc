@@ -138,23 +138,29 @@ if __name__ == "__main__":
             dims=(1, ny, 1, 1),
         )
 
-        with gpytorch.settings.fast_pred_var():
-            inp_current_autograd = torch.autograd.Variable(
-                inp_current, requires_grad=True
-            )
+        inp_current_autograd = torch.autograd.Variable(
+            inp_current, requires_grad=True
+        )
 
-            # inp_current_autograd_onlyfun = inp_current_autograd[0, :, :, 0].T
-            # DERIVATIVE
-            mean_dy = torch.autograd.functional.jacobian(
-                mean_fun_sum, inp_current_autograd
-            )
+        # DERIVATIVE
+        mean_dy = torch.autograd.functional.jacobian(
+            mean_fun_sum, inp_current_autograd
+        )
 
-            with torch.no_grad():
-                predictions = gp_model(
-                    inp_current_autograd
-                )  # only model (we want to find true function)
-                mean = extract_function_value_for_first_sample(predictions.mean)
-                variance = extract_function_value_for_first_sample(predictions.variance)
+        with torch.no_grad(), gpytorch.settings.observation_nan_policy(
+            "mask"
+        ), gpytorch.settings.fast_computations(
+            covar_root_decomposition=False, log_prob=False, solves=False
+        ), gpytorch.settings.cholesky_jitter(
+            float_value=agent.params["agent"]["Dyn_gp_jitter"],
+            double_value=agent.params["agent"]["Dyn_gp_jitter"],
+            half_value=agent.params["agent"]["Dyn_gp_jitter"],
+        ):
+            predictions = gp_model(
+                inp_current_autograd
+            )  # only model (we want to find true function)
+            mean = extract_function_value_for_first_sample(predictions.mean)
+            variance = extract_function_value_for_first_sample(predictions.variance)
 
         # dynamics
         x_mean[i + 1, :] = mean[0, :]
@@ -165,11 +171,11 @@ if __name__ == "__main__":
             torch.diag(variance[0, :]),
         )
 
-        r = nLa.cholesky(x_covar[i + 1, :, :]).T
+        R = nLa.cholesky(x_covar[i + 1, :, :]).T
         # checks spd inside the function
         t = np.linspace(0, 2 * np.pi, 100)
         z = [np.cos(t), np.sin(t)]
-        ellipse = np.dot(params["agent"]["Dyn_gp_beta"] * r, z) + x_mean[[i + 1], :].numpy().T
+        ellipse = params["agent"]["Dyn_gp_beta"] * R @ z + x_mean[[i + 1], :].numpy().T
         ellipse_list.append(ellipse)
         plt.plot(ellipse[0, :], ellipse[1, :])
     a_file = open(save_path_iter + "/ellipse_data.pkl", "wb")
