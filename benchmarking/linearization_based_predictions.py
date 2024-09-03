@@ -1,24 +1,29 @@
 import argparse
 import errno
-import os
+import os, sys
 import warnings
 
 import matplotlib.pyplot as plt
 import yaml
 
 import dill as pickle
+import numpy as np
+import torch
+import numpy.linalg as nLa
+import gpytorch
+
+# NOTE: this file needs to be called from outside the root directory of the project, e.g.: 
+# python sampling-gpmpc/benchmarking/linearization_based_predictions.py
+workspace = "sampling-gpmpc"
+sys.path.append(workspace)
 
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
 from src.environments.pendulum import Pendulum
-import numpy as np
-import torch
-import numpy.linalg as nLa
 
 from extra.zoro_code import generate_gp_funs
 from src.GP_model import BatchMultitaskGPModelWithDerivatives_fromParams
-import gpytorch
 
 
 def P_propagation(P, A, B, W):
@@ -41,13 +46,12 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
     plt.rcParams["figure.figsize"] = [12, 6]
 
-    workspace = "safe_gpmpc"
 
     parser = argparse.ArgumentParser(description="A foo that bars")
     parser.add_argument("-param", default="params_pendulum")  # params
 
     parser.add_argument("-env", type=int, default=0)
-    parser.add_argument("-i", type=int, default=40123)  # initialized at origin
+    parser.add_argument("-i", type=int, default=999)  # initialized at origin
     args = parser.parse_args()
 
     # 1) Load the config file
@@ -73,8 +77,6 @@ if __name__ == "__main__":
         + "/"
     )
 
-    # torch.cuda.memory._record_memory_history(enabled=True)
-
     save_path = env_load_path + "/" + args.param + "/"
 
     if not os.path.exists(save_path):
@@ -99,24 +101,10 @@ if __name__ == "__main__":
     train_x = agent.Dyn_gp_X_train_batch[[0], :, :, :]
     train_y = agent.Dyn_gp_Y_train_batch[[0], :, :, :]
 
-    batch_shape_single = torch.Size([1, params["agent"]["dim"]["ny"]])
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-        num_tasks=agent.in_dim + 1,
-        noise_constraint=gpytorch.constraints.GreaterThan(0.0),
-        batch_shape=batch_shape_single,
-    )  # Value + Derivative
+    agent.train_hallucinated_dynGP(0)
 
-    gp_model = BatchMultitaskGPModelWithDerivatives_fromParams(
-        train_x,
-        train_y,
-        likelihood,
-        params,
-        batch_shape=batch_shape_single,
-    )
-
-    # get covariances and mean
+    gp_model = agent.model_i
     gp_model.eval()
-    likelihood.eval()
 
     pkl_file = open(save_path_iter + "/data.pkl", "rb")
     data_dict = pickle.load(pkl_file)
@@ -154,23 +142,29 @@ if __name__ == "__main__":
             dims=(1, ny, 1, 1),
         )
 
-        with gpytorch.settings.fast_pred_var():
-            inp_current_autograd = torch.autograd.Variable(
-                inp_current, requires_grad=True
-            )
+        inp_current_autograd = torch.autograd.Variable(
+            inp_current, requires_grad=True
+        )
 
-            # inp_current_autograd_onlyfun = inp_current_autograd[0, :, :, 0].T
-            # DERIVATIVE
-            mean_dy = torch.autograd.functional.jacobian(
-                mean_fun_sum, inp_current_autograd
-            )
+        # DERIVATIVE
+        mean_dy = torch.autograd.functional.jacobian(
+            mean_fun_sum, inp_current_autograd
+        )
 
-            with torch.no_grad():
-                predictions = gp_model(
-                    inp_current_autograd
-                )  # only model (we want to find true function)
-                mean = extract_function_value_for_first_sample(predictions.mean)
-                variance = extract_function_value_for_first_sample(predictions.variance)
+        with torch.no_grad(), gpytorch.settings.observation_nan_policy(
+            "mask"
+        ), gpytorch.settings.fast_computations(
+            covar_root_decomposition=False, log_prob=False, solves=False
+        ), gpytorch.settings.cholesky_jitter(
+            float_value=agent.params["agent"]["Dyn_gp_jitter"],
+            double_value=agent.params["agent"]["Dyn_gp_jitter"],
+            half_value=agent.params["agent"]["Dyn_gp_jitter"],
+        ):
+            predictions = gp_model(
+                inp_current_autograd
+            )  # only model (we want to find true function)
+            mean = extract_function_value_for_first_sample(predictions.mean)
+            variance = extract_function_value_for_first_sample(predictions.variance)
 
         # dynamics
         x_mean[i + 1, :] = mean[0, :]
@@ -181,29 +175,14 @@ if __name__ == "__main__":
             torch.diag(variance[0, :]),
         )
 
-        r = nLa.cholesky(x_covar[i + 1, :, :]).T
+        R = nLa.cholesky(x_covar[i + 1, :, :]).T
         # checks spd inside the function
         t = np.linspace(0, 2 * np.pi, 100)
         z = [np.cos(t), np.sin(t)]
-        ellipse = np.dot(5.991 * r, z) + x_mean[[i + 1], :].numpy().T
+        ellipse = params["agent"]["Dyn_gp_beta"] * R @ z + x_mean[[i + 1], :].numpy().T
         ellipse_list.append(ellipse)
         plt.plot(ellipse[0, :], ellipse[1, :])
     a_file = open(save_path_iter + "/ellipse_data.pkl", "wb")
     pickle.dump(ellipse_list, a_file)
     a_file.close()
     plt.show()
-
-    # std_dev_0 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 0, 0])
-    # std_dev_1 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 1, 1])
-    # std_dev = np.sqrt(np.array([np.diag(x_covar[i, :, :]) for i in range(N + 1)]))
-    # x_plus_std = x_mean + 3 * std_dev
-    # x_minus_std = x_mean - 3 * std_dev
-
-    # # plot
-    # plt.figure()
-    # plt.plot(x_mean[:, 0], x_mean[:, 1], label="mean")
-    # plt.plot(x_plus_std[:, 0], x_plus_std[:, 1], label="meanplus")
-    # plt.plot(x_minus_std[:, 0], x_minus_std[:, 1], label="meanminus")
-    # plt.plot([-0.3, 2.4], [2.5, 2.5], "--", color="red")
-    # plt.legend()
-    # plt.show()
