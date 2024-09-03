@@ -29,7 +29,6 @@ parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=40)  # initialized at origin
-parser.add_argument("-repeat", type=int, default=1)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -266,19 +265,6 @@ for k in range(num_files):
 
     with open(f"{save_path}{traj_iter}/X_traj_list_{k}.pkl", "wb") as f:
         pickle.dump(X_traj_list, f)
-
-# save trajectories
-# flatten list
-X_traj_list = [
-    torch.cat([X_traj_list[j][i] for j in range(num_repeat)], dim=0)
-    for i in range(params["optimizer"]["H"] + 1)
-]
-# X_flatten = torch.cat(X_traj_list)
-Y_traj_list = [item for sublist in Y_traj_list for item in sublist]
-
-
-with open(save_path + str(traj_iter) + "/X_traj_list.pkl", "wb") as f:
-    pickle.dump(X_traj_list, f)
 
 # plot trajectories
 x_plot = np.array(
