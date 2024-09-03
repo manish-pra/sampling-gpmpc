@@ -1,24 +1,29 @@
 import argparse
 import errno
-import os
+import os, sys
 import warnings
 
 import matplotlib.pyplot as plt
 import yaml
 
 import dill as pickle
+import numpy as np
+import torch
+import numpy.linalg as nLa
+import gpytorch
+
+# NOTE: this file needs to be called from outside the root directory of the project, e.g.: 
+# python sampling-gpmpc/benchmarking/linearization_based_predictions.py
+workspace = "sampling-gpmpc"
+sys.path.append(workspace)
 
 from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
 from src.environments.pendulum import Pendulum
-import numpy as np
-import torch
-import numpy.linalg as nLa
 
 from extra.zoro_code import generate_gp_funs
 from src.GP_model import BatchMultitaskGPModelWithDerivatives_fromParams
-import gpytorch
 
 
 def P_propagation(P, A, B, W):
@@ -41,13 +46,12 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
     plt.rcParams["figure.figsize"] = [12, 6]
 
-    workspace = "sampling-gpmpc"
 
     parser = argparse.ArgumentParser(description="A foo that bars")
     parser.add_argument("-param", default="params_pendulum")  # params
 
     parser.add_argument("-env", type=int, default=0)
-    parser.add_argument("-i", type=int, default=40123)  # initialized at origin
+    parser.add_argument("-i", type=int, default=999)  # initialized at origin
     args = parser.parse_args()
 
     # 1) Load the config file
