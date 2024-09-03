@@ -19,7 +19,10 @@ from plotting_utilities.utilities import *
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
+# NOTE: this file needs to be called from outside the root directory of the project, e.g.: 
+# python sampling-gpmpc/benchmarking/plot_GP_conditioning.py
 workspace = "sampling-gpmpc"
+sys.path.append(workspace)
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car")  # params
