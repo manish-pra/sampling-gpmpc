@@ -20,6 +20,7 @@ plot_safe_MPC = False
 i = 22
 filename = f"safe_uncertainity_{i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
+
 TEXTWIDTH = 16
 # set_figure_params(serif=True, fontsize=14)
 f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))

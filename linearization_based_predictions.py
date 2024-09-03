@@ -41,7 +41,7 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
     plt.rcParams["figure.figsize"] = [12, 6]
 
-    workspace = "safe_gpmpc"
+    workspace = "sampling-gpmpc"
 
     parser = argparse.ArgumentParser(description="A foo that bars")
     parser.add_argument("-param", default="params_pendulum")  # params
@@ -73,8 +73,6 @@ if __name__ == "__main__":
         + "/"
     )
 
-    # torch.cuda.memory._record_memory_history(enabled=True)
-
     save_path = env_load_path + "/" + args.param + "/"
 
     if not os.path.exists(save_path):
@@ -99,24 +97,10 @@ if __name__ == "__main__":
     train_x = agent.Dyn_gp_X_train_batch[[0], :, :, :]
     train_y = agent.Dyn_gp_Y_train_batch[[0], :, :, :]
 
-    batch_shape_single = torch.Size([1, params["agent"]["dim"]["ny"]])
-    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-        num_tasks=agent.in_dim + 1,
-        noise_constraint=gpytorch.constraints.GreaterThan(0.0),
-        batch_shape=batch_shape_single,
-    )  # Value + Derivative
+    agent.train_hallucinated_dynGP(0)
 
-    gp_model = BatchMultitaskGPModelWithDerivatives_fromParams(
-        train_x,
-        train_y,
-        likelihood,
-        params,
-        batch_shape=batch_shape_single,
-    )
-
-    # get covariances and mean
+    gp_model = agent.model_i
     gp_model.eval()
-    likelihood.eval()
 
     pkl_file = open(save_path_iter + "/data.pkl", "rb")
     data_dict = pickle.load(pkl_file)
@@ -185,25 +169,10 @@ if __name__ == "__main__":
         # checks spd inside the function
         t = np.linspace(0, 2 * np.pi, 100)
         z = [np.cos(t), np.sin(t)]
-        ellipse = np.dot(5.991 * r, z) + x_mean[[i + 1], :].numpy().T
+        ellipse = np.dot(params["agent"]["Dyn_gp_beta"] * r, z) + x_mean[[i + 1], :].numpy().T
         ellipse_list.append(ellipse)
         plt.plot(ellipse[0, :], ellipse[1, :])
     a_file = open(save_path_iter + "/ellipse_data.pkl", "wb")
     pickle.dump(ellipse_list, a_file)
     a_file.close()
     plt.show()
-
-    # std_dev_0 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 0, 0])
-    # std_dev_1 = params["agent"]["Dyn_gp_beta"] * np.sqrt(x_covar[:, 1, 1])
-    # std_dev = np.sqrt(np.array([np.diag(x_covar[i, :, :]) for i in range(N + 1)]))
-    # x_plus_std = x_mean + 3 * std_dev
-    # x_minus_std = x_mean - 3 * std_dev
-
-    # # plot
-    # plt.figure()
-    # plt.plot(x_mean[:, 0], x_mean[:, 1], label="mean")
-    # plt.plot(x_plus_std[:, 0], x_plus_std[:, 1], label="meanplus")
-    # plt.plot(x_minus_std[:, 0], x_minus_std[:, 1], label="meanminus")
-    # plt.plot([-0.3, 2.4], [2.5, 2.5], "--", color="red")
-    # plt.legend()
-    # plt.show()
