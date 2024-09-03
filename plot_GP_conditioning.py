@@ -1,6 +1,6 @@
 import argparse
 import errno
-import os
+import os, sys
 import warnings
 
 import matplotlib.pyplot as plt
@@ -8,27 +8,24 @@ import yaml
 
 import dill as pickle
 
-from src.DEMPC import DEMPC
-from src.visu import Visualizer
-from src.agent import Agent
 import numpy as np
 import torch
 import gpytorch
 import copy
 
 import plotting_utilities
+from plotting_utilities.utilities import *
 
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
-workspace = "safe_gpmpc"
+workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params")  # params
+parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=40)  # initialized at origin
-parser.add_argument("-repeat", type=int, default=1)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -50,10 +47,7 @@ env_load_path = (
     + params["experiment"]["folder"]
     + "/env_"
     + str(args.env)
-    + "/"
 )
-
-# torch.cuda.memory._record_memory_history(enabled=True)
 
 save_path = env_load_path + "/" + args.param + "/"
 
@@ -73,15 +67,10 @@ if not os.path.exists(save_path + str(traj_iter)):
 
 # get saved input trajectory
 input_data_path = (
-    "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/40/data.pkl"
-    # "/home/amon/Repositories/safe_gpmpc/experiments/pendulum/env_0/params/_static/reachable_set_input.pkl"
+    f"{save_path}{str(args.i)}/data.pkl"
 )
 with open(input_data_path, "rb") as input_data_file:
     input_gpmpc_data = pickle.load(input_data_file)
-
-agent = Agent(params)
-
-
 import torch
 import gpytorch
 import math
@@ -200,22 +189,11 @@ y_train_nod[:, 1] = torch.tensor(float("nan"))
 def new_model(train_x, train_y):
     model = GPModelWithDerivatives(train_x, train_y, likelihood)
     model.load_state_dict(state_dict)
-    # meas_noise = 1e-3
-    # model_nod.likelihood.noise = torch.tensor([meas_noise])
-    # model_nod.likelihood.task_noises = torch.tensor([meas_noise, meas_noise])
-    # model.eval()
     return model
 
-
 # Set into eval mode
+model.eval()
 likelihood.eval()
-
-# sys.path.append("/home/manish/work/MPC_Dyn/safe_gpmpc")
-import sys
-from plotting_utilities.utilities import *
-
-sys.path.append("/home/amon/Repositories/safe_gpmpc")
-
 
 plot_GT = True
 plot_sampling_MPC = False
@@ -226,12 +204,6 @@ filename = "iterative_conditioning.pdf"  # "sam_uncertainity.pdf" "cautious_unce
 TEXTWIDTH = 16
 
 set_figure_params(serif=True, fontsize=10)
-# plt.figure(figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.5 * 1 / 2))
-
-# set_figure_params(serif=True, fontsize=14)
-# f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
-# f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
-# f, ax = plt.subplots(1, 3, figsize=(3 * cm2inches(12.0), 3 * cm2inches(8.0)))
 f, ax = plt.subplots(1, 3, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25 * 1 / 2))
 
 marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
@@ -254,14 +226,7 @@ train_y_arr_all = []
 beta_fac = 1.5
 # loop over the axes
 for i in range(3):
-    # ax[0].ylabel(r"$z$")
-    # ax[0].xlabel(r"$g^n(z)$")
-
     model_nod = new_model(train_x_arr, train_y_arr)
-    # set noise to zero
-    # zero_noise = 1e-4
-    # model_nod.likelihood.noise = torch.tensor([1e-4])
-    # model_nod.likelihood.task_noises = torch.tensor([1e-4, 1e-4])
     model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[0.3]])
     model_nod.covar_module.outputscale = torch.tensor([0.5])
     model_nod.eval()
@@ -362,16 +327,11 @@ for i in range(3):
 
 f.tight_layout(pad=0.5)
 f.savefig(
-    "/home/amon/Repositories/sampling-gpmpc/images/conditioning.pdf",
+    "/home/amon/Repositories/sampling-gpmpc/figures/conditioning.pdf",
     format="pdf",
     dpi=300,
     transparent=True,
 )
 # plt.show()
 
-# de_mpc = DEMPC(params, visu, agent)
-# de_mpc.dempc_main()
-# visu.save_data()
-# dict_file = torch.cuda.memory._snapshot()
-# pickle.dump(dict_file, open(save_path + str(traj_iter) + "/memory_snapshot_1.pickle", "wb"))
 exit()
