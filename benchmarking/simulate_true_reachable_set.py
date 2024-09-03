@@ -1,28 +1,32 @@
 import argparse
 import errno
-import os
+import os, sys
 import warnings
 
 import matplotlib.pyplot as plt
 import yaml
 
 import dill as pickle
-
-from src.DEMPC import DEMPC
-from src.visu import Visualizer
-from src.agent import Agent
-from src.environments.pendulum import Pendulum
-from src.environments.car_model import CarKinematicsModel
 import numpy as np
 import torch
 
 import gpytorch
 import copy
 
+# NOTE: this file needs to be called from outside the root directory of the project, e.g.: 
+# python sampling-gpmpc/benchmarking/simulate_true_reachable_set.py
+workspace = "sampling-gpmpc"
+sys.path.append(workspace)
+
+from src.DEMPC import DEMPC
+from src.visu import Visualizer
+from src.agent import Agent
+from src.environments.pendulum import Pendulum
+from src.environments.car_model import CarKinematicsModel
+
+
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
-
-workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car")  # params
@@ -111,8 +115,8 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 10000
-max_repeat_per_file = 1000
+num_repeat = 10
+max_repeat_per_file = 10
 num_files = num_repeat // max_repeat_per_file
 n_random_conditionings = 0
 random_conditioning_scale = 0.1
