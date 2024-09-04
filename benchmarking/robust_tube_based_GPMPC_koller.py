@@ -16,7 +16,8 @@ import gpytorch
 
 # save_path = "/home/manish/work/horrible/safe-exploration_cem/experiments"
 # a_file = open(save_path + "/data.pkl", "rb")
-save_path = "/home/manish/work/MPC_Dyn/safe_gpmpc/experiments/pendulum/env_0/params/401_sampling_mpc/data.pkl"
+# save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params/401_sampling_mpc/data.pkl"
+save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
 a_file = open(save_path, "rb")
 data_dict = pickle.load(a_file)
 state_traj = data_dict["state_traj"]
@@ -61,13 +62,13 @@ device = "cpu"
 
 x_train = torch.tensor(X_train).to(device)
 y_train = torch.tensor(Y_train).to(device)
-ssm.update_model(x_train, y_train, opt_hyp=True)
+ssm.update_model(x_train, y_train, opt_hyp=False)
 # ssm._likelihood.noise = 7.0e-9
 # ssm._model.likelihood.constraints = gpytorch.constraints.GreaterThan(0.0)
 # ssm._likelihood.noise_covar = gpytorch.constraints.GreaterThan(0.0)
 ssm._model.likelihood.noise = 7.0e-9
 ssm._model.likelihood.noise_covar.noise = 7.0e-9
-ssm._model._kernel.outputscale = 0.1040
+ssm._model._kernel.outputscale = 1
 ssm._model._kernel._modules["base_kernel"].lengthscale = torch.Tensor(
     [5.2649, 4.5967, 7.0177]
 )
@@ -123,8 +124,8 @@ for i in range(H):
     ellipse = np.dot(r, z) + ps.numpy().T
     ellipse_list.append(ellipse)
     plt.plot(ellipse[0, :], ellipse[1, :])
-# a_file = open("koller_ellipse_data.pkl", "wb")
-# pickle.dump(ellipse_list, a_file)
-plt.xlim(-0.1, 1.45)
-plt.ylim(-0.1, 2.7)
-plt.show()
+a_file = open("koller_ellipse_data.pkl", "wb")
+pickle.dump(ellipse_list, a_file)
+# plt.xlim(-0.1, 1.45)
+# plt.ylim(-0.1, 2.7)
+# plt.show()
