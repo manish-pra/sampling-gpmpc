@@ -143,7 +143,7 @@ class CarKinematicsModel(object):
         """_summary_"""
         f_xu = self.known_dyn(xu.reshape(1, 1, 1, -1)).reshape(-1, 1)
         g_xu = self.unknown_dyn(xu[:, [2, 3, 4]])  # phi, v, delta
-        B_d = torch.eye(self.nx, self.g_ny)
+        B_d = torch.eye(self.nx, self.g_ny).to(device="cpu", dtype=torch.float32)
         state_kp1 = f_xu + torch.matmul(B_d, g_xu.reshape(3, 1))
         # X_k, Y_k, Phi_k, V_k = xu[:, [0]], xu[:, [1]], xu[:, [2]], xu[:, [3]]
         # acc_k = xu[:, 5]

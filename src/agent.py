@@ -136,7 +136,7 @@ class Agent(object):
             1, 1, 1, (self.nx + self.nu)
         )
         filter_these_out_y = filter_these_out.unsqueeze(-1).tile(
-            1, 1, 1, (self.nx + self.nu + 1)
+            1, 1, 1, (self.g_nx + self.g_nu + 1)
         )
         newX_filter = newX.clone()
         newY_filter = newY.clone()
@@ -354,7 +354,7 @@ class Agent(object):
             )
             variance_numerically_zero_all_outputs = torch.all(
                 variance_numerically_zero, dim=-1, keepdim=True
-            ).tile(1, 1, 1, self.nx + self.nu + 1)
+            ).tile(1, 1, 1, self.g_nx + self.g_nu + 1)
             variance_numerically_zero_num = torch.zeros_like(self.model_i_call.variance)
             variance_numerically_zero_num[
                 variance_numerically_zero_all_outputs == True
@@ -377,7 +377,7 @@ class Agent(object):
             dist_too_small = (
                 torch.any(dist_norm <= min_distance, dim=2)
                 .unsqueeze(-1)
-                .tile(1, 1, 1, self.nx + self.nu + 1)
+                .tile(1, 1, 1, self.g_nx + self.g_nu + 1)
             )
             min_dist_input, min_dist_input_index = torch.min(dist_norm, dim=2)
             # create tuple of tensors with indices of closest training data point
