@@ -183,7 +183,8 @@ def dempc_const_val(ocp, params, x_dim, n_order):
 def dempc_set_options(ocp, params):
     # discretization
     ocp.dims.N = params["optimizer"]["H"]
-    ocp.solver_options.tf = params["optimizer"]["Tf"]
+    ocp.solver_options.tf = params["optimizer"]["dt"] * params["optimizer"]["H"]
+    # ocp.solver_options.Tsim = params["optimizer"]["dt"]
 
     # ocp.solver_options.qp_solver_warm_start = 1
     # set options
