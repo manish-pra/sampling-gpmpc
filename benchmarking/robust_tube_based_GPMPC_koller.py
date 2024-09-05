@@ -1,9 +1,16 @@
 import sys
 import torch
 
+# NOTE: this file needs to be called from outside the root directory of the project, e.g.:
+# python sampling-gpmpc/benchmarking/linearization_based_predictions.py
+workspace = "sampling-gpmpc"
+sys.path.append(workspace)
+
 # clone https://github.com/manish-pra/safe-exploration-koller and add it to the path
 # Add path to safe-exploration-koller
-sys.path.append("/home/manish/work/safe-exploration-koller/")
+workspace_safe_exploration = "safe-exploration-koller"
+sys.path.append(workspace_safe_exploration)
+
 from easydict import EasyDict
 from safe_exploration.gp_reachability_pytorch import onestep_reachability
 from safe_exploration.ssm_cem.gp_ssm_cem import GpCemSSM
@@ -17,7 +24,8 @@ import gpytorch
 # save_path = "/home/manish/work/horrible/safe-exploration_cem/experiments"
 # a_file = open(save_path + "/data.pkl", "rb")
 # save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params/401_sampling_mpc/data.pkl"
-save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
+# save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
+save_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
 a_file = open(save_path, "rb")
 data_dict = pickle.load(a_file)
 state_traj = data_dict["state_traj"]
