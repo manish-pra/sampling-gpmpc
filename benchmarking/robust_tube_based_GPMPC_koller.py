@@ -14,6 +14,9 @@ import yaml
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
 
+from src.agent import Agent
+from src.environments.pendulum import Pendulum
+
 # clone https://github.com/manish-pra/safe-exploration-koller and add it to the path
 # Add path to safe-exploration-koller
 workspace_safe_exploration = "safe-exploration-koller"
@@ -89,6 +92,20 @@ if __name__ == "__main__":
     input_traj = torch.Tensor(data_dict["input_traj"])
     x0 = state_traj[0][0, 0:2]
 
+    params["agent"]["num_dyn_samples"] = 10
+
+    env_model = Pendulum(params)
+    # TODO: abstract data generation from agent and just call the data generation function here
+    agent = Agent(params, env_model)
+    train_x = agent.Dyn_gp_X_train_batch[[0], :, :, :]
+    train_y = agent.Dyn_gp_Y_train_batch[[0], :, :, :]
+
+    agent.train_hallucinated_dynGP(0, use_model_without_derivatives=True)
+    # agent.train_hallucinated_dynGP(0, use_model_without_derivatives=False)
+
+    gp_model = agent.model_i
+    likelihood = agent.likelihood
+
     env = InvertedPendulum(verbosity=0)
     env.n_s = 2
     env.n_u = 1
@@ -97,7 +114,7 @@ if __name__ == "__main__":
         "exact_gp_kernel": "rbf",
         "cem_ssm": "exact_gp",
         "exact_gp_training_iterations": 1000,
-        "cem_beta_safety": 2.5,
+        "cem_beta_safety": params["agent"]["Dyn_gp_beta"],
         "device": "cpu",
     }
 
@@ -121,21 +138,21 @@ if __name__ == "__main__":
     Y_train = pendulum_discrete_dyn(X_train[:, 0], X_train[:, 1], X_train[:, 2])
 
     n_s, n_u = env.n_s, env.n_u
-    ssm = GpCemSSM(conf, env.n_s, env.n_u)
+    ssm = GpCemSSM(conf, env.n_s, env.n_u, model=gp_model, likelihood=likelihood)
     device = "cpu"
 
-    x_train = torch.tensor(X_train).to(device)
-    y_train = torch.tensor(Y_train).to(device)
-    ssm.update_model(x_train, y_train, opt_hyp=False)
+    # x_train = torch.tensor(X_train).to(device)
+    # y_train = torch.tensor(Y_train).to(device)
+    # ssm.update_model(x_train, y_train, opt_hyp=False)
     # ssm._likelihood.noise = 7.0e-9
     # ssm._model.likelihood.constraints = gpytorch.constraints.GreaterThan(0.0)
     # ssm._likelihood.noise_covar = gpytorch.constraints.GreaterThan(0.0)
-    ssm._model.likelihood.noise = 7.0e-9
-    ssm._model.likelihood.noise_covar.noise = 7.0e-9
-    ssm._model._kernel.outputscale = 1
-    ssm._model._kernel._modules["base_kernel"].lengthscale = torch.Tensor(
-        [5.2649, 4.5967, 7.0177]
-    )
+    # ssm._model.likelihood.noise = params["agent"]["Dyn_gp_noise"] # 7.0e-9
+    # ssm._model.likelihood.noise_covar.noise = params["agent"]["Dyn_gp_noise"] # 7.0e-9
+    # ssm._model._kernel.outputscale = 1
+    # ssm._model._kernel._modules["base_kernel"].lengthscale = torch.Tensor(
+    #     [5.2649, 4.5967, 7.0177]
+    # )
     # ssm._model._kernel._modules['base_kernel'].lengthscale = torch.tensor([0.1, 0.1])
     # ssm._model._kernel.lengthscale = torch.tensor([0.1, 0.1])
     x_test = torch.tensor([[8.0]]).to(device)
@@ -165,6 +182,8 @@ if __name__ == "__main__":
     # iteratively compute it for the next steps
     for i in range(H):
         print(i)
+        # TODO: CONTINUE NAN STUFF 
+        # if torch.any(torch.isnan(xs[i]))
         ps, qs, _ = onestep_reachability(
             ps,
             ssm,

@@ -169,29 +169,43 @@ class Agent(object):
             self.Dyn_gp_X_train_batch = self.Dyn_gp_X_train_batch.cuda()
             self.Dyn_gp_Y_train_batch = self.Dyn_gp_Y_train_batch.cuda()
 
-    def train_hallucinated_dynGP(self, sqp_iter):
+    def train_hallucinated_dynGP(self, sqp_iter, use_model_without_derivatives=False):
         n_sample = self.ns
         if self.model_i is not None:
             del self.model_i
 
-        data_X, data_Y = self.concatenate_real_hallucinated_data()
+        if use_model_without_derivatives:
+            # just use real data, this is for debugging only
+            data_X, data_Y = self.Dyn_gp_X_train_batch, self.Dyn_gp_Y_train_batch[:,:,:,[0]]
+        else:
+            data_X, data_Y = self.concatenate_real_hallucinated_data()
 
+
+        if use_model_without_derivatives:
+            num_tasks = 1
+        else:
+            num_tasks = self.in_dim + 1
+        
         likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-            num_tasks=self.in_dim + 1,
+            num_tasks=num_tasks,
             noise_constraint=gpytorch.constraints.GreaterThan(0.0),
             batch_shape=self.batch_shape,
         )  # Value + Derivative
-
         self.model_i = BatchMultitaskGPModelWithDerivatives_fromParams(
-            data_X, data_Y, likelihood, self.params, batch_shape=self.batch_shape
-        )
+            data_X, data_Y, likelihood, self.params, batch_shape=self.batch_shape, use_grad=not use_model_without_derivatives
+        )        
+        self.model_i.eval()
+        likelihood.eval()
+        self.model_i(data_X[:,:,[0],:])
+        likelihood(self.model_i(data_X[:,:,[0],:]))
 
+        self.likelihood = likelihood
+        
         if self.use_cuda:
             self.model_i = self.model_i.cuda()
 
         del data_X
         del data_Y
-        del likelihood
         if sqp_iter == 0:
             if self.Hallcinated_X_train is not None:
                 del self.Hallcinated_X_train

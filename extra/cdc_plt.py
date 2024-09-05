@@ -83,16 +83,6 @@ if __name__ == "__main__":
     with open(os.path.join(save_path_iter, "data.pkl"), "rb") as pkl_file:
         data_dict = pickle.load(pkl_file)
 
-    TEXTWIDTH = 16
-    set_figure_params(serif=True, fontsize=14)
-    # f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
-    f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
-    ax = f.axes
-    plt.xlabel(r"$\theta$")
-    plt.ylabel(r"$\omega$")
-    plt.tight_layout(pad=0.0)
-    # plt.plot(x1_smpc, x2_smpc, alpha=0.7)
-
     prefix_X_traj_list = "X_traj_list"
     GT_data_path = os.path.join(workspace, f"experiments/pendulum/env_0/params_pendulum/{args.i}/")
     GT_sampling_data_path = (
@@ -105,6 +95,9 @@ if __name__ == "__main__":
     H = 31
     color = "powderblue"  # "lightblue"
 
+    TEXTWIDTH = 16
+    set_figure_params(serif=True, fontsize=14)
+
     create_plots = []
     if plot_cautious_MPC:
         create_plots.append("cautious")
@@ -114,12 +107,21 @@ if __name__ == "__main__":
         create_plots.append("sampling")
 
     for plot_name in create_plots:
+        
+        # f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
+        f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
+        ax = f.axes
+        plt.xlabel(r"$\theta$")
+        plt.ylabel(r"$\omega$")
+        plt.tight_layout(pad=0.0)
+        # plt.plot(x1_smpc, x2_smpc, alpha=0.7)
+
         if plot_GT:
             # TODO: add compatibility with multiple-files for X_traj_list (see below)
             # Load GT_uncertainity data
-            a_file = open(GT_data_path, "rb")
-            true_gpmpc_data = pickle.load(a_file)
-            a_file.close()
+            with open(GT_data_path, "rb") as a_file:
+                true_gpmpc_data = pickle.load(a_file)
+
             true_gpmpc_data_numpy = np.array([np.array(x.cpu()) for x in true_gpmpc_data])
             H_GT, N_samples, nx, _, nxu = true_gpmpc_data_numpy.shape
             assert H_GT == H
@@ -141,18 +143,10 @@ if __name__ == "__main__":
             plt.fill_between(
                 theta_loc, min_theta_dot, max_theta_dot, alpha=0.5, color="tab:blue"
             )
-            # plt.plot(x1_true, x2_true, color="black")
-
-        a_file = open(sampling_data_path, "rb")
-        sampling_gpmpc_data = pickle.load(a_file)
-        a_file.close()
-        x1_true = sampling_gpmpc_data["true_state_traj"][0][:, 0]
-        x2_true = sampling_gpmpc_data["true_state_traj"][0][:, 1]
 
         if plot_GT_sampling:
             # find all files with name prefix_X_traj_list_i in directory (i is integer) of GT_sampling_data_path
             all_files_at_GT_sampling_data_path = os.listdir(GT_sampling_data_path)
-
             hull_points = []
 
             for file in all_files_at_GT_sampling_data_path:
@@ -161,9 +155,9 @@ if __name__ == "__main__":
 
                 traj_iter = file.split("_")[-1].split(".")[0]
 
-                a_file = open(os.path.join(GT_sampling_data_path, file), "rb")
-                sampling_gpmpc_data = pickle.load(a_file)
-                a_file.close()
+                with open(os.path.join(GT_sampling_data_path, file), "rb") as a_file:
+                    sampling_gpmpc_data = pickle.load(a_file)
+
                 sampling_gpmpc_data_np = np.array(
                     [np.array(x.cpu()) for x in sampling_gpmpc_data]
                 )
@@ -205,6 +199,9 @@ if __name__ == "__main__":
             )
 
         if plot_name == "sampling":
+
+            with open(sampling_data_path, "rb") as a_file:
+                sampling_gpmpc_data = pickle.load(a_file)
             # Plot convex hull
             state_traj = sampling_gpmpc_data["state_traj"]
             pts_i = state_traj[0][0].reshape(-1, 2)
@@ -231,11 +228,6 @@ if __name__ == "__main__":
 
             filename = f"sam_uncertainity_{args.i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
             
-
-
-
-
-
         if plot_name == "cautious":
             # ellipse_list_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/999/ellipse_data.pkl"
             ellipse_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/ellipse_data.pkl"
@@ -259,8 +251,13 @@ if __name__ == "__main__":
                 plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:red")
 
             filename = f"safe_uncertainity_{args.i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
-            
+        
 
+        with open(sampling_data_path, "rb") as a_file:
+            sampling_gpmpc_data = pickle.load(a_file)
+
+        x1_true = sampling_gpmpc_data["true_state_traj"][0][:, 0]
+        x2_true = sampling_gpmpc_data["true_state_traj"][0][:, 1]
         plt.plot(x1_true, x2_true, color="black", label="True dynamics")
         plt.plot([-0.1, 2.2], [2.5, 2.5], color="red", linestyle="--")
         plt.xlim(-0.1, 0.9)
