@@ -274,11 +274,12 @@ if __name__ == "__main__":
         x1_true = sampling_gpmpc_data["true_state_traj"][0][:, 0]
         x2_true = sampling_gpmpc_data["true_state_traj"][0][:, 1]
         plt.plot(x1_true, x2_true, color="black", label="True dynamics")
-        plt.plot([-0.1, 2.2], [2.5, 2.5], color="black", linestyle="--")
-        plt.xlim(-0.1, 0.9)
-        plt.ylim(-0.1, 2.7)
+        plt.plot([-0.1, 2.2], [2.5, 2.5], color="black", linestyle="--", label="Constraint")
+        plt.xlim(-0.1, 0.8)
+        plt.ylim(-0.2, 2.7)
+        # plt.grid()
 
-        if plot_cautious_MPC:
+        if plot_name == "cautious":
             plt.legend()
 
         # adapt_figure_size_from_axes(ax)
