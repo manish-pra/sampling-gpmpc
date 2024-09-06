@@ -26,6 +26,9 @@ plot_sampling_MPC = True
 plot_cautious_MPC = True
 plot_safe_MPC = True
 
+plot_cautious_mean = True
+plot_safe_mean = True
+
 
 if __name__ == "__main__":
 
@@ -230,13 +233,19 @@ if __name__ == "__main__":
             
         if plot_name == "cautious":
             # ellipse_list_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/999/ellipse_data.pkl"
-            ellipse_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/ellipse_data.pkl"
-            a_file = open(ellipse_list_path, "rb")
-            ellipse_list = pickle.load(a_file)
-            a_file.close()
+            ellipse_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/cautious_ellipse_data.pkl"
+            with open(ellipse_list_path, "rb") as a_file:
+                ellipse_list = pickle.load(a_file)
             for ellipse in ellipse_list:
                 plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:orange")
             
+            if plot_cautious_mean:
+                ellipse_mean_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/cautious_ellipse_center_data.pkl"
+                with open(ellipse_mean_list_path, "rb") as a_file:
+                    ellipse_center_list = pickle.load(a_file)
+                
+                ellipse_center_np = np.array(ellipse_center_list)[:,:,0]
+                plt.plot(ellipse_center_np[:, 0], ellipse_center_np[:, 1], lw=1.5, alpha=0.7, color="tab:orange", linestyle="--")
             filename = f"cautious_uncertainity_{args.i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
         if plot_name == "safe":
@@ -244,12 +253,18 @@ if __name__ == "__main__":
             #     "/home/manish/work/horrible/safe-exploration_cem/koller_ellipse_data.pkl"
             # )
             ellipse_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/koller_ellipse_data.pkl"
-            a_file = open(ellipse_list_path, "rb")
-            ellipse_list = pickle.load(a_file)
-            a_file.close()
+            with open(ellipse_list_path, "rb") as a_file:
+                ellipse_list = pickle.load(a_file)
             for ellipse in ellipse_list:
                 plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:red")
 
+            if plot_safe_mean:
+                ellipse_mean_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/koller_ellipse_center_data.pkl"
+                with open(ellipse_mean_list_path, "rb") as a_file:
+                    ellipse_center_list = pickle.load(a_file)
+                
+                ellipse_center_np = np.array(ellipse_center_list)[:,:,0]
+                plt.plot(ellipse_center_np[:, 0], ellipse_center_np[:, 1], lw=1.5, alpha=0.7, color="tab:red", linestyle="--")
             filename = f"safe_uncertainity_{args.i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
         
 

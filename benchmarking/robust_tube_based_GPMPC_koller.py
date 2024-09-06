@@ -155,61 +155,74 @@ if __name__ == "__main__":
     # )
     # ssm._model._kernel._modules['base_kernel'].lengthscale = torch.tensor([0.1, 0.1])
     # ssm._model._kernel.lengthscale = torch.tensor([0.1, 0.1])
-    x_test = torch.tensor([[8.0]]).to(device)
-    states = torch.zeros((x_test.shape[0], env.n_s)).to(device)
-    actions = torch.tensor(x_test).to(device)
+    # x_test = torch.tensor([[8.0]]).to(device)
+    # states = torch.zeros((x_test.shape[0], env.n_s)).to(device)
+    # actions = torch.tensor(x_test).to(device)
 
     a = torch.zeros((env.n_s, env.n_s), device=device)
     b = torch.zeros((env.n_s, env.n_u), device=device)
-
-    ps, qs, _ = onestep_reachability(
-        states,
-        ssm,
-        actions,
-        torch.tensor(env.l_mu).to(device),
-        torch.tensor(env.l_sigm).to(device),
-        c_safety=conf.cem_beta_safety,
-        verbose=0,
-        a=a,
-        b=b,
-    )
-    print(ps, qs)
-    H = 30
-
     k_fb_apply = torch.zeros((n_u, n_s))
+
+    # ps, qs, _ = onestep_reachability(
+    #     states,
+    #     ssm,
+    #     actions,
+    #     torch.tensor(env.l_mu).to(device),
+    #     torch.tensor(env.l_sigm).to(device),
+    #     c_safety=conf.cem_beta_safety,
+    #     verbose=0,
+    #     a=a,
+    #     b=b,
+    # )
+    ps = torch.tensor([x0]).to(device)
+    qs = None
+    H = params["optimizer"]["H"]
+
+    # print(ps, qs)
     # k_fb_apply = torch.reshape(k_fb_0, (-1, n_u, n_s))
     ellipse_list = []
+    ellipse_center_list = []
+    # fig, ax = plt.subplots()
     # iteratively compute it for the next steps
     for i in range(H):
         print(i)
         # TODO: CONTINUE NAN STUFF 
-        # if torch.any(torch.isnan(xs[i]))
-        ps, qs, _ = onestep_reachability(
-            ps,
-            ssm,
-            input_traj[0][i].reshape(-1, 1),
-            torch.tensor(env.l_mu).to(device),
-            torch.tensor(env.l_sigm).to(device),
-            q_shape=qs,
-            k_fb=k_fb_apply,
-            c_safety=conf.cem_beta_safety,
-            verbose=0,
-            a=a,
-            b=b,
-        )
-        print(ps, qs)
+        if torch.any(torch.isnan(ps)) or (qs is not None and torch.any(torch.isnan(qs))):
+            ellise = ellipse_list[-1]
+            print("Nans in ps or qs")
+        else:
+            ps, qs, _ = onestep_reachability(
+                ps,
+                ssm,
+                input_traj[0][i].reshape(-1, 1),
+                torch.tensor(env.l_mu).to(device),
+                torch.tensor(env.l_sigm).to(device),
+                q_shape=qs,
+                k_fb=k_fb_apply,
+                c_safety=conf.cem_beta_safety,
+                verbose=0,
+                a=a,
+                b=b,
+            )
+            print(ps, qs)
 
-        r = nLa.cholesky(qs).T
-        r = r[:, :, 0]
-        # checks spd inside the function
-        t = np.linspace(0, 2 * np.pi, 100)
-        z = [np.cos(t), np.sin(t)]
-        ellipse = np.dot(r, z) + ps.numpy().T
+            r = nLa.cholesky(qs).T
+            r = r[:, :, 0]
+            # checks spd inside the function
+            t = np.linspace(0, 2 * np.pi, 100)
+            z = [np.cos(t), np.sin(t)]
+            ellipse = np.dot(r, z) + ps.numpy().T
+
         ellipse_list.append(ellipse)
-        plt.plot(ellipse[0, :], ellipse[1, :])
+        ellipse_center_list.append(ps.numpy().T)
+        # ax.plot(ellipse[0, :], ellipse[1, :])
+
+    # plt.show()
 
     with open(os.path.join(save_path_iter, "koller_ellipse_data.pkl"), "wb") as a_file:
         pickle.dump(ellipse_list, a_file)
+    with open(os.path.join(save_path_iter, "koller_ellipse_center_data.pkl"), "wb") as a_file:
+        pickle.dump(ellipse_center_list, a_file)
     # plt.xlim(-0.1, 1.45)
     # plt.ylim(-0.1, 2.7)
     # plt.show()
