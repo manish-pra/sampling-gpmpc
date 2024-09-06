@@ -8,6 +8,7 @@ import gpytorch
 import numpy as np
 import argparse
 import yaml
+from dataclasses import dataclass
 
 # NOTE: this file needs to be called from outside the root directory of the project, e.g.:
 # python sampling-gpmpc/benchmarking/linearization_based_predictions.py
@@ -31,6 +32,36 @@ from safe_exploration.environments.environments import InvertedPendulum, Environ
 # save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params/401_sampling_mpc/data.pkl"
 # save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
 # save_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
+
+def extract_function_value_for_first_sample(y):
+    return y[0, :, :, 0]
+
+@dataclass
+class mean_and_variance:
+    mean: torch.Tensor
+    variance: torch.Tensor
+
+
+class GPModelWithDerivativesProjectedToFunctionValues(torch.nn.Module):
+    def __init__(self, gp_model, batch_shape_tile=None):
+        super().__init__()
+        self.gp_model = gp_model
+        if batch_shape_tile is None:
+            self.tile_shape = torch.Size([1,1,1,1])
+        else:
+            self.tile_shape = torch.Size([batch_shape_tile[0], batch_shape_tile[1], 1, 1])
+
+    def forward(self, x):
+        # mean_x = extract_function_value_for_first_sample(self.gp_model.mean_module(x))
+        # covar_x = extract_function_covariance_for_first_sample(self.gp_model.covar_module(x))
+        x_tile = x.tile(self.tile_shape)
+        full_dist = self.gp_model(x_tile)
+        # mean_x = self.gp_model.mean_module(x_tile)
+        # covar_x = self.gp_model.covar_module(x_tile)
+        # full_dist = gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
+        full_dist_mean_proj = extract_function_value_for_first_sample(full_dist.mean)
+        full_dist_variance_proj = extract_function_value_for_first_sample(full_dist.variance)
+        return mean_and_variance(mean=full_dist_mean_proj, variance=full_dist_variance_proj)
 
 if __name__ == "__main__":
 
@@ -92,19 +123,23 @@ if __name__ == "__main__":
     input_traj = torch.Tensor(data_dict["input_traj"])
     x0 = state_traj[0][0, 0:2]
 
-    params["agent"]["num_dyn_samples"] = 10
+    # only need single prediction
+    params["agent"]["num_dyn_samples"] = 1
 
     env_model = Pendulum(params)
     # TODO: abstract data generation from agent and just call the data generation function here
     agent = Agent(params, env_model)
-    train_x = agent.Dyn_gp_X_train_batch[[0], :, :, :]
-    train_y = agent.Dyn_gp_Y_train_batch[[0], :, :, :]
 
-    agent.train_hallucinated_dynGP(0, use_model_without_derivatives=True)
-    # agent.train_hallucinated_dynGP(0, use_model_without_derivatives=False)
+    # agent.train_hallucinated_dynGP(0, use_model_without_derivatives=True)
+    # use derivative data to train GP, then need to project down again
+    agent.train_hallucinated_dynGP(0)
+    agent.model_i.eval()
 
-    gp_model = agent.model_i
-    likelihood = agent.likelihood
+    gp_model_orig = agent.model_i
+    gp_model_orig.eval()
+
+    gp_model = GPModelWithDerivativesProjectedToFunctionValues(agent.model_i, batch_shape_tile=agent.model_i.batch_shape)
+    likelihood = agent.likelihood # NOTE: dimensions wrong, but not used in GpCemSSM
 
     env = InvertedPendulum(verbosity=0)
     env.n_s = 2
@@ -119,67 +154,18 @@ if __name__ == "__main__":
     }
 
     conf = EasyDict(conf)
-    x1 = torch.linspace(-2.14, 2.14, 5)
-    x2 = torch.linspace(-2.5, 2.5, 5)
-    u = torch.linspace(-8, 8, 5)
-    X1, X2, U = torch.meshgrid(x1, x2, u)
-    X_train = torch.hstack([X1.reshape(-1, 1), X2.reshape(-1, 1), U.reshape(-1, 1)])
-
-
-    def pendulum_discrete_dyn(X1_k, X2_k, U_k):
-        l = 1
-        g = 10
-        dt = 0.015
-        X1_kp1 = X1_k + X2_k * dt
-        X2_kp1 = X2_k - g * torch.sin(X1_k) * dt / l + U_k * dt / (l * l)
-        return torch.vstack((X1_kp1, X2_kp1)).transpose(0, 1)
-
-
-    Y_train = pendulum_discrete_dyn(X_train[:, 0], X_train[:, 1], X_train[:, 2])
 
     n_s, n_u = env.n_s, env.n_u
     ssm = GpCemSSM(conf, env.n_s, env.n_u, model=gp_model, likelihood=likelihood)
     device = "cpu"
 
-    # x_train = torch.tensor(X_train).to(device)
-    # y_train = torch.tensor(Y_train).to(device)
-    # ssm.update_model(x_train, y_train, opt_hyp=False)
-    # ssm._likelihood.noise = 7.0e-9
-    # ssm._model.likelihood.constraints = gpytorch.constraints.GreaterThan(0.0)
-    # ssm._likelihood.noise_covar = gpytorch.constraints.GreaterThan(0.0)
-    # ssm._model.likelihood.noise = params["agent"]["Dyn_gp_noise"] # 7.0e-9
-    # ssm._model.likelihood.noise_covar.noise = params["agent"]["Dyn_gp_noise"] # 7.0e-9
-    # ssm._model._kernel.outputscale = 1
-    # ssm._model._kernel._modules["base_kernel"].lengthscale = torch.Tensor(
-    #     [5.2649, 4.5967, 7.0177]
-    # )
-    # ssm._model._kernel._modules['base_kernel'].lengthscale = torch.tensor([0.1, 0.1])
-    # ssm._model._kernel.lengthscale = torch.tensor([0.1, 0.1])
-    # x_test = torch.tensor([[8.0]]).to(device)
-    # states = torch.zeros((x_test.shape[0], env.n_s)).to(device)
-    # actions = torch.tensor(x_test).to(device)
-
     a = torch.zeros((env.n_s, env.n_s), device=device)
     b = torch.zeros((env.n_s, env.n_u), device=device)
     k_fb_apply = torch.zeros((n_u, n_s))
 
-    # ps, qs, _ = onestep_reachability(
-    #     states,
-    #     ssm,
-    #     actions,
-    #     torch.tensor(env.l_mu).to(device),
-    #     torch.tensor(env.l_sigm).to(device),
-    #     c_safety=conf.cem_beta_safety,
-    #     verbose=0,
-    #     a=a,
-    #     b=b,
-    # )
     ps = torch.tensor([x0]).to(device)
     qs = None
     H = params["optimizer"]["H"]
-
-    # print(ps, qs)
-    # k_fb_apply = torch.reshape(k_fb_0, (-1, n_u, n_s))
     ellipse_list = []
     ellipse_center_list = []
     # fig, ax = plt.subplots()
@@ -205,6 +191,9 @@ if __name__ == "__main__":
                 b=b,
             )
             print(ps, qs)
+
+            # x_tile = torch.tile(torch.hstack((ps, input_traj[0][i].reshape(-1, 1))),(1,2,1,1))
+            # pred_orig = gp_model_orig(x_tile)
 
             r = nLa.cholesky(qs).T
             r = r[:, :, 0]

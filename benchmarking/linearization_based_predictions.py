@@ -97,9 +97,6 @@ if __name__ == "__main__":
     env_model = Pendulum(params)
     # TODO: abstract data generation from agent and just call the data generation function here
     agent = Agent(params, env_model)
-    train_x = agent.Dyn_gp_X_train_batch[[0], :, :, :]
-    train_y = agent.Dyn_gp_Y_train_batch[[0], :, :, :]
-
     agent.train_hallucinated_dynGP(0)
 
     gp_model = agent.model_i

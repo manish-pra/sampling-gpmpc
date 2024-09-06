@@ -26,8 +26,8 @@ plot_sampling_MPC = True
 plot_cautious_MPC = True
 plot_safe_MPC = True
 
-plot_cautious_mean = True
-plot_safe_mean = True
+plot_cautious_mean = False
+plot_safe_mean = False
 
 
 if __name__ == "__main__":
@@ -208,7 +208,7 @@ if __name__ == "__main__":
             # Plot convex hull
             state_traj = sampling_gpmpc_data["state_traj"]
             pts_i = state_traj[0][0].reshape(-1, 2)
-            plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color=color)
+            # plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color=color)
             for i in range(1, H):
                 pts_i = state_traj[0][i].reshape(-1, 2)
                 hull = ConvexHull(pts_i)
@@ -245,7 +245,7 @@ if __name__ == "__main__":
                     ellipse_center_list = pickle.load(a_file)
                 
                 ellipse_center_np = np.array(ellipse_center_list)[:,:,0]
-                plt.plot(ellipse_center_np[:, 0], ellipse_center_np[:, 1], lw=1.5, alpha=0.7, color="tab:orange", linestyle="--")
+                plt.plot(ellipse_center_np[:, 0], ellipse_center_np[:, 1], lw=1.5, alpha=0.7, color="tab:orange", linestyle="-")
             filename = f"cautious_uncertainity_{args.i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
         if plot_name == "safe":
@@ -264,7 +264,7 @@ if __name__ == "__main__":
                     ellipse_center_list = pickle.load(a_file)
                 
                 ellipse_center_np = np.array(ellipse_center_list)[:,:,0]
-                plt.plot(ellipse_center_np[:, 0], ellipse_center_np[:, 1], lw=1.5, alpha=0.7, color="tab:red", linestyle="--")
+                plt.plot(ellipse_center_np[:, 0], ellipse_center_np[:, 1], lw=1.5, alpha=0.7, color="tab:red", linestyle="-")
             filename = f"safe_uncertainity_{args.i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
         
 
@@ -274,7 +274,7 @@ if __name__ == "__main__":
         x1_true = sampling_gpmpc_data["true_state_traj"][0][:, 0]
         x2_true = sampling_gpmpc_data["true_state_traj"][0][:, 1]
         plt.plot(x1_true, x2_true, color="black", label="True dynamics")
-        plt.plot([-0.1, 2.2], [2.5, 2.5], color="red", linestyle="--")
+        plt.plot([-0.1, 2.2], [2.5, 2.5], color="black", linestyle="--")
         plt.xlim(-0.1, 0.9)
         plt.ylim(-0.1, 2.7)
 

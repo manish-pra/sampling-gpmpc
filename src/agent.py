@@ -196,8 +196,8 @@ class Agent(object):
         )        
         self.model_i.eval()
         likelihood.eval()
-        self.model_i(data_X[:,:,[0],:])
-        likelihood(self.model_i(data_X[:,:,[0],:]))
+        # self.model_i(data_X[:,:,[0],:])
+        # likelihood(self.model_i(data_X[:,:,[0],:]))
 
         self.likelihood = likelihood
         
