@@ -73,11 +73,12 @@ class DEMPC:
 
         # set objective as per desired goal
         t_0 = timeit.default_timer()
-        self.dempc_solver.solve(self.agent)
+        solver_status = self.dempc_solver.solve(self.agent)
         t_1 = timeit.default_timer()
         dt = t_1 - t_0
         print("Time to solve", dt)
-        X, U, Sl = self.dempc_solver.get_solution()
+        # X, U, Sl = self.dempc_solver.get_solution()
+        X, U, Sl = self.dempc_solver.get_and_shift_solution()
         # self.visu.Dyn_gp_model = self.agent.Dyn_gp_model
         self.visu.record(st_curr, X, U, dt)
         # print(X,U)

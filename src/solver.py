@@ -68,7 +68,12 @@ class DEMPC_solver(object):
             u_diff = np.linalg.norm(u_h - u_h_old) / (np.linalg.norm(u_h_old) + 1e-6)
             print(f"x_diff = {x_diff}, u_diff = {u_diff}")
 
-            if x_diff < self.tol_nlp and u_diff < self.tol_nlp and sqp_iter > 0:
+            if (
+                sqp_iter >= 1
+                and status == 0
+                and x_diff < self.tol_nlp
+                and u_diff < self.tol_nlp
+            ):
                 print("Converged")
                 break
 
@@ -112,18 +117,19 @@ class DEMPC_solver(object):
             residuals = self.ocp_solver.get_residuals(recompute=True)
             print("residuals (after solve)", residuals)
 
-            if self.ocp_solver.status != 0:
+            if status != 0:
                 print(
                     bcolors.FAIL
-                    + "acados returned status {} in closed loop solve".format(
-                        self.ocp_solver.status
-                    )
+                    + f"acados returned status {status} in closed loop solve"
                 )
+                break
             #     self.ocp_solver.reset()
             #     self.ocp_solver.load_iterate(self.name_prefix + 'ocp_initialization.json')
 
             if plot_pendulum:
                 self.plot_iterates_pendulum(sqp_iter, player, x_h, x_h_e, u_h)
+
+        return status
 
     def get_solution(self):
         nx = self.ocp_solver.acados_ocp.model.x.size()[0]
@@ -139,6 +145,17 @@ class DEMPC_solver(object):
             # Sl[i] = self.ocp_solver.get(i, "sl")
 
         X[self.H, :] = self.ocp_solver.get(self.H, "x")
+        return X, U, Sl
+
+    def shift_solution(self, X, U, Sl):
+        for i in range(self.H - 1):
+            self.ocp_solver.set(i, "x", X[i + 1, :])
+            self.ocp_solver.set(i, "u", U[i + 1, :])
+        self.ocp_solver.set(self.H - 1, "x", X[self.H, :])
+
+    def get_and_shift_solution(self):
+        X, U, Sl = self.get_solution()
+        self.shift_solution(X, U, Sl)
         return X, U, Sl
 
     def get_solver_status():
