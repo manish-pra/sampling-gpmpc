@@ -27,7 +27,7 @@ agent:
   Dyn_gp_lengthscale :
     # both : [[[2.1266, 5.6651, 10.5719]], [[2.2651, 4.6306, 7.6728]], [[20.9180, 6.1829, 3.7340]]]
     both : [[[ 2.2214, 14.7430,  1.9998]], [[ 2.0991, 23.9026,  1.5268]], [[48.1437, 24.5733,  1.7119]]]
-  Dyn_gp_noise : 7.0e-9
+  Dyn_gp_noise : 7.0e-9 # zero noise (modulo GP jitter below)
   Dyn_gp_outputscale : 
     y1 : 0.1040 #0.3040 #0.75  #0.65
     y2 : 0.1071 #0.3071 #0.65 #0.455, noise multiplier 3.0e-7 results in smooth trajectories
@@ -42,11 +42,8 @@ agent:
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
-  Dyn_gp_variance_is_zero: -1.0
+  Dyn_gp_variance_is_zero: -1.0 # -1 : deactivated
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
-  # Dyn_gp_jitter: 1.0e-6
-  # Dyn_gp_variance_is_zero: 1.0e-5
-  # Dyn_gp_min_data_dist: 1.0e-3 # -1 : deactivated
 
 visu:
   show: True
