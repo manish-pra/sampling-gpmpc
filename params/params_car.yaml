@@ -10,10 +10,10 @@ env:
   n_data_x: 3
   n_data_u: 5
   ellipses: 
-    n1 : [24, 4.5, 9.0, 1.0, 4.5]  # x0, y0, a^2, b^2, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
-    n2 : [10, 1.5, 9.0, 1.0, 4.5]
-    n3 : [38, 1.5, 9.0, 1.0, 4.5]
-    n4 : [52, 4.5, 9.0, 1.0, 4.5]
+    n1 : [24, 5.0, 9.0, 1.0, 5.67]  # x0, y0, a^2, b^2, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
+    n2 : [8,  1.0, 9.0, 1.0, 5.67]
+    n3 : [40, 1.0, 9.0, 1.0, 5.67]
+    n4 : [56, 5.0, 9.0, 1.0, 5.67]
 
 agent:
   g_dim :
@@ -35,7 +35,7 @@ agent:
   Dyn_gp_task_noises : 
     val : [1.4, 0.48, 1.47, 0.515]
     multiplier : 1.0e-3                     #1.0e-5 Low noise value make it crazy fast
-  Dyn_gp_beta : 3.0 # 1.5
+  Dyn_gp_beta : 2.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
   num_dyn_samples: 20     
@@ -61,8 +61,8 @@ optimizer:
   u_max : [0.6, 2] 
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [-2.14, 0, -1.14, -1] # Minimum state value
-  x_max : [ 70, 6.0, 1.14, 15] # x,y,v,theta,theta_dot
+  x_min : [-2.14, -1.0, -1.14, -1] # Minimum state value
+  x_max : [ 70, 7.0, 1.14, 15] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:
     max_sqp_iter: 10
@@ -77,7 +77,7 @@ optimizer:
   Qu: [2, 2]
   cost: "expected"
   options: {
-    levenberg_marquardt: 1.0e-1
+    levenberg_marquardt: 1.0
   }
 
 experiment:

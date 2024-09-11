@@ -143,13 +143,12 @@ def dempc_const_val(ocp, params, x_dim, n_order):
     )  # np.ones(x_dim)*0.72
     ocp.constraints.x0 = x0.copy()
 
-    ocp.constraints.lbx_e = lbx.copy()
-    ocp.constraints.ubx_e = ubx.copy()
-    ocp.constraints.idxbx_e = np.arange(lbx.shape[0])
-
     ocp.constraints.lbx = lbx.copy()
     ocp.constraints.ubx = ubx.copy()
     ocp.constraints.idxbx = np.arange(lbx.shape[0])
+    ocp.constraints.lbx_e = lbx.copy()
+    ocp.constraints.ubx_e = ubx.copy()
+    ocp.constraints.idxbx_e = np.arange(lbx.shape[0])
 
     if params["env"]["dynamics"] == "bicycle":
         nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
