@@ -32,40 +32,29 @@ class DEMPC_solver(object):
         self.nu = self.params["agent"]["dim"]["nu"]
         self.pos_dim = 1
 
-        # initialize
-        # random initialization
-        # x_h = np.random.normal(
-        #     size=(self.H, self.nx * self.params["agent"]["num_dyn_samples"])
-        # )
-        # u_h = np.random.normal(size=(self.H, self.nu))  # u_dim
-        # for stage in range(self.H):
-        #     self.ocp_solver.set(stage, "x", x_h[stage, :])
-        #     self.ocp_solver.set(stage, "u", u_h[stage, :])
+        self.x_h = np.zeros((self.H, self.nx * self.params["agent"]["num_dyn_samples"]))
+        self.u_h = np.zeros((self.H, self.nu))  # u_dim
 
     def solve(self, player, plot_pendulum=False):
-        # self.ocp_solver.store_iterate(self.name_prefix + 'ocp_initialization.json', overwrite=True)
-        x_h = np.zeros((self.H, self.nx * self.params["agent"]["num_dyn_samples"]))
-        u_h = np.zeros((self.H, self.nu))  # u_dim
-        # w = 1e-3*np.ones(self.H+1)
-        # w[int(self.H/2)] = self.params["optimizer"]["w"]
         w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
-        X_input_orig_past = []
 
         for sqp_iter in range(self.max_sqp_iter):
-            # self.ocp_solver.options_set("rti_phase", 1)
-            # x_h, u_h = self.initilization(sqp_iter, x_h, u_h)
-            x_h_old = x_h.copy()
-            u_h_old = u_h.copy()
+            x_h_old = self.x_h.copy()
+            u_h_old = self.u_h.copy()
             for stage in range(self.H):
                 # current stage values
-                x_h[stage, :] = self.ocp_solver.get(stage, "x")
-                u_h[stage, :] = self.ocp_solver.get(stage, "u")
+                self.x_h[stage, :] = self.ocp_solver.get(stage, "x")
+                self.u_h[stage, :] = self.ocp_solver.get(stage, "u")
 
             x_h_e = self.ocp_solver.get(self.H, "x")
 
-            x_diff = np.linalg.norm(x_h - x_h_old) / (np.linalg.norm(x_h_old) + 1e-6)
-            u_diff = np.linalg.norm(u_h - u_h_old) / (np.linalg.norm(u_h_old) + 1e-6)
+            x_diff = np.linalg.norm(self.x_h - x_h_old) / (
+                np.linalg.norm(x_h_old) + 1e-6
+            )
+            u_diff = np.linalg.norm(self.u_h - u_h_old) / (
+                np.linalg.norm(u_h_old) + 1e-6
+            )
             print(f"x_diff = {x_diff}, u_diff = {u_diff}")
 
             if (
@@ -79,7 +68,7 @@ class DEMPC_solver(object):
 
             # create model with updated data
             player.train_hallucinated_dynGP(sqp_iter)
-            batch_x_hat = player.get_batch_x_hat(x_h, u_h)
+            batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)
             # sample the gradients
             gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
             del batch_x_hat
@@ -92,20 +81,15 @@ class DEMPC_solver(object):
                             p_lin,
                             y_grad[i, :, stage, :].reshape(-1),
                             u_grad[i, :, stage, :].reshape(-1),
-                            x_h[stage, i * self.nx : self.nx * (i + 1)],
+                            self.x_h[stage, i * self.nx : self.nx * (i + 1)],
                             gp_val[i, :, stage, :].reshape(-1),
                         ]
                     )
-                p_lin = np.hstack([p_lin, u_h[stage], xg[stage], w[stage]])
+                p_lin = np.hstack([p_lin, self.u_h[stage], xg[stage], w[stage]])
                 self.ocp_solver.set(stage, "p", p_lin)
 
-            # status = self.ocp_solver.solve()
-            # self.ocp_solver.options_set("rti_phase", 2)
             residuals = self.ocp_solver.get_residuals(recompute=True)
             print("residuals (before solve)", residuals)
-            # if max(residuals) < self.tol_nlp and sqp  _iter > 0:
-            #     print("Residual less than tol", max(residuals), " ", self.tol_nlp)
-            #     break
 
             t_0 = timeit.default_timer()
             status = self.ocp_solver.solve()
@@ -123,11 +107,9 @@ class DEMPC_solver(object):
                     + f"acados returned status {status} in closed loop solve"
                 )
                 break
-            #     self.ocp_solver.reset()
-            #     self.ocp_solver.load_iterate(self.name_prefix + 'ocp_initialization.json')
 
             if plot_pendulum:
-                self.plot_iterates_pendulum(sqp_iter, player, x_h, x_h_e, u_h)
+                self.plot_iterates_pendulum(sqp_iter, player, self.x_h, x_h_e, self.u_h)
 
         return status
 

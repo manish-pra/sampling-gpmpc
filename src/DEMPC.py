@@ -64,9 +64,6 @@ class DEMPC:
         Process: Solve the NLP and simulate the system until the measurement collection point
         Output: trajectory
         """
-        # questions:
-
-        # self.visu.UpdateIter(self.iter, -1)
         print(bcolors.OKCYAN + "Solving Constrints" + bcolors.ENDC)
         self.dempc_solver.ocp_solver.set(0, "lbx", st_curr)
         self.dempc_solver.ocp_solver.set(0, "ubx", st_curr)
@@ -77,11 +74,10 @@ class DEMPC:
         t_1 = timeit.default_timer()
         dt = t_1 - t_0
         print("Time to solve", dt)
+
         # X, U, Sl = self.dempc_solver.get_solution()
         X, U, Sl = self.dempc_solver.get_and_shift_solution()
-        # self.visu.Dyn_gp_model = self.agent.Dyn_gp_model
         self.visu.record(st_curr, X, U, dt)
-        # print(X,U)
 
         # self.visu.plot_pendulum_traj(X,U)
         return torch.from_numpy(X).float(), torch.from_numpy(U).float()
