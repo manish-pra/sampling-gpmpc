@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from acados_template import AcadosOcpSolver, AcadosSimSolver
 
 from src.utils.ocp import export_dempc_ocp
+from src.utils.termcolor import bcolors
 
 
 # The class below is an optimizer class,
@@ -111,9 +112,13 @@ class DEMPC_solver(object):
             residuals = self.ocp_solver.get_residuals(recompute=True)
             print("residuals (after solve)", residuals)
 
-            # if self.ocp_solver.status != 0:
-            #     print("acados returned status {} in closed loop solve".format(
-            #         self.ocp_solver.status))
+            if self.ocp_solver.status != 0:
+                print(
+                    bcolors.FAIL
+                    + "acados returned status {} in closed loop solve".format(
+                        self.ocp_solver.status
+                    )
+                )
             #     self.ocp_solver.reset()
             #     self.ocp_solver.load_iterate(self.name_prefix + 'ocp_initialization.json')
 

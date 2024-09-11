@@ -40,7 +40,6 @@ agent:
 
 visu:
   show: False
-  show_current_loc: False
 
 common:
   use_cuda : False

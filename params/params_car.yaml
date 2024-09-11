@@ -10,10 +10,10 @@ env:
   n_data_x: 3
   n_data_u: 5
   ellipses: 
-    n1 : [24, 4.5, 9.0, 1.0, 0.81]  # x0, y0, a, b, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
-    n2 : [10, 1.5, 9.0, 1.0, 0.81]
-    n3 : [38, 1.5, 9.0, 1.0, 0.81]
-    n4 : [52, 4.5, 9.0, 1.0, 0.81]
+    n1 : [24, 4.5, 9.0, 1.0, 4.5]  # x0, y0, a^2, b^2, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
+    n2 : [10, 1.5, 9.0, 1.0, 4.5]
+    n3 : [38, 1.5, 9.0, 1.0, 4.5]
+    n4 : [52, 4.5, 9.0, 1.0, 4.5]
 
 agent:
   g_dim :
@@ -41,16 +41,18 @@ agent:
   num_dyn_samples: 20     
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
-  Dyn_gp_jitter: 1.0e-6
-  Dyn_gp_variance_is_zero: 0.0
-  Dyn_gp_min_data_dist: 0.0
+  Dyn_gp_jitter: 7.0e-9
+  Dyn_gp_variance_is_zero: -1.0
+  Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
+  # Dyn_gp_jitter: 1.0e-6
+  # Dyn_gp_variance_is_zero: 1.0e-5
+  # Dyn_gp_min_data_dist: 1.0e-3 # -1 : deactivated
 
 visu:
-  show: False
-  show_current_loc: False
+  show: True
 
 common:
-  use_cuda : True
+  use_cuda : False
   num_MPC_itrs : 130
 
 optimizer:

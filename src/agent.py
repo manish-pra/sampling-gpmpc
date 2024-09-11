@@ -306,6 +306,10 @@ class Agent(object):
         gp_val = y_sample[:, :, :, [0]].cpu().numpy()
         y_grad = y_sample[:, :, :, 1 : 1 + self.nx].cpu().numpy()
         u_grad = y_sample[:, :, :, 1 + self.nx : 1 + self.nx + self.nu].cpu().numpy()
+
+        if torch.any(torch.isnan(y_sample)) or torch.any(torch.isinf(y_sample)):
+            print("Nan/inf in y_sample")
+
         del y_sample
         del xu_hat
         return gp_val, y_grad, u_grad  # y, dy/dx, dy/du
@@ -326,9 +330,10 @@ class Agent(object):
         for i in range(g_xu_hat.shape[1] - 1):
             assert torch.all(g_xu_hat[:, i + 1, :, :] == g_xu_hat[:, i, :, :])
 
-        y_sample = self.sample_gp(
-            g_xu_hat, base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
-        )
+        # y_sample = self.sample_gp(
+        #     g_xu_hat, base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
+        # )
+        y_sample = self.sample_gp(g_xu_hat)
 
         idx_overwrite = 0
         if self.params["agent"]["true_dyn_as_sample"]:
@@ -349,15 +354,14 @@ class Agent(object):
         return y_sample
 
     def sample_gp(self, x_input, base_samples=None, debug=True):
-        with torch.no_grad(), gpytorch.settings.observation_nan_policy(
-            "mask"
-        ), gpytorch.settings.fast_computations(
-            covar_root_decomposition=False, log_prob=False, solves=False
-        ), gpytorch.settings.cholesky_jitter(
-            float_value=self.params["agent"]["Dyn_gp_jitter"],
-            double_value=self.params["agent"]["Dyn_gp_jitter"],
-            half_value=self.params["agent"]["Dyn_gp_jitter"],
-        ):
+        with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
+            # gpytorch.settings.fast_computations(
+            #     covar_root_decomposition=False, log_prob=False, solves=False
+            # ), gpytorch.settings.cholesky_jitter(
+            #     float_value=self.params["agent"]["Dyn_gp_jitter"],
+            #     double_value=self.params["agent"]["Dyn_gp_jitter"],
+            #     half_value=self.params["agent"]["Dyn_gp_jitter"],
+            # ):
             self.model_i.eval()
             self.model_i_call = self.model_i(x_input)
             y_sample = self.model_i_call.sample(base_samples=base_samples)

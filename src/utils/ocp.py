@@ -108,14 +108,6 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     ocp.model.cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u
     ocp.model.cost_expr_ext_cost_e = expr / ns
 
-    if params["env"]["dynamics"] == "bicycle":
-        ns = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
-        ocp.constraints.idxsh = np.arange(ns)
-        ocp.cost.zl = 1e6 * np.array([1] * ns)
-        ocp.cost.zu = 1e5 * np.array([1] * ns)
-        ocp.cost.Zl = 1e6 * np.array([1] * ns)
-        ocp.cost.Zu = 1e5 * np.array([1] * ns)
-
     # ocp.cost.cost_type = 'NONLINEAR_LS'
     # ocp.cost.cost_type_e = 'NONLINEAR_LS'
     # ocp.cost.W_e = np.diag(1*np.ones(x_dim))
@@ -160,12 +152,30 @@ def dempc_const_val(ocp, params, x_dim, n_order):
     ocp.constraints.idxbx = np.arange(lbx.shape[0])
 
     if params["env"]["dynamics"] == "bicycle":
-        ns = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
-        f = 7 * params["env"]["ellipses"]["n1"][4]
-        ocp.constraints.lh = np.array([f] * ns)
-        ocp.constraints.uh = np.array([1e8] * ns)
-        ocp.constraints.lh_e = np.array([f] * ns)
-        ocp.constraints.uh_e = np.array([1e8] * ns)
+        nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
+        f = params["env"]["ellipses"]["n1"][4]
+        ocp.constraints.lh = np.array([f] * nh)
+        ocp.constraints.uh = np.array([1e3] * nh)
+        ocp.constraints.lh_e = np.array([f] * nh)
+        ocp.constraints.uh_e = np.array([1e3] * nh)
+
+        nbx = 0
+        # nbx = len(lbx)
+        # ocp.constraints.idxsbx = np.arange(nbx)
+        # ocp.constraints.idxsbx_e = np.arange(nbx)
+        ocp.constraints.idxsh = np.arange(nh)
+        ocp.constraints.idxsh_e = np.arange(nh)
+
+        ns = nh + nbx
+        ocp.cost.zl = 1e3 * np.array([1] * ns)
+        ocp.cost.zu = 1e3 * np.array([1] * ns)
+        ocp.cost.Zl = 1e3 * np.array([1] * ns)
+        ocp.cost.Zu = 1e3 * np.array([1] * ns)
+
+        ocp.cost.zl_e = 1e3 * np.array([1] * ns)
+        ocp.cost.zu_e = 1e3 * np.array([1] * ns)
+        ocp.cost.Zl_e = 1e3 * np.array([1] * ns)
+        ocp.cost.Zu_e = 1e3 * np.array([1] * ns)
 
     # ocp.constraints.lh = np.array([0, eps])
     # ocp.constraints.uh = np.array([10.0, 1.0e9])
@@ -193,7 +203,9 @@ def dempc_set_options(ocp, params):
     # PARTIAL_CONDENSING_QPDUNES, PARTIAL_CONDENSING_OSQP, FULL_CONDENSING_DAQP
     # ocp.solver_options.hessian_approx = "GAUSS_NEWTON"  # 'GAUSS_NEWTON', 'EXACT'
     ocp.solver_options.hessian_approx = "EXACT"  # 'GAUSS_NEWTON', 'EXACT'
-    ocp.solver_options.levenberg_marquardt = params["optimizer"]["options"]["levenberg_marquardt"]
+    ocp.solver_options.levenberg_marquardt = params["optimizer"]["options"][
+        "levenberg_marquardt"
+    ]
     ocp.solver_options.integrator_type = "DISCRETE"  #'IRK'  # IRK , DISCRETE
     # ocp.solver_options.print_level = 1
     # ocp.solver_options.nlp_solver_ext_qp_res = 1
