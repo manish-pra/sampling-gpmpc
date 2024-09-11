@@ -283,13 +283,13 @@ class Agent(object):
         self.mpc_iter = i
 
     def dyn_fg_jacobians(self, xu_hat, sqp_iter):
-        # get dynamics value and Jacobians
         ns = xu_hat.shape[0]
         nH = xu_hat.shape[2]
+
+        # get dynamics value and Jacobians
         df_dxu_grad = self.env_model.get_f_known_jacobian(xu_hat)
-        g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
-        # g_xu_hat = xu_hat[:, : self.g_ny, :, [2, 3, 4]]  # phi, v, delta
-        dg_dxu_grad = self.get_batch_gp_sensitivities(g_xu_hat, sqp_iter)
+        dg_dxu_grad = self.get_batch_gp_sensitivities(xu_hat, sqp_iter)
+
         if False:  # for debugging the multiplication with B_d logic
             ch_pad_dg_dxu_grad = torch.zeros_like(df_dxu_grad, device=xu_hat.device)
             ch_pad_dg_dxu_grad[:, : self.g_ny, :, [0, 3, 4, 5]] = dg_dxu_grad
@@ -310,25 +310,42 @@ class Agent(object):
         del xu_hat
         return gp_val, y_grad, u_grad  # y, dy/dx, dy/du
 
-    def get_batch_gp_sensitivities(self, x_hat, sqp_iter):
+    def get_batch_gp_sensitivities(self, xu_hat, sqp_iter):
         """_summaary_ Derivatives are obtained by sampling from the GP directly. Record those derivatives.
 
         Args:
-            x_hat (_type_): states to evaluate the GP and its gradients
+            xu_hat (_type_): states to evaluate the GP and its gradients
             sample_idx (_type_): _description_
 
         Returns:
             _type_: in numpy format
         """
-        assert torch.all(x_hat[:, 0, :, :] == x_hat[:, 1, :, :])
+
+        # filter inputs from full x,u to gp inputs
+        g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
+        for i in range(g_xu_hat.shape[1] - 1):
+            assert torch.all(g_xu_hat[:, i + 1, :, :] == g_xu_hat[:, i, :, :])
 
         y_sample = self.sample_gp(
-            x_hat, base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
+            g_xu_hat, base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
         )
 
-        self.update_hallucinated_Dyn_dataset(x_hat, y_sample)
+        idx_overwrite = 0
+        if self.params["agent"]["true_dyn_as_sample"]:
+            # overwrite next sample with true dynamics
+            y_sample[idx_overwrite, :, :, :] = self.env_model.get_prior_data(
+                g_xu_hat[idx_overwrite, 0, :, :]
+            )
+            idx_overwrite += 1
 
-        del x_hat
+        if self.params["agent"]["mean_as_dyn_sample"]:
+            # overwrite next sample with mean
+            y_sample[[idx_overwrite], :, :, :] = self.model_i_call.mean[
+                [idx_overwrite], :, :, :
+            ]
+            idx_overwrite += 1
+
+        self.update_hallucinated_Dyn_dataset(g_xu_hat, y_sample)
         return y_sample
 
     def sample_gp(self, x_input, base_samples=None, debug=True):
@@ -409,23 +426,6 @@ class Agent(object):
             y_sample = torch.min(y_sample, y_max)
 
             self.model_i_samples = y_sample
-
-            idx_overwrite = 0
-            if self.params["agent"]["true_dyn_as_sample"]:
-                # overwrite next sample with true dynamics
-                y_sample_true = self.env_model.get_prior_data(
-                    x_hat[idx_overwrite, 0, :, :].cpu()
-                )
-                # y_sample_true = torch.stack([y_sample_true_1, y_sample_true_2], dim=0)
-                y_sample[idx_overwrite, :, :, :] = y_sample_true
-                idx_overwrite += 1
-
-            if self.params["agent"]["mean_as_dyn_sample"]:
-                # overwrite next sample with mean
-                y_sample[[idx_overwrite], :, :, :] = self.model_i_call.mean[
-                    [idx_overwrite], :, :, :
-                ]
-                idx_overwrite += 1
 
             if debug:
                 # print min and max variance

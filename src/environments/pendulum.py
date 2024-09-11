@@ -122,18 +122,3 @@ class Pendulum(object):
 
     def get_g_xu_hat(self, xu_hat):
         return xu_hat
-
-    # def propagate_true_dynamics(self, x_init, U):
-    #     x1_list = []
-    #     x2_list = []
-    #     X1_k = x_init[0]
-    #     X2_k = x_init[1]
-    #     x1_list.append(X1_k.item())
-    #     x2_list.append(X2_k.item())
-    #     for ele in range(U.shape[0]):
-    #         X1_kp1, X2_kp1 = self.discrete_dyn(X1_k, X2_k, U[ele])
-    #         x1_list.append(X1_kp1.item())
-    #         x2_list.append(X2_kp1.item())
-    #         X1_k = X1_kp1.copy()
-    #         X2_k = X2_kp1.copy()
-    #     return x1_list, x2_list
