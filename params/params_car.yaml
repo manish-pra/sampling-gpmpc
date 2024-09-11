@@ -52,7 +52,7 @@ visu:
   show: True
 
 common:
-  use_cuda : False
+  use_cuda : True
   num_MPC_itrs : 130
 
 optimizer:
