@@ -65,7 +65,7 @@ To simulate different reachable set approximations, run the following scripts (h
     ```
 2. Generate control input sequence and sampling-based predictions (`data.pkl`) by running main script:
     ```bash
-        python sampling-gpmpc/main.py -i $1 -param $param_file
+        python sampling-gpmpc/main.py -i $i -param $param_file
     ```
 3. Generate linearization-based predictions (`cautious_ellipse_data.pkl`, `cautious_ellipse_center_data.pkl`), robust tube-based predictions (`koller_ellipse_data.pkl`, `koller_ellipse_center_data.pkl`) and true reachable set (`X_traj_list_0.pkl`, ..., `X_traj_list_<num_files>.pkl`):
     ```bash
