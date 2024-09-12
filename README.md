@@ -1,3 +1,6 @@
+
+![iterative_gp_conditioning](https://github.com/user-attachments/assets/8c0ff769-a9e5-42f5-a49f-d1a9093c5323)
+
 # Sampling-based Gaussian Process Model Predictive Control
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
