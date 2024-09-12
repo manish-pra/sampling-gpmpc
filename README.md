@@ -106,7 +106,7 @@ The final result should look similar to this:
     ```
 3. Generate video by running visualizer script:
     ```bash
-        python sampling-gpmpc/visu_main.py -i $1 -param $param_file
+        python sampling-gpmpc/visu_main.py -i $i -param $param_file
     ```
 
 #### Result
