@@ -6,11 +6,22 @@ This repository contains code for the "Safe Gaussian process-based MPC using eff
 
 ## Getting started
 
-1. Clone the repository and install the dependencies, especially, [acados](https://docs.acados.org/installation/), [casadi](https://web.casadi.org/get/) and check [requirements.txt](https://github.com/manish-pra/sagempc/blob/main/requirements.txt).
+1. Create new `workspace` folder. This is used as a base directory for the following steps.
+2. Clone the main repository
+    ```bash
+        git clone https://github.com/manish-pra/sampling-gpmpc.git
+    ```
+3. Clone auxiliary repositories
+    ```bash
+        git clone https://github.com/manish-pra/safe-exploration-koller.git
+    ```
+3. Install dependencies
+    1. Download and install [acados](https://docs.acados.org/installation/).
+    2. Install Python requirements
+        ```bash
+            pip install -r requirements.txt
+        ```
 
-    1. Create new virtual environment
-    2. `pip install -r requirements.txt` (update gpytorch version, gpytorch-1.12.dev28+g392dd41e)
-    3. Install acados
 
 1. To run the code, use the following command
 
