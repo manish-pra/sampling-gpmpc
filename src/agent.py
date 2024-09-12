@@ -176,31 +176,38 @@ class Agent(object):
 
         if use_model_without_derivatives:
             # just use real data, this is for debugging only
-            data_X, data_Y = self.Dyn_gp_X_train_batch, self.Dyn_gp_Y_train_batch[:,:,:,[0]]
+            data_X, data_Y = (
+                self.Dyn_gp_X_train_batch,
+                self.Dyn_gp_Y_train_batch[:, :, :, [0]],
+            )
         else:
             data_X, data_Y = self.concatenate_real_hallucinated_data()
-
 
         if use_model_without_derivatives:
             num_tasks = 1
         else:
             num_tasks = self.in_dim + 1
-        
+
         likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
             num_tasks=num_tasks,
             noise_constraint=gpytorch.constraints.GreaterThan(0.0),
             batch_shape=self.batch_shape,
         )  # Value + Derivative
         self.model_i = BatchMultitaskGPModelWithDerivatives_fromParams(
-            data_X, data_Y, likelihood, self.params, batch_shape=self.batch_shape, use_grad=not use_model_without_derivatives
-        )        
+            data_X,
+            data_Y,
+            likelihood,
+            self.params,
+            batch_shape=self.batch_shape,
+            use_grad=not use_model_without_derivatives,
+        )
         self.model_i.eval()
         likelihood.eval()
         # self.model_i(data_X[:,:,[0],:])
         # likelihood(self.model_i(data_X[:,:,[0],:]))
 
         self.likelihood = likelihood
-        
+
         if self.use_cuda:
             self.model_i = self.model_i.cuda()
 
@@ -387,7 +394,7 @@ class Agent(object):
                 )
                 variance_numerically_zero_all_outputs = torch.all(
                     variance_numerically_zero, dim=-1, keepdim=True
-                ).tile(1, 1, 1, self.g_g_nx + self.g_g_nu + 1)
+                ).tile(1, 1, 1, self.g_nx + self.g_nu + 1)
                 variance_numerically_zero_num = torch.zeros_like(
                     self.model_i_call.variance
                 )
@@ -413,7 +420,7 @@ class Agent(object):
                 dist_too_small = (
                     torch.any(dist_norm <= min_distance, dim=2)
                     .unsqueeze(-1)
-                    .tile(1, 1, 1, self.g_g_nx + self.g_g_nu + 1)
+                    .tile(1, 1, 1, self.g_nx + self.g_nu + 1)
                 )
                 min_dist_input, min_dist_input_index = torch.min(dist_norm, dim=2)
                 # create tuple of tensors with indices of closest training data point
