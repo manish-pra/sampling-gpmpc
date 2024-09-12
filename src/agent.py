@@ -347,10 +347,10 @@ class Agent(object):
         for i in range(g_xu_hat.shape[1] - 1):
             assert torch.all(g_xu_hat[:, i + 1, :, :] == g_xu_hat[:, i, :, :])
 
-        # y_sample = self.sample_gp(
-        #     g_xu_hat, base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
-        # )
-        y_sample = self.sample_gp(g_xu_hat)
+        y_sample = self.sample_gp(
+            g_xu_hat, base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]
+        )
+        # y_sample = self.sample_gp(g_xu_hat)
 
         idx_overwrite = 0
         if self.params["agent"]["true_dyn_as_sample"]:
