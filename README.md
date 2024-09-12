@@ -69,9 +69,9 @@ To simulate different reachable set approximations, run the following scripts (h
     ```
 3. Generate linearization-based predictions (`cautious_ellipse_data.pkl`, `cautious_ellipse_center_data.pkl`), robust tube-based predictions (`koller_ellipse_data.pkl`, `koller_ellipse_center_data.pkl`) and true reachable set (`X_traj_list_0.pkl`, ..., `X_traj_list_<num_files>.pkl`):
     ```bash
-        python sampling-gpmpc/benchmarking/linearization_based_predictions.py -i $1 -param $param_file
-        python sampling-gpmpc/benchmarking/robust_tube_based_GPMPC_koller.py -i $1 -param $param_file
-        python sampling-gpmpc/benchmarking/simulate_true_reachable_set.py -i $1 -param $param_file
+        python sampling-gpmpc/benchmarking/linearization_based_predictions.py -i $i -param $param_file
+        python sampling-gpmpc/benchmarking/robust_tube_based_GPMPC_koller.py -i $i -param $param_file
+        python sampling-gpmpc/benchmarking/simulate_true_reachable_set.py -i $i -param $param_file
     ```
 
     Important script parameters:
@@ -81,7 +81,7 @@ To simulate different reachable set approximations, run the following scripts (h
 
 4. Run plotting script:
     ```bash
-        python sampling-gpmpc/extra/cdc_plt.py -i $1 -param $param_file
+        python sampling-gpmpc/extra/cdc_plt.py -i $i -param $param_file
     ```
 
 #### Result
@@ -102,7 +102,7 @@ The final result should look similar to this:
     ```
 2. Run closed-loop simulation by running main script:
     ```bash
-        python sampling-gpmpc/main.py -i $1 -param $param_file
+        python sampling-gpmpc/main.py -i $i -param $param_file
     ```
 3. Generate video by running visualizer script:
     ```bash
