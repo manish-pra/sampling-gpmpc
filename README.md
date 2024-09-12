@@ -2,10 +2,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-
+![Sampling-based-predictions-pendulum](https://github.com/user-attachments/assets/d52d4d3f-1ecd-4f78-8cbb-864297662579)
 
 This repository contains code for the paper "Towards safe and tractable Gaussian process-based MPC:
-Efficient sampling within a sequential quadratic programming framework" work.
+Efficient sampling within a sequential quadratic programming framework", accepted for publication at the 63rd IEEE Conference on Decision and Control (CDC 2024).
+
 The code is licensed under the MIT license.
 
 ## Installation
