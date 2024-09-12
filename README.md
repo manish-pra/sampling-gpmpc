@@ -24,7 +24,8 @@ The code is licensed under the MIT license.
     ```
 3. Install dependencies
     1. Download and install [acados](https://docs.acados.org/installation/).
-    2. Install Python requirements
+    2. Install [acados Python interface](https://docs.acados.org/python_interface/index.html).
+    3. Install Python requirements
         ```bash
             cd sampling-gpmpc
             pip install -r requirements.txt
