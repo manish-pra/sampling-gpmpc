@@ -23,7 +23,7 @@ The code is licensed under the MIT license.
         git clone https://github.com/befelix/plotting_utilities.git
     ```
 3. Install dependencies
-    1. Download and install [acados](https://docs.acados.org/installation/).
+    1. Download and install [acados](https://docs.acados.org/installation/) (does not need to be in `workspace`).
     2. Install [acados Python interface](https://docs.acados.org/python_interface/index.html).
     3. Install Python requirements
         ```bash
