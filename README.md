@@ -53,3 +53,10 @@ This repository contains code for the "Safe Gaussian process-based MPC using eff
     ```
     python3 safe_gpmpc/video.py
     ``` -->
+
+
+![CDC_car_video](https://github.com/user-attachments/assets/de8b05e0-bf04-4bf4-9dbc-d51210cc9bec)
+
+
+
+    
