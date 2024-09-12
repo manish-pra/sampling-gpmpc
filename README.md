@@ -97,7 +97,7 @@ The final result should look similar to this:
 
 1. Set experiment index and params file:
     ```bash
-        param_file=params_pendulum
+        param_file=params_car
         i=1
     ```
 2. Run closed-loop simulation by running main script:
@@ -106,7 +106,7 @@ The final result should look similar to this:
     ```
 3. Generate video by running visualizer script:
     ```bash
-        python sampling-gpmpc/visu_main.py -i $1 -param $param_file
+        python sampling-gpmpc/visu_main.py -i $i -param $param_file
     ```
 
 #### Result
