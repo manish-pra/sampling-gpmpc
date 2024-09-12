@@ -115,6 +115,7 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
+# NOTE: num. samples per repeat defined in params_pendulum.yaml, total number of samples = num_samples * num_repeat
 num_repeat = 10
 max_repeat_per_file = 10
 num_files = num_repeat // max_repeat_per_file
