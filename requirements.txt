@@ -4,3 +4,4 @@ matplotlib==3.8.1
 numpy==1.26.4
 PyYAML==6.0.1
 gpytorch==1.13
+easydict==1.13

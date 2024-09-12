@@ -62,7 +62,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 30
+    max_sqp_iter: 15
     tol_nlp: 1.0e-4 
   order: 2
   x_dim: 2

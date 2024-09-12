@@ -19,6 +19,7 @@ The code is licensed under the MIT license.
 3. Clone auxiliary repositories
     ```bash
         git clone https://github.com/manish-pra/safe-exploration-koller.git
+        git clone https://github.com/befelix/plotting_utilities.git
     ```
 3. Install dependencies
     1. Download and install [acados](https://docs.acados.org/installation/).
