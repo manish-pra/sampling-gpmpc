@@ -12,7 +12,7 @@ import torch
 import numpy.linalg as nLa
 import gpytorch
 
-# NOTE: this file needs to be called from outside the root directory of the project, e.g.: 
+# NOTE: this file needs to be called from outside the root directory of the project, e.g.:
 # python sampling-gpmpc/benchmarking/linearization_based_predictions.py
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
@@ -45,7 +45,6 @@ if __name__ == "__main__":
     # get GP model from agent
     warnings.filterwarnings("ignore")
     plt.rcParams["figure.figsize"] = [12, 6]
-
 
     parser = argparse.ArgumentParser(description="A foo that bars")
     parser.add_argument("-param", default="params_pendulum")  # params
@@ -98,9 +97,6 @@ if __name__ == "__main__":
     env_model = Pendulum(params)
     # TODO: abstract data generation from agent and just call the data generation function here
     agent = Agent(params, env_model)
-    train_x = agent.Dyn_gp_X_train_batch[[0], :, :, :]
-    train_y = agent.Dyn_gp_Y_train_batch[[0], :, :, :]
-
     agent.train_hallucinated_dynGP(0)
 
     gp_model = agent.model_i
@@ -135,6 +131,8 @@ if __name__ == "__main__":
     x_covar[0, :, :] = torch.zeros((nx, nx))
 
     ellipse_list = []
+    ellipse_center_list = []
+
     for i in range(N):
 
         inp_current = torch.tile(
@@ -142,14 +140,10 @@ if __name__ == "__main__":
             dims=(1, ny, 1, 1),
         )
 
-        inp_current_autograd = torch.autograd.Variable(
-            inp_current, requires_grad=True
-        )
+        inp_current_autograd = torch.autograd.Variable(inp_current, requires_grad=True)
 
         # DERIVATIVE
-        mean_dy = torch.autograd.functional.jacobian(
-            mean_fun_sum, inp_current_autograd
-        )
+        mean_dy = torch.autograd.functional.jacobian(mean_fun_sum, inp_current_autograd)
 
         with torch.no_grad(), gpytorch.settings.observation_nan_policy(
             "mask"
@@ -176,13 +170,18 @@ if __name__ == "__main__":
         )
 
         R = nLa.cholesky(x_covar[i + 1, :, :]).T
+        # R = np.array(x_covar[i + 1, :, :]).T
         # checks spd inside the function
         t = np.linspace(0, 2 * np.pi, 100)
         z = [np.cos(t), np.sin(t)]
         ellipse = params["agent"]["Dyn_gp_beta"] * R @ z + x_mean[[i + 1], :].numpy().T
         ellipse_list.append(ellipse)
+        ellipse_center_list.append(x_mean[[i + 1], :].numpy().T)
         plt.plot(ellipse[0, :], ellipse[1, :])
-    a_file = open(save_path_iter + "/ellipse_data.pkl", "wb")
-    pickle.dump(ellipse_list, a_file)
-    a_file.close()
-    plt.show()
+
+    with open(os.path.join(save_path_iter, "cautious_ellipse_data.pkl"), "wb") as a_file:
+        pickle.dump(ellipse_list, a_file)
+    with open(os.path.join(save_path_iter, "cautious_ellipse_center_data.pkl"), "wb") as a_file:
+        pickle.dump(ellipse_center_list, a_file)
+
+    # plt.show()

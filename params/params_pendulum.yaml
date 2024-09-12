@@ -6,6 +6,10 @@ env:
   train_data_has_derivatives: True
   n_data_x: 3
   n_data_u: 5
+  params:
+    m: 1.0
+    l: 1.0
+    g: 10.0
 
 agent:
   g_dim :
