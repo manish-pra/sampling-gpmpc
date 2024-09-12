@@ -13,7 +13,7 @@ import torch
 import gpytorch
 import copy
 
-# NOTE: this file needs to be called from outside the root directory of the project, e.g.: 
+# NOTE: this file needs to be called from outside the root directory of the project, e.g.:
 # python sampling-gpmpc/benchmarking/simulate_true_reachable_set.py
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
@@ -115,8 +115,8 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 10
-max_repeat_per_file = 10
+num_repeat = 10000
+max_repeat_per_file = 1000
 num_files = num_repeat // max_repeat_per_file
 n_random_conditionings = 0
 random_conditioning_scale = 0.1
@@ -267,7 +267,9 @@ for k in range(num_files):
     # X_flatten = torch.cat(X_traj_list)
     Y_traj_list = [item for sublist in Y_traj_list for item in sublist]
 
-    with open(f"{save_path}{traj_iter}/X_traj_list_{k}.pkl", "wb") as f:
+    save_file = f"{save_path}{traj_iter}/X_traj_list_{k}.pkl"
+    with open(save_file, "wb") as f:
+        print(f"Saving file: {save_file}")
         pickle.dump(X_traj_list, f)
 
 # plot trajectories

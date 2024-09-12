@@ -125,10 +125,10 @@ def dempc_const_val(ocp, params, x_dim, n_order):
         ocp.constraints.lh_e = np.array([f] * nh)
         ocp.constraints.uh_e = np.array([1e3] * nh)
 
-        nbx = 0
-        # nbx = len(lbx)
-        # ocp.constraints.idxsbx = np.arange(nbx)
-        # ocp.constraints.idxsbx_e = np.arange(nbx)
+        # nbx = 0
+        nbx = len(lbx)
+        ocp.constraints.idxsbx = np.arange(nbx)
+        ocp.constraints.idxsbx_e = np.arange(nbx)
         ocp.constraints.idxsh = np.arange(nh)
         ocp.constraints.idxsh_e = np.arange(nh)
 

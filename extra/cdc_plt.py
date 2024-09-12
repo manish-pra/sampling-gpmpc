@@ -87,12 +87,14 @@ if __name__ == "__main__":
         data_dict = pickle.load(pkl_file)
 
     prefix_X_traj_list = "X_traj_list"
-    GT_data_path = os.path.join(workspace, f"experiments/pendulum/env_0/params_pendulum/{args.i}/")
-    GT_sampling_data_path = (
-        os.path.join(workspace, f"experiments/pendulum/env_0/params_pendulum/{args.i}/")
+    GT_data_path = os.path.join(
+        workspace, f"experiments/pendulum/env_0/params_pendulum/{args.i}/"
     )
-    sampling_data_path = (
-        os.path.join(workspace, f"experiments/pendulum/env_0/params_pendulum/{args.i}/data.pkl")
+    GT_sampling_data_path = os.path.join(
+        workspace, f"experiments/pendulum/env_0/params_pendulum/{args.i}/"
+    )
+    sampling_data_path = os.path.join(
+        workspace, f"experiments/pendulum/env_0/params_pendulum/{args.i}/data.pkl"
     )
 
     H = 31
@@ -110,7 +112,7 @@ if __name__ == "__main__":
         create_plots.append("sampling")
 
     for plot_name in create_plots:
-        
+
         # f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
         f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
         ax = f.axes
@@ -125,7 +127,9 @@ if __name__ == "__main__":
             with open(GT_data_path, "rb") as a_file:
                 true_gpmpc_data = pickle.load(a_file)
 
-            true_gpmpc_data_numpy = np.array([np.array(x.cpu()) for x in true_gpmpc_data])
+            true_gpmpc_data_numpy = np.array(
+                [np.array(x.cpu()) for x in true_gpmpc_data]
+            )
             H_GT, N_samples, nx, _, nxu = true_gpmpc_data_numpy.shape
             assert H_GT == H
 
@@ -212,14 +216,6 @@ if __name__ == "__main__":
             for i in range(1, H):
                 pts_i = state_traj[0][i].reshape(-1, 2)
                 hull = ConvexHull(pts_i)
-                # plt.plot(pts_i[:, 0], pts_i[:, 1], ".", alpha=0.5, color="tab:blue")
-                # plt.plot(
-                #     pts_i[hull.vertices, 0],
-                #     pts_i[hull.vertices, 1],
-                #     alpha=0.7,
-                #     color="tab:green",
-                #     lw=1.5,
-                # )
                 stack_vertices = np.hstack([hull.vertices, hull.vertices[0]])
                 plt.plot(
                     pts_i[stack_vertices, 0],
@@ -229,44 +225,57 @@ if __name__ == "__main__":
                     lw=1.5,
                 )
 
-            filename = f"sam_uncertainity_{args.i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
-            
+            filename = f"sam_uncertainty_{args.i}.pdf"
+
         if plot_name == "cautious":
-            # ellipse_list_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/999/ellipse_data.pkl"
-            ellipse_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/cautious_ellipse_data.pkl"
+            ellipse_list_path = os.path.join(save_path_iter, "cautious_ellipse_data.pkl")
             with open(ellipse_list_path, "rb") as a_file:
                 ellipse_list = pickle.load(a_file)
             for ellipse in ellipse_list:
-                plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:orange")
-            
+                plt.plot(
+                    ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:orange"
+                )
+
             if plot_cautious_mean:
-                ellipse_mean_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/cautious_ellipse_center_data.pkl"
+                ellipse_mean_list_path = os.path.join(save_path_iter, "cautious_ellipse_center_data.pkl")
                 with open(ellipse_mean_list_path, "rb") as a_file:
                     ellipse_center_list = pickle.load(a_file)
-                
-                ellipse_center_np = np.array(ellipse_center_list)[:,:,0]
-                plt.plot(ellipse_center_np[:, 0], ellipse_center_np[:, 1], lw=1.5, alpha=0.7, color="tab:orange", linestyle="-")
-            filename = f"cautious_uncertainity_{args.i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
+
+                ellipse_center_np = np.array(ellipse_center_list)[:, :, 0]
+                plt.plot(
+                    ellipse_center_np[:, 0],
+                    ellipse_center_np[:, 1],
+                    lw=1.5,
+                    alpha=0.7,
+                    color="tab:orange",
+                    linestyle="-",
+                )
+            filename = f"cautious_uncertainty_{args.i}.pdf"
 
         if plot_name == "safe":
-            # ellipse_list_path = (
-            #     "/home/manish/work/horrible/safe-exploration_cem/koller_ellipse_data.pkl"
-            # )
-            ellipse_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/koller_ellipse_data.pkl"
+            ellipse_list_path = os.path.join(save_path_iter, "koller_ellipse_data.pkl")
             with open(ellipse_list_path, "rb") as a_file:
                 ellipse_list = pickle.load(a_file)
             for ellipse in ellipse_list:
-                plt.plot(ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:red")
+                plt.plot(
+                    ellipse[0, :], ellipse[1, :], lw=1.5, alpha=0.7, color="tab:red"
+                )
 
             if plot_safe_mean:
-                ellipse_mean_list_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/koller_ellipse_center_data.pkl"
+                ellipse_mean_list_path = os.path.join(save_path_iter, "koller_ellipse_center_data.pkl")
                 with open(ellipse_mean_list_path, "rb") as a_file:
                     ellipse_center_list = pickle.load(a_file)
-                
-                ellipse_center_np = np.array(ellipse_center_list)[:,:,0]
-                plt.plot(ellipse_center_np[:, 0], ellipse_center_np[:, 1], lw=1.5, alpha=0.7, color="tab:red", linestyle="-")
-            filename = f"safe_uncertainity_{args.i}.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
-        
+
+                ellipse_center_np = np.array(ellipse_center_list)[:, :, 0]
+                plt.plot(
+                    ellipse_center_np[:, 0],
+                    ellipse_center_np[:, 1],
+                    lw=1.5,
+                    alpha=0.7,
+                    color="tab:red",
+                    linestyle="-",
+                )
+            filename = f"safe_uncertainty_{args.i}.pdf"
 
         with open(sampling_data_path, "rb") as a_file:
             sampling_gpmpc_data = pickle.load(a_file)
@@ -274,7 +283,9 @@ if __name__ == "__main__":
         x1_true = sampling_gpmpc_data["true_state_traj"][0][:, 0]
         x2_true = sampling_gpmpc_data["true_state_traj"][0][:, 1]
         plt.plot(x1_true, x2_true, color="black", label="True dynamics")
-        plt.plot([-0.1, 2.2], [2.5, 2.5], color="black", linestyle="--", label="Constraint")
+        plt.plot(
+            [-0.1, 2.2], [2.5, 2.5], color="black", linestyle="--", label="Constraint"
+        )
         plt.xlim(-0.1, 0.8)
         plt.ylim(-0.2, 2.7)
         # plt.grid()
@@ -292,13 +303,3 @@ if __name__ == "__main__":
             dpi=300,
             transparent=True,
         )
-        # plt.savefig("sam_uncertainity.png")
-
-        # plt.ylabel("theta_dot")
-        # plt.xlabel("theta")
-        # plt.grid()
-        # plt.savefig("uncertainity_convex_hull.png")
-        # a = 1
-
-
-    # Load sampling_gpmpc data
