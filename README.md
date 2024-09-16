@@ -118,4 +118,19 @@ The final result should look similar to this:
 
 ## Citing us
 
-If you use results from the paper or the code, please cite the following paper:
+If you use results from the paper and/or code, please cite the following paper:
+
+```
+@online{prajapat_towards_2024,
+  title = {Towards Safe and Tractable {{Gaussian}} Process-Based {{MPC}}: {{Efficient}} Sampling within a Sequential Quadratic Programming Framework},
+  shorttitle = {Towards Safe and Tractable {{Gaussian}} Process-Based {{MPC}}},
+  author = {Prajapat, Manish and Lahr, Amon and Köhler, Johannes and Krause, Andreas and Zeilinger, Melanie N.},
+  date = {2024-09-13},
+  eprint = {2409.08616},
+  eprinttype = {arXiv},
+  eprintclass = {math},
+  doi = {10.48550/arXiv.2409.08616},
+  pubstate = {prepublished}
+}
+```
+
