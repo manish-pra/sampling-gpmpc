@@ -5,8 +5,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repository contains code for the paper "Towards safe and tractable Gaussian process-based MPC:
-Efficient sampling within a sequential quadratic programming framework", accepted for publication at the 63rd IEEE Conference on Decision and Control (CDC 2024).
+This repository contains code for the paper "[Towards safe and tractable Gaussian process-based MPC:
+Efficient sampling within a sequential quadratic programming framework](https://arxiv.org/abs/2409.08616)", accepted for publication at the 63rd IEEE Conference on Decision and Control (CDC 2024).
 
 The code is licensed under the MIT license.
 
