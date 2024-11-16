@@ -15,10 +15,10 @@ import torch
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
 
-workspace_plotting_utils = "plotting_utilities"
+workspace_plotting_utils = "extra/plotting_utilities"
 sys.path.append(workspace_plotting_utils)
 
-from plotting_utilities.utilities import *
+from plotting_utilities.plotting_utilities import *
 
 plot_GT = False
 plot_GT_sampling = True
@@ -228,7 +228,9 @@ if __name__ == "__main__":
             filename = f"sam_uncertainty_{args.i}.pdf"
 
         if plot_name == "cautious":
-            ellipse_list_path = os.path.join(save_path_iter, "cautious_ellipse_data.pkl")
+            ellipse_list_path = os.path.join(
+                save_path_iter, "cautious_ellipse_data.pkl"
+            )
             with open(ellipse_list_path, "rb") as a_file:
                 ellipse_list = pickle.load(a_file)
             for ellipse in ellipse_list:
@@ -237,7 +239,9 @@ if __name__ == "__main__":
                 )
 
             if plot_cautious_mean:
-                ellipse_mean_list_path = os.path.join(save_path_iter, "cautious_ellipse_center_data.pkl")
+                ellipse_mean_list_path = os.path.join(
+                    save_path_iter, "cautious_ellipse_center_data.pkl"
+                )
                 with open(ellipse_mean_list_path, "rb") as a_file:
                     ellipse_center_list = pickle.load(a_file)
 
@@ -262,7 +266,9 @@ if __name__ == "__main__":
                 )
 
             if plot_safe_mean:
-                ellipse_mean_list_path = os.path.join(save_path_iter, "koller_ellipse_center_data.pkl")
+                ellipse_mean_list_path = os.path.join(
+                    save_path_iter, "koller_ellipse_center_data.pkl"
+                )
                 with open(ellipse_mean_list_path, "rb") as a_file:
                     ellipse_center_list = pickle.load(a_file)
 

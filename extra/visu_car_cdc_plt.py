@@ -27,7 +27,9 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=str, default="44_final")  # initialized at origin
+parser.add_argument(
+    "-i", type=str, default="41"
+)  # default="44_final")  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -137,7 +139,7 @@ for ellipse in params["env"]["ellipses"]:
     a = np.sqrt(a * f)  # radius on the x-axis
     b = np.sqrt(b * f)  # radius on the y-axis
     t = np.linspace(0, 2 * 3.14, 100)
-    f2 = np.sqrt(7 / 4)
+    f2 = 0.5  # np.sqrt(7 / 4)
     plt.plot(x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t), color="black", alpha=0.6)
     plot_car(
         x0,
@@ -150,7 +152,7 @@ for ellipse in params["env"]["ellipses"]:
 state_traj = np.stack(state_traj)
 
 idx1 = 36
-idx2 = 90
+idx2 = 86
 idx3 = -1
 
 physical_state_traj = np.stack(physical_state_traj)
@@ -186,7 +188,7 @@ f = params["env"]["ellipses"]["n1"][4]
 a = np.sqrt(a * f)  # radius on the x-axis
 b = np.sqrt(b * f)  # radius on the y-axis
 t = np.linspace(0, 2 * 3.14, 100)
-f2 = np.sqrt(7 / 4)
+f2 = 0.5  # np.sqrt(7 / 4)
 
 x3, y3 = physical_state_traj[idx3][0], physical_state_traj[idx3][1]
 plot_car(

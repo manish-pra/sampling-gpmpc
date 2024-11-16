@@ -17,7 +17,9 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=str, default="44_final")  # initialized at origin
+parser.add_argument(
+    "-i", type=str, default="48_cdc_final_plt_data"
+)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file

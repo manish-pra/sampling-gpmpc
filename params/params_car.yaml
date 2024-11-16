@@ -46,7 +46,7 @@ agent:
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
 
 visu:
-  show: True
+  show: False
 
 common:
   use_cuda : True
@@ -65,12 +65,12 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 4
+    max_sqp_iter: 2
     tol_nlp: 1.0e-4 
   order: 2
   dt: 0.06 # 0.010
   w: 40
-  Qx: [2, 36, 0.07, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
+  Qx: [2, 38, 0.11, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
   Qu: [2, 2]
   cost: "expected"
   options: {

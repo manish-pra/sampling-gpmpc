@@ -14,66 +14,64 @@ import gpytorch
 import copy
 
 import plotting_utilities
-from plotting_utilities.utilities import *
+from plotting_utilities.plotting_utilities import *
 
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
-# NOTE: this file needs to be called from outside the root directory of the project, e.g.: 
-# python sampling-gpmpc/benchmarking/plot_GP_conditioning.py
-workspace = "sampling-gpmpc"
-sys.path.append(workspace)
+# # NOTE: this file needs to be called from outside the root directory of the project, e.g.:
+# # python sampling-gpmpc/benchmarking/plot_GP_conditioning.py
+# workspace = "sampling-gpmpc"
+# sys.path.append(workspace)
 
-parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params_car")  # params
+# parser = argparse.ArgumentParser(description="A foo that bars")
+# parser.add_argument("-param", default="params_car")  # params
 
-parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=40)  # initialized at origin
-args = parser.parse_args()
+# parser.add_argument("-env", type=int, default=0)
+# parser.add_argument("-i", type=int, default=40)  # initialized at origin
+# args = parser.parse_args()
 
-# 1) Load the config file
-with open(workspace + "/params/" + args.param + ".yaml") as file:
-    params = yaml.load(file, Loader=yaml.FullLoader)
-params["env"]["i"] = args.i
-params["env"]["name"] = args.env
-print(params)
+# # 1) Load the config file
+# with open(workspace + "/params/" + args.param + ".yaml") as file:
+#     params = yaml.load(file, Loader=yaml.FullLoader)
+# params["env"]["i"] = args.i
+# params["env"]["name"] = args.env
+# print(params)
 
-# random seed
-if params["experiment"]["rnd_seed"]["use"]:
-    torch.manual_seed(params["experiment"]["rnd_seed"]["value"])
+# # random seed
+# if params["experiment"]["rnd_seed"]["use"]:
+#     torch.manual_seed(params["experiment"]["rnd_seed"]["value"])
 
-# 2) Set the path and copy params from file
-exp_name = params["experiment"]["name"]
-env_load_path = (
-    workspace
-    + "/experiments/"
-    + params["experiment"]["folder"]
-    + "/env_"
-    + str(args.env)
-)
+# # 2) Set the path and copy params from file
+# exp_name = params["experiment"]["name"]
+# env_load_path = (
+#     workspace
+#     + "/experiments/"
+#     + params["experiment"]["folder"]
+#     + "/env_"
+#     + str(args.env)
+# )
 
-save_path = env_load_path + "/" + args.param + "/"
+# save_path = env_load_path + "/" + args.param + "/"
 
-if not os.path.exists(save_path):
-    try:
-        os.makedirs(save_path)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
+# if not os.path.exists(save_path):
+#     try:
+#         os.makedirs(save_path)
+#     except OSError as e:
+#         if e.errno != errno.EEXIST:
+#             raise
 
-print(args)
-if args.i != -1:
-    traj_iter = args.i
+# print(args)
+# if args.i != -1:
+#     traj_iter = args.i
 
-if not os.path.exists(save_path + str(traj_iter)):
-    os.makedirs(save_path + str(traj_iter))
+# if not os.path.exists(save_path + str(traj_iter)):
+#     os.makedirs(save_path + str(traj_iter))
 
-# get saved input trajectory
-input_data_path = (
-    f"{save_path}{str(args.i)}/data.pkl"
-)
-with open(input_data_path, "rb") as input_data_file:
-    input_gpmpc_data = pickle.load(input_data_file)
+# # get saved input trajectory
+# input_data_path = f"{save_path}{str(args.i)}/data.pkl"
+# with open(input_data_path, "rb") as input_data_file:
+#     input_gpmpc_data = pickle.load(input_data_file)
 import torch
 import gpytorch
 import math
@@ -194,6 +192,7 @@ def new_model(train_x, train_y):
     model.load_state_dict(state_dict)
     return model
 
+
 # Set into eval mode
 model.eval()
 likelihood.eval()
@@ -228,6 +227,9 @@ train_y_arr_all = []
 
 beta_fac = 1.5
 # loop over the axes
+data = {"test_x": test_x.numpy(), "test_y": test_y[:, 0].numpy()}
+data["marker_symbols"] = marker_symbols
+
 for i in range(3):
     model_nod = new_model(train_x_arr, train_y_arr)
     model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[0.3]])
@@ -274,11 +276,18 @@ for i in range(3):
                 alpha=0.3,
                 linewidth=3,
             )
-
     # Predictive mean as blue line
     h_func = ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--")
     h_mean = ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
     h_samp = ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
+    data[i] = {
+        "mean": mean[:, 0].numpy(),
+        "sample": sample[:, 0].numpy(),
+        "train_x_arr_add": train_x_arr_add,
+        "train_y_arr_add": train_y_arr_add,
+        "lcb": mean[:, 0].numpy() - mean_lower[:, 0].numpy(),
+        "ucb": mean[:, 0].numpy() + mean_upper[:, 0].numpy(),
+    }
     # Shade in confidence
     # h_conf = ax[i].fill_between(
     #     test_x.numpy(),
@@ -327,10 +336,12 @@ for i in range(3):
             f"k{marker_symbols[j]}",
         )
 
+with open("/home/manish/work/MPC_Dyn/slides_data.pickle", "wb") as handle:
+    pickle.dump(data, handle)
 
 f.tight_layout(pad=0.5)
 f.savefig(
-    "/home/amon/Repositories/sampling-gpmpc/figures/conditioning.pdf",
+    f"/home/manish/work/MPC_Dyn/figures/conditioning{i}.pdf",
     format="pdf",
     dpi=300,
     transparent=True,
