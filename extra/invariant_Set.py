@@ -95,13 +95,14 @@ gp_val, y_grad, u_grad = agent.dyn_fg_jacobians(batch_x_hat, 0)
 
 n = 2
 m = 1
-rho = 0.999
+rho = 0.99
 E = cp.Variable((n, n), PSD=True)
 Y = cp.Variable((m, n))
-# obj = -cp.log_det(E)
-obj = cp.trace(E)
+obj = -cp.log_det(E)
+# obj = cp.trace(E)
 constraints = []
-constraints += [E >> np.diag(np.ones(n))]
+# constraints += [E >> np.diag(np.ones(n))]
+constraints += [E >> 0]
 
 for i in range(ns):
     for j in range(H):
@@ -112,14 +113,16 @@ for i in range(ns):
 
 Ax_i = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
 bx_i = np.array([[dtheta], [dtheta], [domega], [domega]])
-for i in range(4):
-    bmat = cp.bmat(
-        [
-            [cp.reshape(bx_i[i] ** 2, (1, 1)), cp.reshape(Ax_i[i], (1, -1))],
-            [cp.reshape(Ax_i[i], (1, -1)).T, E],
-        ]
-    )
-    constraints += [bmat >> 0]
+for i, A_i in enumerate(Ax_i):
+    constraints += [cp.quad_form(A_i, E) <= bx_i[i] ** 2]
+# for i in range(4):
+#     bmat = cp.bmat(
+#         [
+#             [cp.reshape(bx_i[i] ** 2, (1, 1)), cp.reshape(Ax_i[i], (1, -1))],
+#             [cp.reshape(Ax_i[i], (1, -1)).T, E],
+#         ]
+#     )
+#     constraints += [bmat >> 0]
 
 
 # define optimization problem
@@ -132,6 +135,26 @@ prob.solve()
 print("Optimal value: ", prob.value)
 print("Optimal var: ", E.value)
 P = np.linalg.inv(np.array(E.value))
+print("Optimal P: ", P)
 K = np.array(Y.value) @ P
 print("Optimal K: ", K)
-print("Optimal P: ", P)
+
+
+# plot result
+_, ax = plt.subplots(1, 1, figsize=(5, 4))
+# plt.plot(ax, fill=False, alpha=0.8, edgecolor="black", linewidth=2, label="X")
+
+L = np.linalg.cholesky(P)
+t = np.linspace(0, 2 * np.pi, 200)
+z = np.vstack([np.cos(t), np.sin(t)])
+ell = np.linalg.inv(L.T) @ z
+
+ax.plot(ell[0, :], ell[1, :], color="blue", label="P")
+
+# you can use the provided xlim and ylim properties to set the plot limits
+# ax.set_xlim(X.xlim)
+# ax.set_ylim(X.ylim)
+
+plt.legend(loc="lower left")
+plt.grid(True)
+plt.savefig("temp_ellipse.png")
