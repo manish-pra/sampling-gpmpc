@@ -270,6 +270,29 @@ class Agent(object):
         exit()
         pass
 
+    def get_batch_x_hat_u_diff(self, x_h, u_h):
+        x_h = torch.tensor(x_h)
+        u_h = torch.tensor(u_h)
+        x_h_batch = (
+            x_h.transpose(0, 1)
+            .view(
+                self.params["agent"]["num_dyn_samples"],
+                self.nx,
+                self.params["optimizer"]["H"],
+            )
+            .transpose(1, 2)
+        )
+        u_h_batch = u_h.transpose(0, 1).view(
+            self.params["agent"]["num_dyn_samples"],
+            self.params["optimizer"]["H"],
+            self.nu,
+        )
+        ret = torch.cat([x_h_batch, u_h_batch], 2)
+        ret_allout = torch.stack([ret] * self.nx, dim=1)
+        if self.use_cuda:
+            ret_allout = ret_allout.cuda()
+        return ret_allout
+
     def get_batch_x_hat(self, x_h, u_h):
         x_h = torch.tensor(x_h)
         u_h = torch.tensor(u_h)

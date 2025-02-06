@@ -27,7 +27,10 @@ class Visualizer:
             self.initialize_plot_handles(path)
 
     def initialize_plot_handles(self, path):
-        fig_gp, ax = plt.subplots(figsize=(16 / 2.4, 1.8 / 2.4))
+        if self.params["env"]["dynamics"] == "bicycle":
+            fig_gp, ax = plt.subplots(figsize=(16 / 2.4, 1.8 / 2.4))
+        elif self.params["env"]["dynamics"] == "pendulum":
+            fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
         # fig_gp.tight_layout(pad=0)
         ax.grid(which="both", axis="both")
         ax.minorticks_on()

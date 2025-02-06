@@ -52,17 +52,29 @@ class Pendulum(object):
         dt = self.params["optimizer"]["dt"]
         g_xu = self.unknown_dyn(x_hat)
         y1_fx, y2_fx = g_xu[:, 0], g_xu[:, 1]
-        y1_ret = torch.zeros((x_hat.shape[0], 4))
-        y2_ret = torch.zeros((x_hat.shape[0], 4))
-        y1_ret[:, 0] = y1_fx
-        y1_ret[:, 1] = torch.ones(x_hat.shape[0])
-        y1_ret[:, 2] = torch.ones(x_hat.shape[0]) * dt
+        # y1_ret = torch.zeros((x_hat.shape[0], 4))
+        # y2_ret = torch.zeros((x_hat.shape[0], 4))
+        # y1_ret[:, 0] = y1_fx
+        # y1_ret[:, 1] = torch.ones(x_hat.shape[0])
+        # y1_ret[:, 2] = torch.ones(x_hat.shape[0]) * dt
 
-        y2_ret[:, 0] = y2_fx
-        y2_ret[:, 1] = (-g * torch.cos(x_hat[:, 0]) / l) * dt
-        y2_ret[:, 2] = torch.ones(x_hat.shape[0])
-        y2_ret[:, 3] = torch.ones(x_hat.shape[0]) * dt / (l * l)
-        return y1_ret, y2_ret
+        # y2_ret[:, 0] = y2_fx
+        # y2_ret[:, 1] = (-g * torch.cos(x_hat[:, 0]) / l) * dt
+        # y2_ret[:, 2] = torch.ones(x_hat.shape[0])
+        # y2_ret[:, 3] = torch.ones(x_hat.shape[0]) * dt / (l * l)
+        # return y1_ret, y2_ret
+        ny = 2
+        y_ret = torch.zeros((ny, x_hat.shape[0], 4))
+        # y2_ret = torch.zeros((x_hat.shape[0], 4))
+        y_ret[0, :, 0] = y1_fx
+        y_ret[0, :, 1] = torch.ones(x_hat.shape[0])
+        y_ret[0, :, 2] = torch.ones(x_hat.shape[0]) * dt
+
+        y_ret[1, :, 0] = y2_fx
+        y_ret[1, :, 1] = (-g * torch.cos(x_hat[:, 0]) / l) * dt
+        y_ret[1, :, 2] = torch.ones(x_hat.shape[0])
+        y_ret[1, :, 3] = torch.ones(x_hat.shape[0]) * dt / (l * l)
+        return y_ret
 
     def continous_dyn(self, X1, X2, U):
         """_summary_
