@@ -28,14 +28,14 @@ agent:
   Dyn_gp_outputscale : 
     y1 : 0.1040 #0.3040 #0.75  #0.65
     y2 : 0.1071 #0.3071 #0.65 #0.455, noise multiplier 3.0e-7 results in smooth trajectories
-    both : [65, 0.55] #[65,55] #[0.65, 0.55]
+    both : [0.65, 0.55]
   Dyn_gp_task_noises : 
     val : [3.8, 1.27, 3.8, 1.27]
     multiplier : 1.0e-5                     #1.0e-5 Low noise value make it crazy fast
-  Dyn_gp_beta : 2.0 # 1.5
+  Dyn_gp_beta : 2.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 20 
+  num_dyn_samples: 500 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -47,10 +47,10 @@ visu:
 
 common:
   use_cuda : True
-  num_MPC_itrs : 40
+  num_MPC_itrs : 60
 
 optimizer:
-  H : 30 # horizon
+  H : 1 # horizon
   u_min : [-8] # Minimum control input
   u_max : [8] 
   # u_min : [-30, -30] # Minimum control input
@@ -62,7 +62,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 3
+    max_sqp_iter: 1
     tol_nlp: 1.0e-4 
   order: 2
   x_dim: 2

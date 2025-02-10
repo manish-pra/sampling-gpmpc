@@ -61,9 +61,7 @@ class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
             batch_shape=batch_shape
         )  # (prior=gpytorch.priors.NormalPrior(4.9132,0.01))
 
-        self.base_kernel = base_kernel_fun(
-            ard_num_dims=3, batch_shape=batch_shape
-        )
+        self.base_kernel = base_kernel_fun(ard_num_dims=3, batch_shape=batch_shape)
         self.covar_module = gpytorch.kernels.ScaleKernel(
             self.base_kernel, batch_shape=batch_shape
         )
@@ -73,7 +71,7 @@ class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
     def forward(self, x):
         mean_x = self.mean_module(x)
         if not self.use_grad:
-            mean_x= mean_x.unsqueeze(-1)
+            mean_x = mean_x.unsqueeze(-1)
 
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
@@ -82,8 +80,10 @@ class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
 class BatchMultitaskGPModelWithDerivatives_fromParams(
     BatchMultitaskGPModelWithDerivatives
 ):
-    def __init__(self, train_x, train_y, likelihood, params, batch_shape=None, use_grad=True):
-        
+    def __init__(
+        self, train_x, train_y, likelihood, params, batch_shape=None, use_grad=True
+    ):
+
         if params["common"]["use_cuda"] and torch.cuda.is_available():
             device = torch.device("cuda")
         else:
@@ -111,12 +111,12 @@ class BatchMultitaskGPModelWithDerivatives_fromParams(
                 task_noise_val = params["agent"]["Dyn_gp_task_noises"]["val"]
             else:
                 task_noise_val = params["agent"]["Dyn_gp_task_noises"]["val"][0]
-            
+
             self.likelihood.task_noises = torch.tile(
                 torch.tensor(task_noise_val)
                 * params["agent"]["Dyn_gp_task_noises"]["multiplier"],
                 dims=(batch_shape[0], batch_shape[1], 1),
-            )           
+            )
             self.covar_module.base_kernel.lengthscale = torch.tile(
                 torch.tensor(params["agent"]["Dyn_gp_lengthscale"]["both"]),
                 dims=(batch_shape[0], 1, 1, 1),
