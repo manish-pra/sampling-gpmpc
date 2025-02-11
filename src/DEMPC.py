@@ -48,6 +48,9 @@ class DEMPC:
             state_kp1 = self.agent.env_model.discrete_dyn(state_input)
             self.agent.update_current_state(state_kp1)
             # propagate the agent to the next state
+            # forward sampling and reject dynamics c_i away from the projection
+            self.agent.prepare_dynamics_set(X, U, state_kp1)
+
             print(
                 bcolors.green + "Reached:",
                 i,

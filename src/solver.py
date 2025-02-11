@@ -38,6 +38,10 @@ class DEMPC_solver(object):
     def solve(self, player, plot_pendulum=False):
         w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
+        L = self.params["agent"]["tight"]["Lipschitz"]
+        dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
+        w_bound = self.params["agent"]["tight"]["w_bound"]
+        var_eps = dyn_eps + w_bound
 
         for sqp_iter in range(self.max_sqp_iter):
             x_h_old = self.x_h.copy()
@@ -85,7 +89,21 @@ class DEMPC_solver(object):
                             gp_val[i, :, stage, :].reshape(-1),
                         ]
                     )
-                p_lin = np.hstack([p_lin, self.u_h[stage], xg[stage], w[stage]])
+
+                # computation of tightenings
+                if stage == 0:
+                    tilde_eps_i = 0
+                else:
+                    # i = stage-1
+                    c_i = np.power(L, stage - 1) * var_eps + 2 * dyn_eps * np.sum(
+                        np.power(L, np.arange(0, stage - 1))
+                    )  # arange has inbuild -1 in [sstart, end-1]
+
+                    tilde_eps_i += c_i
+                    print(f"tilde_eps_{stage} = {tilde_eps_i}")
+                p_lin = np.hstack(
+                    [p_lin, self.u_h[stage], xg[stage], w[stage], tilde_eps_i]
+                )
                 self.ocp_solver.set(stage, "p", p_lin)
 
             residuals = self.ocp_solver.get_residuals(recompute=True)

@@ -235,6 +235,136 @@ class Agent(object):
         )
         return data_X, data_Y
 
+    def train_forward_sampling_dynGP(self):
+
+        if self.model_i is not None:
+            del self.model_i
+
+        data_X = torch.concat(
+            [
+                self.Dyn_gp_X_train_batch,
+                self.FS_X_train_batch,
+                self.Hallcinated_X_train,
+            ],
+            dim=2,
+        )
+        data_Y = torch.concat(
+            [
+                self.Dyn_gp_Y_train_batch,
+                self.FS_Y_train_batch,
+                self.Hallcinated_Y_train,
+            ],
+            dim=2,
+        )
+        num_tasks = self.in_dim + 1
+
+        likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
+            num_tasks=num_tasks,
+            noise_constraint=gpytorch.constraints.GreaterThan(0.0),
+            batch_shape=self.batch_shape,
+        )  # Value + Derivative
+        self.model_i = BatchMultitaskGPModelWithDerivatives_fromParams(
+            data_X,
+            data_Y,
+            likelihood,
+            self.params,
+            batch_shape=self.batch_shape,
+        )
+        self.model_i.eval()
+        likelihood.eval()
+        # self.model_i(data_X[:,:,[0],:])
+        # likelihood(self.model_i(data_X[:,:,[0],:]))
+
+        self.likelihood = likelihood
+
+        if self.use_cuda:
+            self.model_i = self.model_i.cuda()
+
+        del data_X
+        del data_Y
+
+    def prepare_dynamics_set(self, X_soln, U_soln, X_kp1):
+        n_sample = self.ns
+        self.FS_X_train_batch = torch.empty(n_sample, self.g_ny, 0, self.in_dim)
+        self.FS_Y_train_batch = torch.empty(n_sample, self.g_ny, 0, 1 + self.in_dim)
+        # update the dynamic model_i with the converged dynamics (perhaps not required?)
+        L = self.params["agent"]["tight"]["Lipschitz"]
+        dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
+        w_bound = self.params["agent"]["tight"]["w_bound"]
+        var_eps = dyn_eps + w_bound
+        X_soln = X_soln.reshape(X_soln.shape[0], n_sample, self.nx).cuda()
+        X_kp1 = X_kp1.cuda()
+        diff = X_soln[1, :, :] - X_kp1
+        # ingredients to propatate the state
+        U_soln = U_soln.cuda()
+        xu_init = torch.cat([X_kp1, U_soln[[1]]], dim=-1)
+        xu_hat = torch.tile(xu_init, dims=(n_sample, self.g_ny, 1, 1))
+        g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
+        # Forward sampling of each of the dynamic model_i
+        samples_left = torch.prod(
+            torch.abs(diff) - var_eps < 0, dim=1
+        )  # torch.ones(self.ns)
+        print("Samples remaininng in N{k+1} are ", torch.sum(samples_left))
+        for i in range(1, X_soln.shape[0] - 1):
+
+            # 1. Sample the dynamics
+            with torch.no_grad(), gpytorch.settings.observation_nan_policy(
+                "mask"
+            ), gpytorch.settings.fast_computations(
+                covar_root_decomposition=False, log_prob=False, solves=False
+            ), gpytorch.settings.cholesky_jitter(
+                float_value=self.params["agent"]["Dyn_gp_jitter"],
+                double_value=self.params["agent"]["Dyn_gp_jitter"],
+                half_value=self.params["agent"]["Dyn_gp_jitter"],
+            ):
+
+                model_i_call = self.model_i(g_xu_hat)
+                Y_sample = model_i_call.sample(
+                    # base_samples=agent.epistimic_random_vector[agent.mpc_iter][sqp_iter]
+                )
+                x_next = Y_sample[:, :, :, [0]].squeeze()  # get the function values
+                diff = X_soln[i + 1, :, :] - x_next
+                c_i = np.power(L, i) * var_eps + 2 * dyn_eps * np.sum(
+                    np.power(L, np.arange(0, i))
+                )  # arange has inbuild -1 in [sstart, end-1]
+                N_kp1 = torch.prod(torch.abs(diff) - c_i < 0, dim=1)
+                samples_left = samples_left * N_kp1
+                print("Samples remaininng in N{k+1} are ", torch.sum(samples_left))
+
+                if i == X_soln.shape[0] - 2:
+                    break
+                # 2. Update the hallucinated dataset with the propagated data
+                self.FS_X_train_batch = torch.cat(
+                    [self.FS_X_train_batch, g_xu_hat], dim=2
+                )
+                Y_sample[:, :, :, 1:] = torch.nan
+                self.FS_Y_train_batch = torch.cat(
+                    [self.FS_Y_train_batch, Y_sample], dim=2
+                )
+                # update the model_i
+                self.train_forward_sampling_dynGP()
+                xu_hat = torch.cat(
+                    [
+                        torch.stack([x_next] * self.g_ny, dim=1)[:, :, None, :],
+                        torch.tile(U_soln[[i + 1]], dims=(n_sample, self.g_ny, 1, 1)),
+                    ],
+                    dim=-1,
+                )
+                g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
+        # 3. Train the hallucinated dataset
+
+        # 4. Restore the previous model_i
+        self.train_hallucinated_dynGP(
+            sqp_iter=self.params["optimizer"]["SEMPC"]["max_sqp_iter"]
+        )
+
+        # condition on sampled values
+        # self.update_hallucinated_Dyn_dataset(X_inp, Y_sample)
+
+        #
+
+        return
+
     def get_next_to_go_loc(self):
         return self.planned_measure_loc
 

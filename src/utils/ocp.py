@@ -48,10 +48,12 @@ def export_dempc_ocp(params):
                 const_expr = ca.vertcat(const_expr, expr)
         model.con_h_expr = const_expr
         model.con_h_expr_e = const_expr
+    tilde_eps_i = p[2]
+    model.con_h_expr = ca.vertcat(model_x - tilde_eps_i, model_x + tilde_eps_i)
     ocp.model = model
     ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params)
 
-    ocp = dempc_const_val(ocp, params, x_dim, n_order)
+    ocp = dempc_const_val(ocp, params, x_dim, n_order, p)
     ocp = dempc_set_options(ocp, params)
 
     return ocp
@@ -61,8 +63,9 @@ def dempc_const_expr(x_dim, n_order, params):
     xg = ca.SX.sym("xg", 1)
     we = ca.SX.sym("we", 1, 1)
     cw = ca.SX.sym("cw", 1, 1)
+    tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
 
-    p_lin = ca.vertcat(xg, cw)
+    p_lin = ca.vertcat(xg, cw, tilde_eps_i)
     return 1, p_lin
 
 
@@ -95,7 +98,8 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     return ocp
 
 
-def dempc_const_val(ocp, params, x_dim, n_order):
+def dempc_const_val(ocp, params, x_dim, n_order, p):
+    tilde_eps_i = p[2]
     # constraints
     ocp.constraints.lbu = np.array(params["optimizer"]["u_min"])
     ocp.constraints.ubu = np.array(params["optimizer"]["u_max"])
@@ -116,6 +120,10 @@ def dempc_const_val(ocp, params, x_dim, n_order):
     ocp.constraints.lbx_e = lbx.copy()
     ocp.constraints.ubx_e = ubx.copy()
     ocp.constraints.idxbx_e = np.arange(lbx.shape[0])
+
+    ocp.constraints.lh = np.hstack([lbx, lbx])
+    ocp.constraints.uh = np.hstack([ubx, ubx])
+    # ocp.constraints.idxsh = np.arange(2 * lbx.shape[0])
 
     if params["env"]["dynamics"] == "bicycle":
         nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
