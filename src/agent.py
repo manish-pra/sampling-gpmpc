@@ -284,27 +284,34 @@ class Agent(object):
         del data_Y
 
     def prepare_dynamics_set(self, X_soln, U_soln, X_kp1):
+
+        # TODO: update the dynamic model_i with the converged dynamics (perhaps not required?)
         n_sample = self.ns
-        self.FS_X_train_batch = torch.empty(n_sample, self.g_ny, 0, self.in_dim)
-        self.FS_Y_train_batch = torch.empty(n_sample, self.g_ny, 0, 1 + self.in_dim)
-        # update the dynamic model_i with the converged dynamics (perhaps not required?)
         L = self.params["agent"]["tight"]["Lipschitz"]
         dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
         w_bound = self.params["agent"]["tight"]["w_bound"]
         var_eps = dyn_eps + w_bound
+
+        # Initialize forward sampling dataset
+        self.FS_X_train_batch = torch.empty(n_sample, self.g_ny, 0, self.in_dim)
+        self.FS_Y_train_batch = torch.empty(n_sample, self.g_ny, 0, 1 + self.in_dim)
+
+        # Reshaping and load on cuda
         X_soln = X_soln.reshape(X_soln.shape[0], n_sample, self.nx).cuda()
         X_kp1 = X_kp1.cuda()
-        diff = X_soln[1, :, :] - X_kp1
-        # ingredients to propatate the state
         U_soln = U_soln.cuda()
+
+        # check  x_{1|k} - x(k+1) < var_eps
+        diff = X_soln[1, :, :] - X_kp1
+        samples_left = torch.prod(torch.abs(diff) - var_eps < 0, dim=1)
+        print("Samples remaininng in N{k+1} are ", torch.sum(samples_left))
+
+        # ingredients to propatate the state
         xu_init = torch.cat([X_kp1, U_soln[[1]]], dim=-1)
         xu_hat = torch.tile(xu_init, dims=(n_sample, self.g_ny, 1, 1))
         g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
+
         # Forward sampling of each of the dynamic model_i
-        samples_left = torch.prod(
-            torch.abs(diff) - var_eps < 0, dim=1
-        )  # torch.ones(self.ns)
-        print("Samples remaininng in N{k+1} are ", torch.sum(samples_left))
         for i in range(1, X_soln.shape[0] - 1):
 
             # 1. Sample the dynamics
@@ -322,11 +329,13 @@ class Agent(object):
                 Y_sample = model_i_call.sample(
                     # base_samples=agent.epistimic_random_vector[agent.mpc_iter][sqp_iter]
                 )
+
+                # check  x_{i+1|k} - x_{i|k+1} < var_eps
                 x_next = Y_sample[:, :, :, [0]].squeeze()  # get the function values
                 diff = X_soln[i + 1, :, :] - x_next
                 c_i = np.power(L, i) * var_eps + 2 * dyn_eps * np.sum(
                     np.power(L, np.arange(0, i))
-                )  # arange has inbuild -1 in [sstart, end-1]
+                )  # arange has inbuild -1 in [start, end-1]
                 N_kp1 = torch.prod(torch.abs(diff) - c_i < 0, dim=1)
                 samples_left = samples_left * N_kp1
                 print("Samples remaininng in N{k+1} are ", torch.sum(samples_left))
@@ -341,8 +350,9 @@ class Agent(object):
                 self.FS_Y_train_batch = torch.cat(
                     [self.FS_Y_train_batch, Y_sample], dim=2
                 )
-                # update the model_i
+                # Train the model_i with the next state: x_{i|k+1} and u[i+1] --> x[i+1|k+1]
                 self.train_forward_sampling_dynGP()
+                # reshape the inputs for the GP
                 xu_hat = torch.cat(
                     [
                         torch.stack([x_next] * self.g_ny, dim=1)[:, :, None, :],
@@ -351,7 +361,27 @@ class Agent(object):
                     dim=-1,
                 )
                 g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
-        # 3. Train the hallucinated dataset
+
+        # 3. Throw away the data for the rejected samples
+        if torch.sum(samples_left) > 0:
+            num_samples_replaced = torch.sum(samples_left == 0).item()
+            remaining_idx = torch.arange(n_sample)[samples_left > 0].cpu().numpy()
+            self.Hallcinated_X_train[samples_left == 0, :, :, :] = (
+                self.Hallcinated_X_train[
+                    np.random.choice(remaining_idx, num_samples_replaced).tolist(),
+                    :,
+                    :,
+                    :,
+                ]
+            )
+            self.Hallcinated_Y_train[samples_left == 0, :, :, :] = (
+                self.Hallcinated_Y_train[
+                    np.random.choice(remaining_idx, num_samples_replaced).tolist(),
+                    :,
+                    :,
+                    :,
+                ]
+            )
 
         # 4. Restore the previous model_i
         self.train_hallucinated_dynGP(
