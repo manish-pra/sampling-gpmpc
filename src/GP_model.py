@@ -48,7 +48,9 @@ class GPModelWithDerivatives(gpytorch.models.ExactGP):
 
 
 class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, batch_shape, use_grad=True):
+    def __init__(
+        self, train_x, train_y, likelihood, batch_shape, ard_num_dims=3, use_grad=True
+    ):
         super().__init__(train_x, train_y, likelihood)
         if use_grad:
             mean_module_fun = gpytorch.means.ConstantMeanGrad
@@ -61,7 +63,9 @@ class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
             batch_shape=batch_shape
         )  # (prior=gpytorch.priors.NormalPrior(4.9132,0.01))
 
-        self.base_kernel = base_kernel_fun(ard_num_dims=3, batch_shape=batch_shape)
+        self.base_kernel = base_kernel_fun(
+            ard_num_dims=ard_num_dims, batch_shape=batch_shape
+        )
         self.covar_module = gpytorch.kernels.ScaleKernel(
             self.base_kernel, batch_shape=batch_shape
         )
@@ -99,6 +103,8 @@ class BatchMultitaskGPModelWithDerivatives_fromParams(
             train_y,
             likelihood,
             batch_shape=batch_shape,
+            ard_num_dims=params["agent"]["g_dim"]["nx"]
+            + params["agent"]["g_dim"]["nu"],
             use_grad=use_grad,
         )
 

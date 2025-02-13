@@ -388,11 +388,6 @@ class Agent(object):
             sqp_iter=self.params["optimizer"]["SEMPC"]["max_sqp_iter"]
         )
 
-        # condition on sampled values
-        # self.update_hallucinated_Dyn_dataset(X_inp, Y_sample)
-
-        #
-
         return
 
     def get_next_to_go_loc(self):
