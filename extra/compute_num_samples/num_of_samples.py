@@ -4,27 +4,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import yaml
-
-
-class ExactGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood):
-        super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
-        self.mean_module = gpytorch.means.ConstantMean()
-        self.covar_module = gpytorch.kernels.ScaleKernel(
-            gpytorch.kernels.RBFKernel(
-                ard_num_dims=params["agent"]["g_dim"]["nx"]
-                + params["agent"]["g_dim"]["nu"]
-            )
-        )
-
-    def forward(self, x):
-        mean_x = self.mean_module(x)
-        covar_x = self.covar_module(x)
-        return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
-
-
-# Get training data and update GP with the
-
+from helper import (
+    compute_rkhs_norm,
+    compute_small_ball_probability,
+    compute_posterior_norm_diff,
+)
 
 # sample A and B matrices
 workspace = "sampling-gpmpc"
@@ -41,47 +25,52 @@ params["env"]["i"] = 21
 params["env"]["name"] = 0
 print(params)
 
+
+params["env"]["n_data_x"] = 50  # 80
+params["env"]["n_data_u"] = 90  # 100
+
 env_model = globals()[params["env"]["dynamics"]](params)
-
-agent = Agent(params, env_model)
-
-
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
+true_function_norm, _, _ = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+print(true_function_norm)
+
+params["env"]["n_data_x"] = 5
+params["env"]["n_data_u"] = 9
+
+env_model = globals()[params["env"]["dynamics"]](params)
+Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
+mean_norm, alpha, y = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+
+kernel_norm_diff = compute_posterior_norm_diff(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+print(mean_norm, kernel_norm_diff)
+y = Dyn_gp_Y_train[0, :, 0].reshape(-1, 1)
+Cd = (
+    true_function_norm
+    + mean_norm
+    - 2 * torch.matmul(y.t(), alpha)
+    + torch.sum(torch.abs(alpha)) * params["agent"]["tight"]["w_bound"]
+    + kernel_norm_diff / 2
+)
+posterior_norm_diff = compute_posterior_norm_diff(
+    Dyn_gp_X_train, Dyn_gp_Y_train, params
+)
+
+params["common"]["use_cuda"] = False
+env_model = globals()[params["env"]["dynamics"]](params)
+Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
+
+B_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+
+B_phi = B_phi.cuda()
+delta = torch.tensor([0.01]).cuda()  # safety with 90% probability (1-\delta)
+Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-Cd) * B_phi)
+
+print(
+    f"Number of dynamics samples for safety with {1-delta.item()} probability are {Num_samples.item()}"
+)
 # Computation of C_D
 # 1) Compute RKHS norm of the mean function
 
-
-Dyn_gp_noise = 0.0
-likelihood = gpytorch.likelihoods.GaussianLikelihood(
-    noise_constraint=gpytorch.constraints.GreaterThan(Dyn_gp_noise),
-    # batch_shape=torch.Size([3, 1]),
-)
-gp_idx = 0
-model_1 = ExactGPModel(Dyn_gp_X_train, Dyn_gp_Y_train[gp_idx, :, 0], likelihood)
-model_1.covar_module.base_kernel.lengthscale = torch.tensor(
-    params["agent"]["Dyn_gp_lengthscale"]["both"]
-)
-# model_1.covar_module.base_kernel.lengthscale = 5.2649
-model_1.likelihood.noise = torch.tensor(params["agent"]["Dyn_gp_noise"])
-model_1.covar_module.outputscale = torch.tensor(
-    params["agent"]["Dyn_gp_outputscale"]["both"]
-)
-
-eval_covar_module = model_1.covar_module(Dyn_gp_X_train)
-K_DD = eval_covar_module.to_dense()
-# kernel = covar_module = gpytorch.kernels.ScaleKernel(
-#     gpytorch.kernels.RBFKernel(ard_num_dims=3)
-# )
-y = Dyn_gp_Y_train[gp_idx, :, 0].reshape(-1, 1)
-# norm = torch.matmul(y.t(), eval_covar_module.inv_matmul(y))
-norm = torch.matmul(
-    y.t(), torch.matmul(torch.inverse(K_DD + 1e-6 * torch.eye(K_DD.shape[0])), y)
-)
-print("RKHS norm of the mean function", norm)
-
-print("lengthscale", model_1.covar_module.base_kernel.lengthscale)
-print("noise", model_1.likelihood.noise)
-print("outputscale", model_1.covar_module.outputscale)
 
 # def compute_rkhs_norm(K_DD, Dyn_gp_Y_train):
 #     """

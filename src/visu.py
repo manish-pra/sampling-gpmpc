@@ -94,7 +94,7 @@ class Visualizer:
             plt.xlim([-2.14, 70 + relax])
             plt.tight_layout(pad=0.3)
 
-        elif self.params["env"]["dynamics"] == "pendulum":
+        elif "endulum" in self.params["env"]["dynamics"]:
             ax.add_line(
                 plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
             )

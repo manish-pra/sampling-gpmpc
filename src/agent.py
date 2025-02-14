@@ -298,7 +298,7 @@ class Agent(object):
 
         # Reshaping and load on cuda
         X_soln = X_soln.reshape(X_soln.shape[0], n_sample, self.nx).cuda()
-        X_kp1 = X_kp1.cuda()
+        X_kp1 = X_kp1.transpose(0, 1).cuda()
         U_soln = U_soln.cuda()
 
         # check  x_{1|k} - x(k+1) < var_eps
@@ -494,9 +494,9 @@ class Agent(object):
                 ns, self.g_ny, nH, 1 + self.nx + self.nu, device=xu_hat.device
             )
             pad_dg_dxu_grad[:, :, :, self.env_model.pad_g] = dg_dxu_grad
-            B_d = torch.eye(self.nx, self.g_ny, device=xu_hat.device)
+            # B_d = torch.eye(self.nx, self.g_ny, device=xu_hat.device)
             y_sample = df_dxu_grad + torch.matmul(
-                B_d, pad_dg_dxu_grad.transpose(1, 2)
+                self.env_model.B_d, pad_dg_dxu_grad.transpose(1, 2)
             ).transpose(1, 2)
         gp_val = y_sample[:, :, :, [0]].cpu().numpy()
         y_grad = y_sample[:, :, :, 1 : 1 + self.nx].cpu().numpy()

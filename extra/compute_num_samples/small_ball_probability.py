@@ -46,8 +46,6 @@ env_model = globals()[params["env"]["dynamics"]](params)
 # if params["env"]["dynamics"] == "pendulum":
 #     env_model = Pendulum(params)
 
-agent = Agent(params, env_model)
-
 
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
 # Computation of C_D
@@ -82,8 +80,8 @@ model.covar_module.outputscale = torch.tensor(
 
 
 # Define the ranges
-x_range = (-2.14, 2.14)
-z_range = (-8, 8)
+x_range = (params["optimizer"]["x_min"][0], params["optimizer"]["x_max"][0])
+z_range = (params["optimizer"]["u_min"], params["optimizer"]["u_max"])
 
 # Define the number of points in each dimension
 num_points = 11  # You can adjust this number as needed
@@ -97,13 +95,15 @@ X, Z = np.meshgrid(x, z, indexing="ij")
 
 # Flatten the grid and stack the coordinates into a tensor of shape (-1, 3)
 
-grid_points = torch.from_numpy(np.stack([X.flatten(), Z.flatten()], axis=-1)).cuda()
+grid_points = torch.from_numpy(np.stack([X.flatten(), Z.flatten()], axis=-1))
+if params["common"]["use_cuda"] and torch.cuda.is_available():
+    grid_points = grid_points.cuda()
 print(grid_points.shape)
 
 # X = torch.linspace(-np.pi, np.pi, 100)
 
 
-total_samples = 1000000
+total_samples = 100000
 with torch.no_grad(), gpytorch.settings.observation_nan_policy(
     "mask"
 ), gpytorch.settings.fast_computations(
@@ -114,9 +114,12 @@ with torch.no_grad(), gpytorch.settings.observation_nan_policy(
     half_value=params["agent"]["Dyn_gp_jitter"],
 ):
     model.eval()
-    pred = model(grid_points)
-    samples = pred.sample(sample_shape=torch.Size([total_samples]))
-sample_diff = samples - pred.mean
+    model_call = model(grid_points)
+    samples = model_call.sample(sample_shape=torch.Size([total_samples]))
+
+
+assert not torch.any(torch.isnan(samples))
+sample_diff = samples - model_call.mean
 # plt.plot(X, samples.transpose(0, 1), lw=0.1)
 # plt.savefig("samples.png")
 

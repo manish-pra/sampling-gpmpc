@@ -10,8 +10,20 @@ class Pendulum(object):
         self.g_ny = self.params["agent"]["g_dim"]["ny"]
         self.g_nx = self.params["agent"]["g_dim"]["nx"]
         self.g_nu = self.params["agent"]["g_dim"]["nu"]
-        self.pad_g = [0, 1, 2, 3]  # 0, self.g_nx + self.g_nu :
+        self.pad_g = [0, 1, 3]  # 0, self.g_nx + self.g_nu :
         self.g_idx_inputs = [0, 2]
+        if self.params["common"]["use_cuda"] and torch.cuda.is_available():
+            self.use_cuda = True
+            self.torch_device = torch.device("cuda")
+            torch.set_default_device(self.torch_device)
+        else:
+            self.use_cuda = False
+            self.torch_device = torch.device("cpu")
+            torch.set_default_device(self.torch_device)
+
+        self.B_d = torch.tensor([0.0, 1.0], device=self.torch_device).reshape(
+            self.nx, self.g_ny
+        )
 
     def initial_training_data(self):
         # keep low output scale, TODO: check if variance on gradient output can be controlled Dyn_gp_task_noises
@@ -60,7 +72,10 @@ class Pendulum(object):
         # return y1_ret, y2_ret
         y_ret = torch.zeros((self.g_ny, x_hat.shape[0], 1 + self.g_nx + self.g_nu))
         # y2_ret = torch.zeros((x_hat.shape[0], 4))
-        y_ret[0, :, 0] = y1_fx
+        y_ret[0, :, 0] = (
+            y1_fx
+            # + torch.randn(x_hat.shape[0]) * self.params["agent"]["tight"]["w_bound"]*0.1
+        )
         y_ret[0, :, 1] = (-g * torch.cos(x_hat[:, 0]) / l) * dt
         y_ret[0, :, 2] = torch.ones(x_hat.shape[0]) * dt / (l * l)
 
@@ -95,7 +110,16 @@ class Pendulum(object):
         )
 
     def discrete_dyn(self, xu):
-        return self.unknown_dyn(xu)
+        """_summary_"""
+        # NOTE: takes only single xu
+        assert xu.shape[1] == self.nx + self.nu
+
+        f_xu = self.known_dyn(xu.tile((1, self.nx, 1, 1)))[0, :, :]
+        g_xu = self.unknown_dyn(xu[:, self.g_idx_inputs]).transpose(0, 1)
+        B_d = torch.tensor([0.0, 1.0], device="cpu", dtype=g_xu.dtype).reshape(
+            self.nx, self.g_ny
+        )
+        return f_xu + torch.matmul(B_d, g_xu)
 
     def unknown_dyn(self, xu):
         assert xu.shape[1] == len(self.g_idx_inputs)
@@ -136,7 +160,11 @@ class Pendulum(object):
         return df_dxu_grad
 
     def get_g_xu_hat(self, xu_hat):
-        return xu_hat
+        # arg 1 truncated to self.g_ny -> all the same since tiles
+        for i in range(xu_hat.shape[1] - 1):
+            assert torch.all(xu_hat[:, i, :, 0] == xu_hat[:, i + 1, :, 0])
+
+        return xu_hat[:, 0 : self.g_ny, :, self.g_idx_inputs]
 
     def known_dyn(self, xu):
         """_summary_"""
