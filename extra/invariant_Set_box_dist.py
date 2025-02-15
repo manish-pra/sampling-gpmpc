@@ -10,17 +10,17 @@ workspace = "sampling-gpmpc"
 
 sys.path.append(workspace)
 from src.agent import Agent
-from src.environments.pendulum import Pendulum
+from src.environments.pendulum import Pendulum as pendulum
+from src.environments.pendulum1D import Pendulum as Pendulum1D
 
 # 1) Load the config file
-with open(workspace + "/params/" + "params_pendulum_invariant" + ".yaml") as file:
+with open(workspace + "/params/" + "params_pendulum1D_invariant" + ".yaml") as file:
     params = yaml.load(file, Loader=yaml.FullLoader)
 params["env"]["i"] = 20
 params["env"]["name"] = 0
 print(params)
 
-if params["env"]["dynamics"] == "pendulum":
-    env_model = Pendulum(params)
+env_model = globals()[params["env"]["dynamics"]](params)
 
 agent = Agent(params, env_model)
 
@@ -33,11 +33,12 @@ ns = params["agent"]["num_dyn_samples"]
 rand_x = np.random.uniform(-1, 1, nx * H * ns).reshape(H, nx, ns)
 # rand_x[:, 0, :] = rand_x[:, 0, :] * 0.2
 # rand_x[:, 1, :] = rand_x[:, 1, :] * 0.1
-x_1 = np.pi
+x_1 = 0
 x_2 = 0
 u = 0
-dtheta = 0.5
-domega = 0.3
+dtheta = 0.5  # 0.5
+domega = 0.3  # 0.3
+du = 1.0  # 0.3
 x_h = np.zeros_like(rand_x)
 x_h[:, 0, :] = rand_x[:, 0, :] * dtheta + x_1
 x_h[:, 1, :] = rand_x[:, 1, :] * domega + x_2
@@ -46,7 +47,7 @@ x_h[:, 1, :] = rand_x[:, 1, :] * domega + x_2
 # plt.savefig("temp.png")
 
 x_h = x_h.transpose(0, 2, 1).reshape(H, -1)
-rand_u = np.random.uniform(-1, 1, nu * H * ns).reshape(H, nu, ns) * 0.3
+rand_u = np.random.uniform(-1, 1, nu * H * ns).reshape(H, nu, ns) * du
 u_h = np.zeros_like(rand_u)
 u_h[:, 0, :] = rand_u[:, 0, :] + u
 u_h = u_h.reshape(H, -1)
@@ -55,9 +56,9 @@ batch_x_hat = agent.get_batch_x_hat_u_diff(x_h, u_h)
 agent.mpc_iter = 0
 gp_val, y_grad, u_grad = agent.dyn_fg_jacobians(batch_x_hat, 0)
 
-n = 2
-m = 1
-rho = 0.999
+n = params["agent"]["dim"]["nx"]
+m = params["agent"]["dim"]["nu"]
+rho = 0.9999
 E = cp.Variable((n, n), PSD=True)
 Y = cp.Variable((m, n))
 bar_w_2 = cp.Variable()
@@ -90,8 +91,8 @@ for i in range(ns):
 # state constraints
 Ax_i = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
 bx_i = np.array([[dtheta + x_1], [dtheta - x_1], [domega], [domega]])
-for i, A_i in enumerate(Ax_i):
-    constraints += [cp.quad_form(A_i, E) <= (bx_i[i]) ** 2]
+# for i, A_i in enumerate(Ax_i):
+#     constraints += [cp.quad_form(A_i, E) <= (bx_i[i]) ** 2]
 
 # state tightenings
 for i in range(nx):
@@ -128,7 +129,7 @@ W_vertices = (
             [-np.sqrt(2) / 2, -np.sqrt(2) / 2],
         ]
     )
-    * 0.001
+    * params["agent"]["tight"]["w_bound"]
 )
 for i in range(W_vertices.shape[0]):
     w_bmat = cp.bmat(
@@ -189,7 +190,7 @@ t = np.linspace(0, 2 * np.pi, 200)
 z = np.vstack([np.cos(t), np.sin(t)])
 ell = np.linalg.inv(L.T) @ z
 
-ax.plot(ell[0, :] + x_1, ell[1, :] + x_2, color="blue", label="P")
+ax.plot(ell[0, :] + x_1, ell[1, :] + x_2, color="blue", label="P-level set=1")
 
 
 # plot result
@@ -201,7 +202,7 @@ t = np.linspace(0, 2 * np.pi, 200)
 z = np.vstack([np.cos(t), np.sin(t)])
 ell = np.linalg.inv(L.T) @ z
 
-ax.plot(ell[0, :] + x_1, ell[1, :] + x_2, color="red", label="P-tight")
+ax.plot(ell[0, :] + x_1, ell[1, :] + x_2, color="red", label="Terminal set")
 
 
 # you can use the provided xlim and ylim properties to set the plot limits
