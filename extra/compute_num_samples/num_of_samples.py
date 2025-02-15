@@ -25,17 +25,19 @@ params["env"]["i"] = 21
 params["env"]["name"] = 0
 print(params)
 
+n_data_x = params["env"]["n_data_x"]
+n_data_u = params["env"]["n_data_u"]
 
-params["env"]["n_data_x"] = 50  # 80
-params["env"]["n_data_u"] = 90  # 100
+params["env"]["n_data_x"] *= 10  # 80
+params["env"]["n_data_u"] *= 10  # 100
 
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
 true_function_norm, _, _ = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params)
 print(true_function_norm)
 
-params["env"]["n_data_x"] = 5
-params["env"]["n_data_u"] = 9
+params["env"]["n_data_x"] = n_data_x
+params["env"]["n_data_u"] = n_data_u
 
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()

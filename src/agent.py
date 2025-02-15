@@ -303,13 +303,14 @@ class Agent(object):
 
         # check  x_{1|k} - x(k+1) < var_eps
         diff = X_soln[1, :, :] - X_kp1
+
         samples_left = torch.prod(torch.abs(diff) - var_eps < 0, dim=1)
         print("Samples remaininng in N{k+1} are ", torch.sum(samples_left))
 
         # ingredients to propatate the state
         xu_init = torch.cat([X_kp1, U_soln[[1]]], dim=-1)
-        xu_hat = torch.tile(xu_init, dims=(n_sample, self.g_ny, 1, 1))
-        g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
+        xu_hat = torch.tile(xu_init, dims=(n_sample, self.nx, 1, 1))
+        # g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
 
         # Forward sampling of each of the dynamic model_i
         for i in range(1, X_soln.shape[0] - 1):
@@ -324,14 +325,19 @@ class Agent(object):
                 double_value=self.params["agent"]["Dyn_gp_jitter"],
                 half_value=self.params["agent"]["Dyn_gp_jitter"],
             ):
-
+                g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
                 model_i_call = self.model_i(g_xu_hat)
                 Y_sample = model_i_call.sample(
                     # base_samples=agent.epistimic_random_vector[agent.mpc_iter][sqp_iter]
                 )
 
                 # check  x_{i+1|k} - x_{i|k+1} < var_eps
-                x_next = Y_sample[:, :, :, [0]].squeeze()  # get the function values
+                g_val = Y_sample[:, :, :].squeeze()[
+                    :, : self.g_ny
+                ]  # get the function values
+                # Get state x_{i|k+1} using the sampled dynamics g^n
+                f_val = self.env_model.known_dyn(xu_hat).squeeze()
+                x_next = f_val + torch.matmul(self.env_model.B_d, g_val.t()).t()
                 diff = X_soln[i + 1, :, :] - x_next
                 c_i = np.power(L, i) * var_eps + 2 * dyn_eps * np.sum(
                     np.power(L, np.arange(0, i))
@@ -355,12 +361,11 @@ class Agent(object):
                 # reshape the inputs for the GP
                 xu_hat = torch.cat(
                     [
-                        torch.stack([x_next] * self.g_ny, dim=1)[:, :, None, :],
-                        torch.tile(U_soln[[i + 1]], dims=(n_sample, self.g_ny, 1, 1)),
+                        torch.stack([x_next] * self.nx, dim=1)[:, :, None, :],
+                        torch.tile(U_soln[[i + 1]], dims=(n_sample, self.nx, 1, 1)),
                     ],
                     dim=-1,
                 )
-                g_xu_hat = self.env_model.get_g_xu_hat(xu_hat)
 
         # 3. Throw away the data for the rejected samples
         if torch.sum(samples_left) > 0:

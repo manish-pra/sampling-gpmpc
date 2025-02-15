@@ -9,6 +9,16 @@ class Pendulum(object):
         self.nu = self.params["agent"]["dim"]["nu"]
         self.g_ny = self.params["agent"]["g_dim"]["ny"]
         self.pad_g = [0, 1, 2, 3]  # 0, self.g_nx + self.g_nu :
+        if self.params["common"]["use_cuda"] and torch.cuda.is_available():
+            self.use_cuda = True
+            self.torch_device = torch.device("cuda")
+            torch.set_default_device(self.torch_device)
+        else:
+            self.use_cuda = False
+            self.torch_device = torch.device("cpu")
+            torch.set_default_device(self.torch_device)
+
+        self.B_d = torch.eye(self.nx, self.g_ny, device=self.torch_device)
 
     def initial_training_data(self):
         # keep low output scale, TODO: check if variance on gradient output can be controlled Dyn_gp_task_noises

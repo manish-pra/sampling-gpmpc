@@ -4,8 +4,8 @@ env:
   dynamics: 'Pendulum1D' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: False
-  n_data_x: 5 #18 #3
-  n_data_u: 9 #30 #5
+  n_data_x: 5 #5 #18 #3
+  n_data_u: 9 #9 #30 #5
   params:
     m: 1.0
     l: 1.0
@@ -35,7 +35,7 @@ agent:
   Dyn_gp_beta : 2.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 50 
+  num_dyn_samples: 20 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -67,7 +67,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 1
+    max_sqp_iter: 3
     tol_nlp: 1.0e-4 
   order: 2
   x_dim: 2
