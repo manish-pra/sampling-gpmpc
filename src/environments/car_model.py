@@ -186,18 +186,3 @@ class CarKinematicsModel(object):
             state_kp1 = self.discrete_dyn(state_input)
             state_list.append(state_kp1.reshape(-1))
         return np.stack(state_list)
-
-    def continous_dyn(self, X1, X2, U):
-        """_summary_
-
-        Args:
-            x (_type_): _description_
-            u (_type_): _description_
-        """
-        m = 1
-        l = 1
-        g = 10
-        X1dot = X2.clone()
-        X2dot = -g * torch.sin(X1) / l + U / l
-        train_data_y = torch.hstack([X1dot.reshape(-1, 1), X2dot.reshape(-1, 1)])
-        return train_data_y

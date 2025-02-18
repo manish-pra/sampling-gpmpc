@@ -47,6 +47,15 @@ def export_dempc_ocp(params):
                 const_expr = ca.vertcat(const_expr, expr)
         model.con_h_expr = const_expr
         model.con_h_expr_e = const_expr
+        if params["agent"]["tight"]["use"]:
+            tilde_eps_i = p[2]
+            model.con_h_expr = ca.vertcat(
+                const_expr, model_x - tilde_eps_i, model_x + tilde_eps_i
+            )
+            model.con_h_expr_e = ca.vertcat(
+                const_expr, model_x - tilde_eps_i, model_x + tilde_eps_i
+            )
+
     if params["env"]["dynamics"] == "Pendulum1D":
         tilde_eps_i = p[2]
         model.con_h_expr = ca.vertcat(model_x - tilde_eps_i, model_x + tilde_eps_i)
@@ -146,10 +155,20 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     if params["env"]["dynamics"] == "bicycle":
         nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
         f = params["env"]["ellipses"]["n1"][4]
-        ocp.constraints.lh = np.array([f] * nh)
-        ocp.constraints.uh = np.array([1e3] * nh)
-        ocp.constraints.lh_e = np.array([f] * nh)
-        ocp.constraints.uh_e = np.array([1e3] * nh)
+        if params["agent"]["tight"]["use"]:
+            ocp.constraints.lh = np.hstack([[f] * nh, lbx, lbx])  # np.array([f] * nh)
+            ocp.constraints.uh = np.hstack(
+                [[1e3] * nh, ubx, ubx]
+            )  # np.array([1e3] * nh)
+            ocp.constraints.lh_e = np.hstack([[f] * nh, lbx, lbx])  # np.array([f] * nh)
+            ocp.constraints.uh_e = np.hstack(
+                [[1e3] * nh, ubx, ubx]
+            )  # np.array([1e3] * nh)
+        else:
+            ocp.constraints.lh = np.array([f] * nh)
+            ocp.constraints.uh = np.array([1e3] * nh)
+            ocp.constraints.lh_e = np.array([f] * nh)
+            ocp.constraints.uh_e = np.array([1e3] * nh)
 
         # nbx = 0
         nbx = len(lbx)
