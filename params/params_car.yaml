@@ -14,6 +14,10 @@ env:
     # n2 : [10, 1.0, 9.0, 1.0, 5.67]
     # n3 : [42, 1.0, 9.0, 1.0, 5.67]
     # n4 : [58, 5.0, 9.0, 1.0, 5.67]
+    n1 : [24, 4.5, 9.0, 1.0, 0.81]  # x0, y0, a, b, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
+    n2 : [10, 1.5, 9.0, 1.0, 0.81]
+    n3 : [38, 1.5, 9.0, 1.0, 0.81]
+    n4 : [52, 4.5, 9.0, 1.0, 0.81]
 
 agent:
   g_dim :
@@ -64,23 +68,25 @@ optimizer:
   u_max : [0.6, 2] 
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [-2.14, -1.0, -1.14, -1] # Minimum state value
-  x_max : [ 70, 7.0, 1.14, 15] # x,y,v,theta,theta_dot
+  x_min : [-2.14, 0.0, -1.14, -1] # Minimum state value
+  # x_max : [ 70, 7.0, 1.14, 15] # x,y,v,theta,theta_dot
+  x_max : [ 70, 6.0, 1.14, 15] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 2
+    max_sqp_iter: 4
     tol_nlp: 1.0e-4 
   order: 2
   dt: 0.06 # 0.010
   w: 40
-  Qx: [2, 38, 0.11, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
+  Qx: [2, 36, 0.07, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
+  # Qx: [2, 38, 0.11, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
   Qu: [2, 2]
   cost: "expected"
   options: {
-    levenberg_marquardt: 1.0
+    levenberg_marquardt: 1.0e-1
   }
   # tightening:
   #   x_tight: [0.1, 0.1, 0.2, 0.1] #
