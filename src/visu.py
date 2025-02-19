@@ -62,26 +62,30 @@ class Visualizer:
             # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
             #                 edgecolor='r', fc='None', lw=2)
             # ax.add_patch(ellipse)
-            for ellipse in self.params["env"]["ellipses"]:
-                x0 = self.params["env"]["ellipses"][ellipse][0]
-                y0 = self.params["env"]["ellipses"][ellipse][1]
-                a_sq = self.params["env"]["ellipses"][ellipse][2]
-                b_sq = self.params["env"]["ellipses"][ellipse][3]
-                f = self.params["env"]["ellipses"][ellipse][4]
-                # u = 1.0  # x-position of the center
-                # v = 0.1  # y-position of the center
-                # f = 0.01
-                a = np.sqrt(a_sq * f)  # radius on the x-axis
-                b = np.sqrt(b_sq * f)  # radius on the y-axis
-                t = np.linspace(0, 2 * np.pi, 100)
-                f2 = 0.5  # plot 2 ellipses, 1 for ego, 1 for other
-                # plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
-                plt.plot(
-                    x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t), "black", alpha=0.5
-                )
-                # plot constarint ellipse
-                plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t), "gray", alpha=0.5)
-                self.plot_car_stationary(x0, y0, 0, plt)
+            if self.params["env"]["ellipses"]:
+                for ellipse in self.params["env"]["ellipses"]:
+                    x0 = self.params["env"]["ellipses"][ellipse][0]
+                    y0 = self.params["env"]["ellipses"][ellipse][1]
+                    a_sq = self.params["env"]["ellipses"][ellipse][2]
+                    b_sq = self.params["env"]["ellipses"][ellipse][3]
+                    f = self.params["env"]["ellipses"][ellipse][4]
+                    # u = 1.0  # x-position of the center
+                    # v = 0.1  # y-position of the center
+                    # f = 0.01
+                    a = np.sqrt(a_sq * f)  # radius on the x-axis
+                    b = np.sqrt(b_sq * f)  # radius on the y-axis
+                    t = np.linspace(0, 2 * np.pi, 100)
+                    f2 = 0.5  # plot 2 ellipses, 1 for ego, 1 for other
+                    # plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
+                    plt.plot(
+                        x0 + f2 * a * np.cos(t),
+                        y0 + f2 * b * np.sin(t),
+                        "black",
+                        alpha=0.5,
+                    )
+                    # plot constarint ellipse
+                    plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t), "gray", alpha=0.5)
+                    self.plot_car_stationary(x0, y0, 0, plt)
             # plt.grid(color="lightgray", linestyle="--")
             ax.set_aspect("equal", "box")
             ax.set_xlim(x_min, x_max - 10)

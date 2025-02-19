@@ -34,19 +34,20 @@ def export_dempc_ocp(params):
     num_dyn = params["agent"]["num_dyn_samples"]
     if params["env"]["dynamics"] == "bicycle":
         const_expr = []
-        for ellipse in params["env"]["ellipses"]:
-            x0 = params["env"]["ellipses"][ellipse][0]
-            y0 = params["env"]["ellipses"][ellipse][1]
-            a = params["env"]["ellipses"][ellipse][2]
-            b = params["env"]["ellipses"][ellipse][3]
-            f = params["env"]["ellipses"][ellipse][4]
-            for i in range(num_dyn):
-                expr = (model_x[nx * i] - x0).T @ (model_x[nx * i] - x0) / a + (
-                    model_x[nx * i + 1] - y0
-                ).T @ (model_x[nx * i + 1] - y0) / b
-                const_expr = ca.vertcat(const_expr, expr)
-        model.con_h_expr = const_expr
-        model.con_h_expr_e = const_expr
+        if params["env"]["ellipses"]:
+            for ellipse in params["env"]["ellipses"]:
+                x0 = params["env"]["ellipses"][ellipse][0]
+                y0 = params["env"]["ellipses"][ellipse][1]
+                a = params["env"]["ellipses"][ellipse][2]
+                b = params["env"]["ellipses"][ellipse][3]
+                f = params["env"]["ellipses"][ellipse][4]
+                for i in range(num_dyn):
+                    expr = (model_x[nx * i] - x0).T @ (model_x[nx * i] - x0) / a + (
+                        model_x[nx * i + 1] - y0
+                    ).T @ (model_x[nx * i + 1] - y0) / b
+                    const_expr = ca.vertcat(const_expr, expr)
+            model.con_h_expr = const_expr
+            model.con_h_expr_e = const_expr
         if params["agent"]["tight"]["use"]:
             tilde_eps_i = p[2]
             model.con_h_expr = ca.vertcat(
@@ -153,40 +154,45 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     # ocp.constraints.idxsh = np.arange(2 * lbx.shape[0])
 
     if params["env"]["dynamics"] == "bicycle":
-        nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
-        f = params["env"]["ellipses"]["n1"][4]
-        if params["agent"]["tight"]["use"]:
-            ocp.constraints.lh = np.hstack([[f] * nh, lbx, lbx])  # np.array([f] * nh)
-            ocp.constraints.uh = np.hstack(
-                [[1e3] * nh, ubx, ubx]
-            )  # np.array([1e3] * nh)
-            ocp.constraints.lh_e = np.hstack([[f] * nh, lbx, lbx])  # np.array([f] * nh)
-            ocp.constraints.uh_e = np.hstack(
-                [[1e3] * nh, ubx, ubx]
-            )  # np.array([1e3] * nh)
-        else:
-            ocp.constraints.lh = np.array([f] * nh)
-            ocp.constraints.uh = np.array([1e3] * nh)
-            ocp.constraints.lh_e = np.array([f] * nh)
-            ocp.constraints.uh_e = np.array([1e3] * nh)
+        if params["env"]["ellipses"]:
+            nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
+            f = params["env"]["ellipses"]["n1"][4]
+            if params["agent"]["tight"]["use"]:
+                ocp.constraints.lh = np.hstack(
+                    [[f] * nh, lbx, lbx]
+                )  # np.array([f] * nh)
+                ocp.constraints.uh = np.hstack(
+                    [[1e3] * nh, ubx, ubx]
+                )  # np.array([1e3] * nh)
+                ocp.constraints.lh_e = np.hstack(
+                    [[f] * nh, lbx, lbx]
+                )  # np.array([f] * nh)
+                ocp.constraints.uh_e = np.hstack(
+                    [[1e3] * nh, ubx, ubx]
+                )  # np.array([1e3] * nh)
+            else:
+                ocp.constraints.lh = np.array([f] * nh)
+                ocp.constraints.uh = np.array([1e3] * nh)
+                ocp.constraints.lh_e = np.array([f] * nh)
+                ocp.constraints.uh_e = np.array([1e3] * nh)
 
-        # nbx = 0
-        nbx = len(lbx)
-        ocp.constraints.idxsbx = np.arange(nbx)
-        ocp.constraints.idxsbx_e = np.arange(nbx)
-        ocp.constraints.idxsh = np.arange(nh)
-        ocp.constraints.idxsh_e = np.arange(nh)
+            # nbx = 0
+            nbx = len(lbx)
+            ocp.constraints.idxsbx = np.arange(nbx)
+            ocp.constraints.idxsbx_e = np.arange(nbx)
+            ocp.constraints.idxsh = np.arange(nh)
+            ocp.constraints.idxsh_e = np.arange(nh)
 
-        ns = nh + nbx
-        ocp.cost.zl = 1e3 * np.array([1] * ns)
-        ocp.cost.zu = 1e3 * np.array([1] * ns)
-        ocp.cost.Zl = 1e3 * np.array([1] * ns)
-        ocp.cost.Zu = 1e3 * np.array([1] * ns)
+            ns = nh + nbx
+            ocp.cost.zl = 1e3 * np.array([1] * ns)
+            ocp.cost.zu = 1e3 * np.array([1] * ns)
+            ocp.cost.Zl = 1e3 * np.array([1] * ns)
+            ocp.cost.Zu = 1e3 * np.array([1] * ns)
 
-        ocp.cost.zl_e = 1e3 * np.array([1] * ns)
-        ocp.cost.zu_e = 1e3 * np.array([1] * ns)
-        ocp.cost.Zl_e = 1e3 * np.array([1] * ns)
-        ocp.cost.Zu_e = 1e3 * np.array([1] * ns)
+            ocp.cost.zl_e = 1e3 * np.array([1] * ns)
+            ocp.cost.zu_e = 1e3 * np.array([1] * ns)
+            ocp.cost.Zl_e = 1e3 * np.array([1] * ns)
+            ocp.cost.Zu_e = 1e3 * np.array([1] * ns)
 
     ocp.parameter_values = np.zeros((ocp.model.p.shape[0],))
     return ocp
@@ -200,9 +206,9 @@ def dempc_set_options(ocp, params):
     # set options
     ocp.solver_options.qp_solver = "FULL_CONDENSING_HPIPM"
     ocp.solver_options.hessian_approx = "EXACT"  # 'GAUSS_NEWTON', 'EXACT'
-    ocp.solver_options.levenberg_marquardt = params["optimizer"]["options"][
-        "levenberg_marquardt"
-    ]
+    # ocp.solver_options.levenberg_marquardt = params["optimizer"]["options"][
+    #     "levenberg_marquardt"
+    # ]
     ocp.solver_options.integrator_type = "DISCRETE"  #'IRK'  # IRK , DISCRETE
     ocp.solver_options.nlp_solver_type = "SQP_RTI"  # SQP_RTI, SQP
     return ocp
