@@ -55,24 +55,28 @@ class Visualizer:
             # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
             #                 edgecolor='r', fc='None', lw=2)
             # ax.add_patch(ellipse)
-            for ellipse in self.params["env"]["ellipses"]:
-                x0 = self.params["env"]["ellipses"][ellipse][0]
-                y0 = self.params["env"]["ellipses"][ellipse][1]
-                a = self.params["env"]["ellipses"][ellipse][2]
-                b = self.params["env"]["ellipses"][ellipse][3]
-                f = self.params["env"]["ellipses"][ellipse][4]
-                # u = 1.0  # x-position of the center
-                # v = 0.1  # y-position of the center
-                # f = 0.01
-                a = np.sqrt(a * f)  # radius on the x-axis
-                b = np.sqrt(b * f)  # radius on the y-axis
-                t = np.linspace(0, 2 * 3.14, 100)
-                f2 = np.sqrt(7 / 4)
-                # plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
-                plt.plot(
-                    x0 + f2 * a * np.cos(t), y0 + f2 * b * np.sin(t), "black", alpha=0.5
-                )
-                self.plot_car_stationary(x0, y0, 0, plt)
+            if "ellipses" in self.params["env"]:
+                for ellipse in self.params["env"]["ellipses"]:
+                    x0 = self.params["env"]["ellipses"][ellipse][0]
+                    y0 = self.params["env"]["ellipses"][ellipse][1]
+                    a = self.params["env"]["ellipses"][ellipse][2]
+                    b = self.params["env"]["ellipses"][ellipse][3]
+                    f = self.params["env"]["ellipses"][ellipse][4]
+                    # u = 1.0  # x-position of the center
+                    # v = 0.1  # y-position of the center
+                    # f = 0.01
+                    a = np.sqrt(a * f)  # radius on the x-axis
+                    b = np.sqrt(b * f)  # radius on the y-axis
+                    t = np.linspace(0, 2 * 3.14, 100)
+                    f2 = np.sqrt(7 / 4)
+                    # plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
+                    plt.plot(
+                        x0 + f2 * a * np.cos(t),
+                        y0 + f2 * b * np.sin(t),
+                        "black",
+                        alpha=0.5,
+                    )
+                    self.plot_car_stationary(x0, y0, 0, plt)
             # plt.grid(color="lightgray", linestyle="--")
             ax.set_aspect("equal", "box")
             ax.set_xlim(x_min, x_max - 10)
@@ -208,14 +212,12 @@ class Visualizer:
         outline[0, :] += x
         outline[1, :] += y
 
-
         ax.plot(
             np.array(outline[0, :]).flatten(),
             np.array(outline[1, :]).flatten(),
             "black",
             lw=2,
         )
-
 
     def plot_car(self, x, y, yaw, l, l2):
         factor = 0.4
@@ -238,19 +240,19 @@ class Visualizer:
         l2.set_data(
             np.array(outline[0, :]).flatten(), np.array(outline[1, :]).flatten()
         )
+        if "ellipses" in self.params["env"]:
+            a = self.params["env"]["ellipses"]["n1"][2]
+            b = self.params["env"]["ellipses"]["n1"][3]
+            f = self.params["env"]["ellipses"]["n1"][4]
+            # u = 1.0  # x-position of the center
+            # v = 0.1  # y-position of the center
+            # f = 0.01
+            a = np.sqrt(a * f)  # radius on the x-axis
+            b = np.sqrt(b * f)  # radius on the y-axis
+            t = np.linspace(0, 2 * 3.14, 100)
+            f2 = np.sqrt(7 / 4)
 
-        a = self.params["env"]["ellipses"]["n1"][2]
-        b = self.params["env"]["ellipses"]["n1"][3]
-        f = self.params["env"]["ellipses"]["n1"][4]
-        # u = 1.0  # x-position of the center
-        # v = 0.1  # y-position of the center
-        # f = 0.01
-        a = np.sqrt(a * f)  # radius on the x-axis
-        b = np.sqrt(b * f)  # radius on the y-axis
-        t = np.linspace(0, 2 * 3.14, 100)
-        f2 = np.sqrt(7 / 4)
-
-        l.set_data(x + f2 * a * np.cos(t), y + f2 * b * np.sin(t))
+            l.set_data(x + f2 * a * np.cos(t), y + f2 * b * np.sin(t))
 
     def plot_receding_traj(self):
         rm = []
