@@ -14,10 +14,10 @@ env:
     # n2 : [10, 1.0, 9.0, 1.0, 5.67]
     # n3 : [42, 1.0, 9.0, 1.0, 5.67]
     # n4 : [58, 5.0, 9.0, 1.0, 5.67]
-    n1 : [24, 4.5, 9.0, 1.0, 0.81]  # x0, y0, a, b, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
-    n2 : [10, 1.5, 9.0, 1.0, 0.81]
-    n3 : [38, 1.5, 9.0, 1.0, 0.81]
-    n4 : [52, 4.5, 9.0, 1.0, 0.81]
+    n1 : [24, 4.5, 9.0, 1.0, 5.67]  # x0, y0, a, b, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
+    n2 : [10, 1.5, 9.0, 1.0, 5.67]
+    n3 : [38, 1.5, 9.0, 1.0, 5.67]
+    n4 : [52, 4.5, 9.0, 1.0, 5.67]
 
 agent:
   g_dim :
@@ -42,9 +42,9 @@ agent:
   Dyn_gp_beta : 2.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 1     
+  num_dyn_samples: 20     
   mean_as_dyn_sample: False
-  true_dyn_as_sample: True        # This is for debugging, set num_dyn_samples to 1
+  true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
   Dyn_gp_variance_is_zero: -1.0 # -1 : deactivated
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
@@ -53,12 +53,13 @@ agent:
     dyn_eps: 0.0
     Lipschitz: 1.135
     w_bound: 0.000
+  shift_soln: False
 
 visu:
   show: False
 
 common:
-  use_cuda : False
+  use_cuda : True
   num_MPC_itrs : 130
   dynamics_rejection: False
 

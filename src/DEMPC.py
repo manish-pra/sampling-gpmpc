@@ -79,8 +79,11 @@ class DEMPC:
         dt = t_1 - t_0
         print("Time to solve", dt)
 
-        # X, U, Sl = self.dempc_solver.get_solution()
-        X, U, Sl = self.dempc_solver.get_and_shift_solution()
+        if self.params["agent"]["shift_soln"]:
+            X, U, Sl = self.dempc_solver.get_and_shift_solution()
+        else:
+            X, U, Sl = self.dempc_solver.get_solution()
+        #
         self.visu.record(st_curr, X, U, dt)
 
         # self.visu.plot_pendulum_traj(X,U)

@@ -46,6 +46,7 @@ agent:
     dyn_eps: 0.005
     Lipschitz: 1.015
     w_bound: 0.0001
+  shift_soln: True
 
 
 visu:

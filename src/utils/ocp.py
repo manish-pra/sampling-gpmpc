@@ -151,12 +151,24 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
         delta = params["optimizer"]["terminal_tightening"]["delta"]
         ocp.constraints.lh_e = np.hstack([lbx, lbx, [0] * ns])
         ocp.constraints.uh_e = np.hstack([ubx, ubx, [delta] * ns])
+        # size = len(ocp.constraints.lh)
+        # ocp.cost.Zl = 1e6 * np.array([1] * size)
+        # ocp.cost.Zu = 1e5 * np.array([1] * size)
+        # ocp.cost.zl = 1e6 * np.array([1] * size)
+        # ocp.cost.zu = 1e5 * np.array([1] * size)
+        # ocp.constraints.idxsh = np.arange(size_e)
+        # size_e = len(ocp.constraints.lh_e)
+        # ocp.cost.Zl_e = 1e6 * np.array([1] * size_e)
+        # ocp.cost.Zu_e = 1e5 * np.array([1] * size_e)
+        # ocp.cost.zl_e = 1e6 * np.array([1] * size_e)
+        # ocp.cost.zu_e = 1e5 * np.array([1] * size_e)
+        # ocp.constraints.idxsh_e = np.arange(size_e)
     # ocp.constraints.idxsh = np.arange(2 * lbx.shape[0])
 
     if params["env"]["dynamics"] == "bicycle":
         if params["env"]["ellipses"]:
             nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
-            f = 7 * params["env"]["ellipses"]["n1"][4]
+            f = params["env"]["ellipses"]["n1"][4]
             if params["agent"]["tight"]["use"]:
                 ocp.constraints.lh = np.hstack(
                     [[f] * nh, lbx, lbx]
@@ -201,7 +213,7 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
 def dempc_set_options(ocp, params):
     # discretization
     ocp.dims.N = params["optimizer"]["H"]
-    ocp.solver_options.tf = 1  # params["optimizer"]["dt"] * params["optimizer"]["H"]
+    ocp.solver_options.tf = params["optimizer"]["dt"] * params["optimizer"]["H"]
 
     # set options
     ocp.solver_options.qp_solver = "FULL_CONDENSING_HPIPM"

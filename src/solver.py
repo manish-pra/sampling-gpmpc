@@ -38,6 +38,7 @@ class DEMPC_solver(object):
     def solve(self, player, plot_pendulum=False):
         w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
+
         L = self.params["agent"]["tight"]["Lipschitz"]
         dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
         w_bound = self.params["agent"]["tight"]["w_bound"]

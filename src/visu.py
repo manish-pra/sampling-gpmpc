@@ -292,7 +292,7 @@ class Visualizer:
         )
         X = self.state_traj[-1]
         U = self.input_traj[-1]
-        # rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
+        rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
         pred_true_state = np.vstack(self.true_state_traj[-1])
         rm.append(
             ax.plot(

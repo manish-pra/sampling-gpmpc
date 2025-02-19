@@ -79,6 +79,9 @@ optimizer:
   options: {
     levenberg_marquardt: 1.0
   }
+  terminal_tightening:
+    x_tight: [0.1, 0.1]
+    u_tight: [0.1]
 
 experiment:
   name: "DEMPC" #
