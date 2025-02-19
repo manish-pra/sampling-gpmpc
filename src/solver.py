@@ -154,6 +154,12 @@ class DEMPC_solver(object):
             self.ocp_solver.set(i, "u", U[i + 1, :])
         self.ocp_solver.set(self.H - 1, "x", X[self.H, :])
 
+    def initialize_solution(self, X, U, Sl):
+        for i in range(self.H - 1):
+            self.ocp_solver.set(i, "x", X[i, :])
+            self.ocp_solver.set(i, "u", U[i, :])
+        self.ocp_solver.set(self.H, "x", X[self.H, :])
+
     def get_and_shift_solution(self):
         X, U, Sl = self.get_solution()
         self.shift_solution(X, U, Sl)

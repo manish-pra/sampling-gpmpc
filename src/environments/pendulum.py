@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import scipy.linalg
+import scipy.signal
 
 
 class Pendulum(object):
@@ -140,3 +142,44 @@ class Pendulum(object):
 
     def get_g_xu_hat(self, xu_hat):
         return xu_hat
+
+    def LQR_controller(self):
+        g = self.params["env"]["params"]["g"]
+        m = self.params["env"]["params"]["m"]
+        l = self.params["env"]["params"]["l"]
+        b = 0
+
+        R = np.diag(np.array(self.params["optimizer"]["Qu"]))
+        Qx = np.diag(np.array(self.params["optimizer"]["Qx"]))
+
+        # Continuous-time state-space matrices
+        A = np.array([[0, 1], [-g / l, 0]])  # Change sign for new coordinate system
+        B = np.array([[0], [1]])
+
+        dt = self.params["optimizer"]["dt"]
+        # Discretize the system using zero-order hold (ZOH)
+        system = scipy.signal.cont2discrete((A, B, np.eye(2), 0), dt, method="zoh")
+        A_d, B_d, _, _ = system[:4]
+
+        # Solve the Discrete-time Algebraic Riccati Equation (DARE)
+        P = scipy.linalg.solve_discrete_are(A_d, B_d, Qx, R)
+
+        # Compute the Discrete LQR gain K
+        K = np.linalg.inv(R + B_d.T @ P @ B_d) @ (B_d.T @ P @ A_d)
+        print(K, P)
+
+        return K, P, A_d, B_d
+
+    def traj_initialize(self, x_curr):
+        # Store results
+        x_history = []
+        u_history = []
+        x = x_curr
+        K, P, A_d, B_d = self.LQR_controller()
+        # Run simulation
+        for _ in range(self.params["optimizer"]["H"]):
+            u = -K @ x  # LQR control law
+            x = A_d @ x + B_d @ u  # Discrete-time state update
+            x_history.append(x.flatten())
+            u_history.append(u.flatten())
+        return x_history, u_history

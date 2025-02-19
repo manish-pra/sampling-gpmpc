@@ -1,5 +1,5 @@
 env:
-  start: [3.0, 0.55] # x,y,theta,v
+  start: [3.0, 0.6] # x,y,theta,v
   goal_state: [3.1416, 0.0]
   dynamics: 'Pendulum1D' # "pendulum"
   prior_dyn_meas: True 
@@ -9,7 +9,7 @@ env:
   params:
     m: 1.0
     l: 1.0
-    g: 10.0
+    g: 9.81
 
 agent:
   g_dim :
@@ -87,6 +87,8 @@ optimizer:
     u_tight: [0.1]
     P: [[2042.60531856,  366.72654156], [366.72654156,  724.46712472]]
     delta: 4.520
+    # P: [[399.20203141,  28.00991506], [ 28.00991506,  28.44853957]]
+    # delta: 1.0
 
 experiment:
   name: "DEMPC" #

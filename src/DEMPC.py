@@ -43,6 +43,13 @@ class DEMPC:
             st_curr = np.array(
                 x_curr.tolist() * self.params["agent"]["num_dyn_samples"]
             )
+            # if i == 0:
+            #     x_hist, u_hist = self.agent.env_model.traj_initialize(x_curr)
+            #     self.dempc_solver.initialize_solution(
+            #         np.tile(x_hist, (1, self.params["agent"]["num_dyn_samples"])),
+            #         u_hist,
+            #         0,
+            #     )
             X, U = self.one_step_planner(st_curr)
             state_input = torch.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
             state_kp1 = self.agent.env_model.discrete_dyn(state_input)
