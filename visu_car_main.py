@@ -14,8 +14,8 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-# parser.add_argument("-param", default="params_pendulum1D_samples")  # params
-parser.add_argument("-param", default="params_car")  # params
+parser.add_argument("-param", default="params_pendulum1D_samples")  # params
+# parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=43)  # initialized at origin
@@ -62,10 +62,14 @@ input_traj = data_dict["input_traj"]
 mean_state_traj = data_dict["mean_state_traj"]
 true_state_traj = data_dict["true_state_traj"]
 physical_state_traj = data_dict["physical_state_traj"]
+tilde_eps_list = data_dict["tilde_eps_list"]
+ci_list = data_dict["ci_list"]
 a_file.close()
 
 params["visu"]["show"] = True
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
+visu.tilde_eps_list = tilde_eps_list
+visu.ci_list = ci_list
 # agent = Agent(params)
 # visu.extract_data()
 

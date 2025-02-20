@@ -6,6 +6,8 @@ import dill as pickle
 from matplotlib.patches import Ellipse
 import math
 import copy
+import matplotlib.patches as patches
+import matplotlib.collections as collections
 
 
 class Visualizer:
@@ -293,6 +295,15 @@ class Visualizer:
         X = self.state_traj[-1]
         U = self.input_traj[-1]
         rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
+        rm.append(
+            self.plot_box(
+                ax,
+                X[:, :: self.nx],
+                X[:, 1 :: self.nx],
+                self.tilde_eps_list,
+                self.tilde_eps_list,
+            )
+        )
         pred_true_state = np.vstack(self.true_state_traj[-1])
         rm.append(
             ax.plot(
@@ -314,6 +325,26 @@ class Visualizer:
             )
         )
         return rm
+
+    def plot_box(self, ax, x, y, lx, ly):
+        lx = np.stack(lx)
+        ly = np.stack(ly)
+        # Compute lower-left corners of all boxes (vectorized)
+        lower_left_x = (x[: lx.shape[0]].transpose() - lx / 2).transpose()
+        lower_left_y = (y[: ly.shape[0]].transpose() - ly / 2).transpose()
+        # Create all rectangles in one go using list comprehension
+        rectangles = [
+            patches.Rectangle((lx_dyni, ly_dyni), len_x, len_y)
+            for lx_i, ly_i, len_x, len_y in zip(lower_left_x, lower_left_y, lx, ly)
+            for lx_dyni, ly_dyni in zip(lx_i, ly_i)
+        ]
+        ns = self.params["agent"]["num_dyn_samples"]
+        colors = ["b"] * (len(rectangles) - ns) + ["k"] * ns
+        # Use PatchCollection for efficient rendering
+        collection = collections.PatchCollection(
+            rectangles, edgecolor=colors, facecolor="none", linewidth=1
+        )
+        return ax.add_collection(collection)
 
     def remove_temp_objects(self, temp_obj):
         for t in temp_obj:
@@ -378,6 +409,8 @@ class Visualizer:
         # data_dict["gp_model_after_solve"] = self.gp_model_after_solve
         data_dict["gp_model_after_solve_train_X"] = self.gp_model_after_solve_train_X
         data_dict["gp_model_after_solve_train_Y"] = self.gp_model_after_solve_train_Y
+        data_dict["tilde_eps_list"] = self.tilde_eps_list
+        data_dict["ci_list"] = self.ci_list
         a_file = open(self.save_path + "/data.pkl", "wb")
         # data_dict["meas_traj"] = self.meas_traj
         # data_dict["player_train_pts"] = self.player_train_pts
@@ -396,4 +429,6 @@ class Visualizer:
         self.true_state_traj = data_dict["true_state_traj"]
         self.physical_state_traj = data_dict["physical_state_traj"]
         self.gp_model_after_solve = data_dict["gp_model_after_solve"]
+        self.tilde_eps_list = data_dict["tilde_eps"]
+        self.ci_list = data_dict["ci"]
         a_file.close()

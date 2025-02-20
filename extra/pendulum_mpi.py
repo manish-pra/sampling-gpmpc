@@ -36,8 +36,8 @@ rand_x = np.random.uniform(-1, 1, nx * H * ns).reshape(H, nx, ns)
 x_1 = np.pi
 x_2 = 0
 u = 0
-dtheta = 0.5
-domega = 0.75
+dtheta = 1.0
+domega = 2.5
 x_h = np.zeros_like(rand_x)
 x_h[:, 0, :] = rand_x[:, 0, :] * dtheta + x_1
 x_h[:, 1, :] = rand_x[:, 1, :] * domega + x_2
@@ -145,6 +145,16 @@ Ax_i = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
 bx_i = np.array([[dtheta], [dtheta], [domega], [domega]])
 for i, A_i in enumerate(Ax_i):
     constraints += [cp.quad_form(A_i, E) <= bx_i[i] ** 2]
+
+
+# input constraints
+Au = np.array([[1], [-1]])
+bu = np.array([[10], [10]])
+for Au_i, bu_i in zip(Au, bu):
+    Au_i = Au_i.reshape(1, 1)
+    bu_i = bu_i.reshape(1, 1)
+    E_bmat = cp.bmat([[bu_i**2, Au_i.T @ Y], [(Y.T @ Au_i), E]])
+    constraints += [E_bmat >> 0]
 
 # # state tightenings
 # for i in range(nx):
@@ -262,11 +272,15 @@ plt.plot(
     np.vstack([arr[:, 1], arr[0, 1]]) + x_2,
     "k-",
 )
-
+# plot lines from equation
+for i in range(len(Au)):
+    x = np.linspace(-1, 1, 100)
+    y = (bu[i] / Au[i] - K[0, 0] * x) / K[0, 1]
+    plt.plot(x + x_1, y + x_2, "k--")
 
 plt.legend(loc="lower left")
 plt.grid(True)
-plt.savefig(f"temp_ellipse_{ns}_u0.6.png")
+plt.savefig(f"temp_ellipse_{ns}2_u0.6.png")
 # plt.show()
 
 
