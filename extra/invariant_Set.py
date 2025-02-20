@@ -7,7 +7,7 @@ import scipy.spatial as sp
 
 # sample A and B matrices
 workspace = "sampling-gpmpc"
-workspace = "sampling-gpmpc"
+
 sys.path.append(workspace)
 from src.agent import Agent
 from src.environments.pendulum import Pendulum
@@ -257,4 +257,5 @@ plt.plot(np.vstack([arr[:, 0], arr[0, 0]]), np.vstack([arr[:, 1], arr[0, 1]]), "
 
 plt.legend(loc="lower left")
 plt.grid(True)
-plt.savefig("temp_ellipse_200.png")
+# plt.savefig("temp_ellipse_200.png")
+plt.show()
