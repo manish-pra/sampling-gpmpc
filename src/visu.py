@@ -295,15 +295,16 @@ class Visualizer:
         X = self.state_traj[-1]
         U = self.input_traj[-1]
         rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
-        rm.append(
-            self.plot_box(
-                ax,
-                X[:, :: self.nx],
-                X[:, 1 :: self.nx],
-                self.tilde_eps_list,
-                self.tilde_eps_list,
+        if self.tilde_eps_list is not None:
+            rm.append(
+                self.plot_box(
+                    ax,
+                    X[:, :: self.nx],
+                    X[:, 1 :: self.nx],
+                    self.tilde_eps_list,
+                    self.tilde_eps_list,
+                )
             )
-        )
         pred_true_state = np.vstack(self.true_state_traj[-1])
         rm.append(
             ax.plot(

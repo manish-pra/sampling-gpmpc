@@ -79,7 +79,7 @@ class Pendulum(object):
             # + torch.randn(x_hat.shape[0]) * self.params["agent"]["tight"]["w_bound"]*0.1
         )
         y_ret[0, :, 1] = (-g * torch.cos(x_hat[:, 0]) / l) * dt
-        y_ret[0, :, 2] = torch.ones(x_hat.shape[0]) * dt / (l * l)
+        y_ret[0, :, 2] = torch.ones(x_hat.shape[0]) * dt
 
         return y_ret
 
@@ -90,7 +90,7 @@ class Pendulum(object):
             x (_type_): _description_
             u (_type_): _description_
         """
-        m = self.params["env"]["params"]["m"]
+
         l = self.params["env"]["params"]["l"]
         g = self.params["env"]["params"]["g"]
         X1dot = X2.clone()
@@ -99,6 +99,7 @@ class Pendulum(object):
         return train_data_y
 
     def get_true_gradient(self, x_hat):
+        # THIS FUNCTION IS NOT USED
         l = self.params["env"]["params"]["l"]
         g = self.params["env"]["params"]["g"]
         ret = torch.zeros((2, x_hat.shape[0], 3))
@@ -129,7 +130,7 @@ class Pendulum(object):
         g = self.params["env"]["params"]["g"]
         X1_k, U_k = xu[:, [0]], xu[:, [1]]
         dt = self.params["optimizer"]["dt"]
-        dX2_kp1 = -g * torch.sin(X1_k) * dt / l + U_k * dt / (l * l)
+        dX2_kp1 = -g * torch.sin(X1_k) * dt / l + U_k * dt
         state_kp1 = torch.hstack([dX2_kp1])
         return state_kp1
 
@@ -188,7 +189,7 @@ class Pendulum(object):
 
     def LQR_controller(self):
         g = self.params["env"]["params"]["g"]
-        m = self.params["env"]["params"]["m"]
+
         l = self.params["env"]["params"]["l"]
         b = 0
 

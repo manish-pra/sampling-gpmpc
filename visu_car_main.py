@@ -62,8 +62,10 @@ input_traj = data_dict["input_traj"]
 mean_state_traj = data_dict["mean_state_traj"]
 true_state_traj = data_dict["true_state_traj"]
 physical_state_traj = data_dict["physical_state_traj"]
-tilde_eps_list = data_dict["tilde_eps_list"]
-ci_list = data_dict["ci_list"]
+tilde_eps_list, ci_list = None, None
+if "tilde_eps_list" in data_dict:
+    tilde_eps_list = data_dict["tilde_eps_list"]
+    ci_list = data_dict["ci_list"]
 a_file.close()
 
 params["visu"]["show"] = True

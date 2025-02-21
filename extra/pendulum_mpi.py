@@ -149,7 +149,7 @@ for i, A_i in enumerate(Ax_i):
 
 # input constraints
 Au = np.array([[1], [-1]])
-bu = np.array([[10], [10]])
+bu = np.array([[6], [6]])
 for Au_i, bu_i in zip(Au, bu):
     Au_i = Au_i.reshape(1, 1)
     bu_i = bu_i.reshape(1, 1)

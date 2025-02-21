@@ -64,7 +64,7 @@ Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
 B_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params)
 
 B_phi = B_phi.cuda()
-delta = torch.tensor([0.01]).cuda()  # safety with 90% probability (1-\delta)
+delta = torch.tensor([0.01]).cuda()  # safety with 99% probability (1-\delta)
 Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-Cd) * B_phi)
 
 print(
