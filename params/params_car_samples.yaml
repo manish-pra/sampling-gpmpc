@@ -1,5 +1,5 @@
 env:
-  start: [0.0, 1.95, 0.0, 0.0] # x,y,theta,v
+  start: [0.0, 1.95, 0.0, 5.0] # x,y,theta,v
   goal_state: [70, 1.95, 0.0, 0.0]
   dynamics: 'bicycle' # "pendulum"
   params: 
@@ -11,9 +11,9 @@ env:
   n_data_u: 5
   ellipses:
     n1 : [26, 5.0, 9.0, 1.0, 5.67]  # x0, y0, a^2, b^2, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
-    n2 : [10, 1.0, 9.0, 1.0, 5.67]
-    n3 : [42, 1.0, 9.0, 1.0, 5.67]
-    n4 : [58, 5.0, 9.0, 1.0, 5.67]
+    # n2 : [10, 1.0, 9.0, 1.0, 5.67]
+    # n3 : [42, 1.0, 9.0, 1.0, 5.67]
+    # n4 : [58, 5.0, 9.0, 1.0, 5.67]
     # n1 : [24, 4.5, 9.0, 1.0, 5.67]  # x0, y0, a, b, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
     # n2 : [10, 1.5, 9.0, 1.0, 5.67]
     # n3 : [38, 1.5, 9.0, 1.0, 5.67]
@@ -29,9 +29,9 @@ agent:
     nx : 4
     nu : 2
   Dyn_gp_lengthscale :
-    # both : [[[2.1266, 5.6651, 10.5719]], [[2.2651, 4.6306, 7.6728]], [[20.9180, 6.1829, 3.7340]]]
+    # both : [[[0.21266, 0.56651, 1.05719]], [[2.2651, 4.6306, 7.6728]], [[20.9180, 6.1829, 3.7340]]]
     both : [[[ 2.2214, 14.7430,  1.9998]], [[ 2.0991, 23.9026,  1.5268]], [[48.1437, 24.5733,  1.7119]]]
-  Dyn_gp_noise : 7.0e-9 # zero noise (modulo GP jitter below)
+  Dyn_gp_noise : 1.0e-6 # zero noise (modulo GP jitter below)
   Dyn_gp_outputscale : 
     y1 : 0.1040 #0.3040 #0.75  #0.65
     y2 : 0.1071 #0.3071 #0.65 #0.455, noise multiplier 3.0e-7 results in smooth trajectories
@@ -42,7 +42,7 @@ agent:
   Dyn_gp_beta : 2.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 20     
+  num_dyn_samples: 10     
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -50,9 +50,9 @@ agent:
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
   tight:
     use: False
-    dyn_eps: 0.0
+    dyn_eps: 0.0001
     Lipschitz: 1.135
-    w_bound: 0.000
+    w_bound: 0.000001
   shift_soln: False
 
 visu:
@@ -60,7 +60,7 @@ visu:
 
 common:
   use_cuda : True
-  num_MPC_itrs : 130
+  num_MPC_itrs : 20
   dynamics_rejection: False
 
 optimizer:
@@ -69,9 +69,9 @@ optimizer:
   u_max : [0.6, 2] 
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [-2.14, 0.0, -1.14, -1] # Minimum state value
-  # x_max : [ 70, 7.0, 1.14, 15] # x,y,v,theta,theta_dot
-  x_max : [ 70, 6.0, 1.14, 15] # x,y,v,theta,theta_dot
+  x_min : [-2.14, -1.0, -1.14, -1] # Minimum state value
+  x_max : [ 70, 7.0, 1.14, 15] # x,y,v,theta,theta_dot
+  # x_max : [ 70, 6.0, 1.14, 10] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:
     max_sqp_iter: 10

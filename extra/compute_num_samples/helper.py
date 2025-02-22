@@ -91,11 +91,11 @@ def compute_posterior_norm_diff(Dyn_gp_X_train, Dyn_gp_Y_train, params):
         Dyn_gp_X_train, Dyn_gp_Y_train[gp_idx, :, 0], likelihood, params
     )
     model_1.covar_module.base_kernel.lengthscale = torch.tensor(
-        params["agent"]["Dyn_gp_lengthscale"]["both"]
+        params["agent"]["Dyn_gp_lengthscale"]["both"][gp_idx]
     )
     model_1.likelihood.noise = torch.tensor(params["agent"]["Dyn_gp_noise"])
     model_1.covar_module.outputscale = torch.tensor(
-        params["agent"]["Dyn_gp_outputscale"]["both"]
+        params["agent"]["Dyn_gp_outputscale"]["both"][gp_idx]
     )
     model_1.eval()
     pred = model_1(Dyn_gp_X_train)
@@ -131,32 +131,54 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params):
     # )
     # model.likelihood.noise = 1.0e-6
     # model.covar_module.outputscale = 0.1
+    gp_idx = 0
     model.covar_module.base_kernel.lengthscale = torch.tensor(
-        params["agent"]["Dyn_gp_lengthscale"]["both"]
+        params["agent"]["Dyn_gp_lengthscale"]["both"][gp_idx]
     )
     # model.covar_module.base_kernel.lengthscale = 5.2649
     model.likelihood.noise = torch.tensor(params["agent"]["Dyn_gp_noise"])
     model.covar_module.outputscale = torch.tensor(
-        params["agent"]["Dyn_gp_outputscale"]["both"]
+        params["agent"]["Dyn_gp_outputscale"]["both"][gp_idx]
     )
 
-    # Define the ranges
-    x_range = (params["optimizer"]["x_min"][0], params["optimizer"]["x_max"][0])
-    z_range = (params["optimizer"]["u_min"], params["optimizer"]["u_max"])
+    if Dyn_gp_X_train.shape[1] == 3:
+        # Define the ranges
+        phi_range = (params["optimizer"]["x_min"][2], params["optimizer"]["x_max"][2])
+        v_range = (params["optimizer"]["x_min"][3], params["optimizer"]["x_max"][3])
+        delta_range = (params["optimizer"]["u_min"][0], params["optimizer"]["u_max"][0])
 
-    # Define the number of points in each dimension
-    num_points = 11  # You can adjust this number as needed
+        # Define the number of points in each dimension
+        num_points = 5  # You can adjust this number as needed
+        # Generate the linspace for each dimension
+        x = np.linspace(phi_range[0], phi_range[1], num_points)
+        y = np.linspace(v_range[0], v_range[1], num_points)
+        z = np.linspace(delta_range[0], delta_range[1], num_points)
 
-    # Generate the linspace for each dimension
-    x = np.linspace(x_range[0], x_range[1], num_points)
-    z = np.linspace(z_range[0], z_range[1], num_points)
+        # Create a meshgrid for multi-dimensional space
+        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
 
-    # Create a meshgrid for multi-dimensional space
-    X, Z = np.meshgrid(x, z, indexing="ij")
+        # Flatten the grid and stack the coordinates into a tensor of shape (-1, 3)
 
-    # Flatten the grid and stack the coordinates into a tensor of shape (-1, 3)
+        grid_points = torch.from_numpy(
+            np.stack([X.flatten(), Y.flatten(), Z.flatten()], axis=-1)
+        )
+    else:
+        # Define the ranges
+        x_range = (params["optimizer"]["x_min"][0], params["optimizer"]["x_max"][0])
+        z_range = (params["optimizer"]["u_min"], params["optimizer"]["u_max"])
 
-    grid_points = torch.from_numpy(np.stack([X.flatten(), Z.flatten()], axis=-1))
+        # Define the number of points in each dimension
+        num_points = 11  # You can adjust this number as needed
+        # Generate the linspace for each dimension
+        x = np.linspace(x_range[0], x_range[1], num_points)
+        z = np.linspace(z_range[0], z_range[1], num_points)
+
+        # Create a meshgrid for multi-dimensional space
+        X, Z = np.meshgrid(x, z, indexing="ij")
+
+        # Flatten the grid and stack the coordinates into a tensor of shape (-1, 3)
+
+        grid_points = torch.from_numpy(np.stack([X.flatten(), Z.flatten()], axis=-1))
     if params["common"]["use_cuda"] and torch.cuda.is_available():
         grid_points = grid_points.cuda()
     print(grid_points.shape)

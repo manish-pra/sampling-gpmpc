@@ -29,8 +29,8 @@ print(params)
 n_data_x = params["env"]["n_data_x"]
 n_data_u = params["env"]["n_data_u"]
 
-params["env"]["n_data_x"] *= 10  # 80
-params["env"]["n_data_u"] *= 10  # 100
+params["env"]["n_data_x"] *= 4  # 80
+params["env"]["n_data_u"] *= 4  # 100
 
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
@@ -62,11 +62,16 @@ params["common"]["use_cuda"] = False
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
 
-B_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params)
-
-B_phi = B_phi.cuda()
+# eB_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+B_phi = (
+    1.0e-1
+    * torch.log(torch.tensor([1 / params["agent"]["tight"]["dyn_eps"]]))
+    ** params["agent"]["g_dim"]["nx"]
+)
+eB_phi = torch.exp(-B_phi)
+eB_phi = eB_phi.cuda()
 delta = torch.tensor([0.01]).cuda()  # safety with 99% probability (1-\delta)
-Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-Cd) * B_phi)
+Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-Cd) * eB_phi)
 
 print(
     f"Number of dynamics samples for safety with {1-delta.item()} probability are {Num_samples.item()}"
