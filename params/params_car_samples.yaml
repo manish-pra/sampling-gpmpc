@@ -1,5 +1,5 @@
 env:
-  start: [0.0, 1.95, 0.0, 5.0] # x,y,theta,v
+  start: [0.0, 1.95, 0.0, 7.0] # x,y,theta,v
   goal_state: [70, 1.95, 0.0, 0.0]
   dynamics: 'bicycle' # "pendulum"
   params: 
@@ -10,8 +10,8 @@ env:
   n_data_x: 3
   n_data_u: 5
   ellipses:
-    n1 : [26, 5.0, 9.0, 1.0, 5.67]  # x0, y0, a^2, b^2, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
-    # n2 : [10, 1.0, 9.0, 1.0, 5.67]
+    # n1 : [26, 5.0, 9.0, 1.0, 5.67]  # x0, y0, a^2, b^2, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
+    n1 : [20, 1.0, 9.0, 1.0, 5.67]
     # n3 : [42, 1.0, 9.0, 1.0, 5.67]
     # n4 : [58, 5.0, 9.0, 1.0, 5.67]
     # n1 : [24, 4.5, 9.0, 1.0, 5.67]  # x0, y0, a, b, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
@@ -60,11 +60,11 @@ visu:
 
 common:
   use_cuda : True
-  num_MPC_itrs : 20
+  num_MPC_itrs : 5
   dynamics_rejection: False
 
 optimizer:
-  H : 15 # horizon
+  H : 50 # horizon
   u_min : [-0.6, -2] # Minimum control input
   u_max : [0.6, 2] 
   # u_min : [-30, -30] # Minimum control input
