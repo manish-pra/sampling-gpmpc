@@ -29,9 +29,20 @@ class CarKinematicsModel(object):
         n_data_u = self.params["env"]["n_data_u"]
 
         if self.params["env"]["prior_dyn_meas"]:
-            phi = torch.linspace(-1.14, 1.14, n_data_x)
-            v = torch.linspace(0, 15, n_data_x)
-            delta = torch.linspace(-0.6, 0.6, n_data_u)
+            phi_min = self.params["optimizer"]["x_min"][2]
+            phi_max = self.params["optimizer"]["x_max"][2]
+            v_min = self.params["optimizer"]["x_min"][3]
+            v_max = self.params["optimizer"]["x_max"][3]
+            delta_min = self.params["optimizer"]["u_min"][0]
+            delta_max = self.params["optimizer"]["u_max"][0]
+            dphi = (phi_max - phi_min) / (n_data_x)  # removed -1; we want n gaps
+            dv = (v_max - v_min) / (n_data_x)
+            ddelta = (delta_max - delta_min) / (n_data_u)
+            phi = torch.linspace(phi_min + dphi / 2, phi_max - dphi / 2, n_data_x)
+            v = torch.linspace(v_min + dv / 2, v_max - dv / 2, n_data_x)
+            delta = torch.linspace(
+                delta_min + ddelta / 2, delta_max - ddelta / 2, n_data_u
+            )
             Phi, V, Delta = torch.meshgrid(phi, v, delta)
             Dyn_gp_X_train = torch.hstack(
                 [Phi.reshape(-1, 1), V.reshape(-1, 1), Delta.reshape(-1, 1)]

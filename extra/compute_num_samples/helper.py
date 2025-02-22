@@ -44,11 +44,11 @@ def compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params):
         Dyn_gp_X_train, Dyn_gp_Y_train[gp_idx, :, 0], likelihood, params
     )
     model_1.covar_module.base_kernel.lengthscale = torch.tensor(
-        params["agent"]["Dyn_gp_lengthscale"]["both"]
+        params["agent"]["Dyn_gp_lengthscale"]["both"][gp_idx]
     )
     model_1.likelihood.noise = torch.tensor(params["agent"]["Dyn_gp_noise"])
     model_1.covar_module.outputscale = torch.tensor(
-        params["agent"]["Dyn_gp_outputscale"]["both"]
+        params["agent"]["Dyn_gp_outputscale"]["both"][gp_idx]
     )
     # model_1.eval()
     # pred = model_1(Dyn_gp_X_train)
