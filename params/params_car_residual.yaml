@@ -7,11 +7,11 @@ env:
     lr: 1.738 #0.85 #1.738, 0.425
   prior_dyn_meas: True 
   train_data_has_derivatives: False
-  n_data_x: 4
-  n_data_u: 7
+  n_data_x: 5
+  n_data_u: 9
   ellipses:
     # n1 : [26, 5.0, 9.0, 1.0, 5.67]  # x0, y0, a^2, b^2, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
-    n1 : [20, 1.0, 9.0, 1.0, 5.67]
+    n1 : [15, 1.0, 9.0, 1.0, 5.67]
     # n3 : [42, 1.0, 9.0, 1.0, 5.67]
     # n4 : [58, 5.0, 9.0, 1.0, 5.67]
     # n1 : [24, 4.5, 9.0, 1.0, 5.67]  # x0, y0, a, b, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
@@ -31,12 +31,12 @@ agent:
   Dyn_gp_lengthscale :
     # both : [[[0.21266, 0.56651, 1.05719]], [[2.2651, 4.6306, 7.6728]], [[20.9180, 6.1829, 3.7340]]]
     # both : [[[ 3.5447,  3.7175]], [[ 3.9424,  3.2711]], [[50.3278,  3.3770]]]
-    both : [[[1.69, 1.69]], [[1.492, 1.508]], [[5.22931,  1.9544]]]
+    both : [[[1.492, 1.508]], [[1.4, 1.1]], [[5.22931,  1.9544]]]
   Dyn_gp_noise : 1.0e-6 # zero noise (modulo GP jitter below)
   Dyn_gp_outputscale : 
     y1 : 0.1040 #0.3040 #0.75  #0.65
     y2 : 0.1071 #0.3071 #0.65 #0.455, noise multiplier 3.0e-7 results in smooth trajectories
-    both : [0.035, 0.065, 0.01] #[0.0357, 0.1621, 0.0054] #[0.223, 0.0847, 0.0082]  #[0.123, 0.0447, 0.0042]
+    both : [0.065, 0.065, 0.01] #[0.0357, 0.1621, 0.0054] #[0.223, 0.0847, 0.0082]  #[0.123, 0.0447, 0.0042]
   Dyn_gp_task_noises : 
     val : [1.4, 0.48, 0.515]
     multiplier : 1.0e-6                     #1.0e-5 Low noise value make it crazy fast
@@ -51,8 +51,8 @@ agent:
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
   tight:
     use: False
-    dyn_eps: 0.003
-    Lipschitz: 1.0135
+    dyn_eps: 0.00003
+    Lipschitz: 1.1
     w_bound: 0.000001
   shift_soln: False
 
@@ -70,8 +70,8 @@ optimizer:
   u_max : [0.6, 2] 
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [-2.14, -3.0, -0.8, 5] # Minimum state value
-  x_max : [ 70, 10.0, 0.8, 12] # x,y,v,theta,theta_dot
+  x_min : [-2.14, -5.0, -0.8, 5] # Minimum state value
+  x_max : [ 70, 13.0, 0.8, 12] # x,y,v,theta,theta_dot
   # x_max : [ 70, 6.0, 1.14, 10] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:

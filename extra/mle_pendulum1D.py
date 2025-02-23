@@ -57,7 +57,7 @@ g_nu = params["agent"]["g_dim"]["nu"]
 g_ny = params["agent"]["g_dim"]["ny"]
 in_dim = g_nx + g_nu
 
-gp_idx = 2
+gp_idx = 1
 
 likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
     num_tasks=in_dim + 1, noise_constraint=gpytorch.constraints.GreaterThan(0.0)

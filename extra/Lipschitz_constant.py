@@ -18,9 +18,9 @@ norm2_list = []
 # for delta in [x / 20.0 for x in range(-6, 6, 1)]:
 #     for theta in [x / 200.0 for x in range(-114, 114, 1)]:
 #         for v in [x / 20.0 for x in range(-10, 150, 1)]:
-for delta in range_float(-0.6, 0.6, 0.2):
-    for theta in range_float(-1.14, 1.14, 0.02):
-        for v in range_float(-1, 10, 0.2):  # Lipschitz constant is sensitive to v
+for delta in range_float(-0.6, 0.6, 0.1):
+    for theta in range_float(-0.8, 0.8, 0.02):
+        for v in range_float(5, 10, 0.2):  # Lipschitz constant is sensitive to v
             beta_in = (lr * np.tan(delta)) / (lf + lr)
             beta = np.arctan(beta_in)
 
