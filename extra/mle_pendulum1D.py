@@ -12,10 +12,12 @@ sys.path.append(workspace)
 import yaml
 from src.environments.pendulum import Pendulum
 from src.environments.pendulum1D import Pendulum as Pendulum1D
+from src.environments.car_model_residual import CarKinematicsModel as bicycle
 
 
 # 1) Load the config file
-with open(workspace + "/params/" + "params_pendulum1D_samples" + ".yaml") as file:
+# with open(workspace + "/params/" + "params_pendulum1D_samples" + ".yaml") as file:
+with open(workspace + "/params/" + "params_car_mle" + ".yaml") as file:
     params = yaml.load(file, Loader=yaml.FullLoader)
 params["env"]["i"] = 21
 params["env"]["name"] = 0
@@ -50,20 +52,27 @@ class GPModelWithDerivatives(gpytorch.models.ExactGP):
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
 
 
+g_nx = params["agent"]["g_dim"]["nx"]
+g_nu = params["agent"]["g_dim"]["nu"]
+g_ny = params["agent"]["g_dim"]["ny"]
+in_dim = g_nx + g_nu
+
+gp_idx = 2
+
 likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-    num_tasks=3, noise_constraint=gpytorch.constraints.GreaterThan(0.0)
+    num_tasks=in_dim + 1, noise_constraint=gpytorch.constraints.GreaterThan(0.0)
 )
 # model = ExactGPModel(train_x, train_y, likelihood)
 Dyn_gp_model = GPModelWithDerivatives(
-    Dyn_gp_X_train, Dyn_gp_Y_train[0, :, :], likelihood
+    Dyn_gp_X_train, Dyn_gp_Y_train[gp_idx, :, :], likelihood
 )
 Dyn_gp_model.covar_module.base_kernel.lengthscale = torch.tensor(
-    params["agent"]["Dyn_gp_lengthscale"]["both"]
+    params["agent"]["Dyn_gp_lengthscale"]["both"][gp_idx]
 )
 
 Dyn_gp_model.likelihood.noise = torch.tensor(params["agent"]["Dyn_gp_noise"])
 Dyn_gp_model.covar_module.outputscale = torch.tensor(
-    params["agent"]["Dyn_gp_outputscale"]["both"]
+    params["agent"]["Dyn_gp_outputscale"]["both"][gp_idx]
 )
 # model_1.covar_module.outputscale = torch.tensor(
 #     params["agent"]["Dyn_gp_outputscale"]["both"]
@@ -128,7 +137,7 @@ for out in ["y1"]:
     for i in range(training_iter):
         optimizer.zero_grad()
         output = Dyn_gp_model(Dyn_gp_X_train)
-        loss = -mll(output, Dyn_gp_Y_train[0, :, :])
+        loss = -mll(output, Dyn_gp_Y_train[gp_idx, :, :])
         loss.backward()
         print(
             "Iter",

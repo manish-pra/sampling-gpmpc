@@ -94,6 +94,8 @@ class DEMPC:
             X, U, Sl = self.dempc_solver.get_solution()
         #
         self.visu.record(st_curr, X, U, dt)
+        print("X", X)
+        print("U", U)
 
         # self.visu.plot_pendulum_traj(X,U)
         return torch.from_numpy(X).float(), torch.from_numpy(U).float()

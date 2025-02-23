@@ -6,9 +6,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 import sys
 
-# sample A and B matrices
-workspace = "sampling-gpmpc"
-sys.path.append(workspace)
+sys.path.insert(0, "/home/manish/work/MPC_Dyn/safe_gpmpc")
+
 from src.environments.car_model import CarKinematicsModel
 import argparse
 import yaml
@@ -18,9 +17,10 @@ from src.GP_model import (
     BatchMultitaskGPModelWithDerivatives,
 )
 
+workspace = "safe_gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params_car_mle")  # params
+parser.add_argument("-param", default="params_car")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=40)  # initialized at origin

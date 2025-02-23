@@ -10,7 +10,7 @@ from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
 from src.environments.pendulum import Pendulum as pendulum
-from src.environments.car_model import CarKinematicsModel as bicycle
+from src.environments.car_model_residual import CarKinematicsModel as bicycle
 from src.environments.pendulum1D import Pendulum as Pendulum1D
 import numpy as np
 import torch
@@ -24,7 +24,7 @@ workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_pendulum1D_samples")  # params
-parser.add_argument("-param", default="params_car_samples")  # params
+parser.add_argument("-param", default="params_car_residual")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=43)  # initialized at origin
