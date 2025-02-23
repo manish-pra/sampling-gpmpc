@@ -8,8 +8,11 @@ class CarKinematicsModel(object):
         self.nx = self.params["agent"]["dim"]["nx"]
         self.nu = self.params["agent"]["dim"]["nu"]
         self.g_ny = self.params["agent"]["g_dim"]["ny"]
-        self.pad_g = [0, 3, 4, 5]  # 0, self.g_nx + self.g_nu :
-        self.g_idx_inputs = [2, 3, 4]
+        self.g_nx = self.params["agent"]["g_dim"]["nx"]
+        self.g_nu = self.params["agent"]["g_dim"]["nu"]
+        self.pad_vg = [0, 1, 3]
+        self.pad_g = [0, 3, 4, 5]  # 0, !self.g_nx + self.g_nu, included v (4) as well
+        self.g_idx_inputs = [2, 4]
         if self.params["common"]["use_cuda"] and torch.cuda.is_available():
             self.use_cuda = True
             self.torch_device = torch.device("cuda")
@@ -31,22 +34,18 @@ class CarKinematicsModel(object):
         if self.params["env"]["prior_dyn_meas"]:
             phi_min = self.params["optimizer"]["x_min"][2]
             phi_max = self.params["optimizer"]["x_max"][2]
-            v_min = self.params["optimizer"]["x_min"][3]
-            v_max = self.params["optimizer"]["x_max"][3]
             delta_min = self.params["optimizer"]["u_min"][0]
             delta_max = self.params["optimizer"]["u_max"][0]
             dphi = (phi_max - phi_min) / (n_data_x)  # removed -1; we want n gaps
-            dv = (v_max - v_min) / (n_data_x)
+
             ddelta = (delta_max - delta_min) / (n_data_u)
             phi = torch.linspace(phi_min + dphi / 2, phi_max - dphi / 2, n_data_x)
-            v = torch.linspace(v_min + dv / 2, v_max - dv / 2, n_data_x)
+
             delta = torch.linspace(
                 delta_min + ddelta / 2, delta_max - ddelta / 2, n_data_u
             )
-            Phi, V, Delta = torch.meshgrid(phi, v, delta)
-            Dyn_gp_X_train = torch.hstack(
-                [Phi.reshape(-1, 1), V.reshape(-1, 1), Delta.reshape(-1, 1)]
-            )
+            Phi, Delta = torch.meshgrid(phi, delta)
+            Dyn_gp_X_train = torch.hstack([Phi.reshape(-1, 1), Delta.reshape(-1, 1)])
             Dyn_gp_Y_train = self.get_prior_data(Dyn_gp_X_train)
             # Dyn_gp_Y_train = torch.stack((y1, y2), dim=0)
         else:
@@ -60,19 +59,19 @@ class CarKinematicsModel(object):
 
     def get_prior_data(self, xu):
         # NOTE: xu already needs to be filtered to only contain modeled inputs
-        assert xu.shape[1] == 3
+        assert xu.shape[1] == self.g_nx + self.g_nu
 
         dt = self.params["optimizer"]["dt"]
-        nx = 2  # phi, v
-        nu = 1  # delta
-        ny = 3  # phi, v, delta
+        g_nx = self.g_nx  # phi
+        g_nu = self.g_nu  # delta
+        g_ny = self.g_ny  # phi, v, delta
         lf = self.params["env"]["params"]["lf"]
         lr = self.params["env"]["params"]["lr"]
         # lf = 1.105 * 0.01
         # lr = 1.738 * 0.01
-        phi, v, delta = xu[:, 0], xu[:, 1], xu[:, 2]
-        g_xu, v_g_xu = self.unknown_dyn(xu)  # phi, v, delta
-        y_ret = torch.zeros((ny, xu.shape[0], 1 + nx + nu))
+        phi, delta = xu[:, 0], xu[:, 1]
+        g_xu = self.unknown_dyn(xu)  # phi, v, delta
+        y_ret = torch.zeros((g_ny, xu.shape[0], 1 + g_nx + g_nu))
 
         y_ret[0, :, 0] = g_xu[:, 0]
         y_ret[1, :, 0] = g_xu[:, 1]
@@ -84,17 +83,17 @@ class CarKinematicsModel(object):
         # y_ret[0, :, 2] = torch.cos(phi + beta) * dt
 
         term = ((lr / (torch.cos(delta) ** 2)) / (lf + lr)) / (1 + beta_in**2)
-        y_ret[0, :, 3] = -torch.sin(phi + beta) * dt * term
+        y_ret[0, :, 2] = -torch.sin(phi + beta) * dt * term
 
         # derivative of dy w.r.t. phi, v, delta
         y_ret[1, :, 1] = torch.cos(phi + beta) * dt
         # y_ret[1, :, 2] = torch.sin(phi + beta) * dt
-        y_ret[1, :, 3] = torch.cos(phi + beta) * dt * term
+        y_ret[1, :, 2] = torch.cos(phi + beta) * dt * term
 
         # derivative of dphi w.r.t. phi, v, delta
         # y_ret[2,:, 0] is zeros
         # y_ret[2, :, 2] = torch.sin(beta) * dt / lr
-        y_ret[2, :, 3] = torch.cos(beta) * dt * term / lr
+        y_ret[2, :, 2] = torch.cos(beta) * dt * term / lr
         return y_ret
 
     def get_f_known_jacobian(self, xu):
@@ -164,7 +163,7 @@ class CarKinematicsModel(object):
         # NOTE: xu already needs to be filtered to only contain modeled inputs
         assert xu.shape[1] == len(self.g_idx_inputs)
 
-        Phi_k, V_k, delta_k = xu[:, [0]], xu[:, [1]], xu[:, [2]]
+        Phi_k, delta_k = xu[:, [0]], xu[:, [1]]
         lf = self.params["env"]["params"]["lf"]
         lr = self.params["env"]["params"]["lr"]
         dt = self.params["optimizer"]["dt"]
@@ -173,8 +172,8 @@ class CarKinematicsModel(object):
         dY_kp1 = torch.sin(Phi_k + beta) * dt
         Phi_kp1 = torch.sin(beta) * dt / lr
         state_kp1 = torch.hstack([dX_kp1, dY_kp1, Phi_kp1])
-        V_state_kp1 = torch.hstack([V_k * dX_kp1, V_k * dY_kp1, V_k * Phi_kp1])
-        return state_kp1, V_state_kp1
+        # V_state_kp1 = torch.hstack([V_k * dX_kp1, V_k * dY_kp1, V_k * Phi_kp1])
+        return state_kp1
 
     def discrete_dyn(self, xu):
         """_summary_"""
@@ -182,7 +181,8 @@ class CarKinematicsModel(object):
         assert xu.shape[1] == self.nx + self.nu
 
         f_xu = self.known_dyn(xu.tile((1, self.nx, 1, 1)))[0, :, :]
-        g_xu, v_g_xu = self.unknown_dyn(xu[:, self.g_idx_inputs])
+        g_xu = self.unknown_dyn(xu[:, self.g_idx_inputs])
+        v_g_xu = xu[:, 3] * g_xu  # done for only 1 sample
         B_d = torch.eye(self.nx, self.g_ny).to(device="cpu", dtype=v_g_xu.dtype)
         return f_xu + torch.matmul(B_d, v_g_xu.transpose(0, 1))
 

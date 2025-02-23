@@ -498,7 +498,12 @@ class Agent(object):
             pad_dg_dxu_grad = torch.zeros(
                 ns, self.g_ny, nH, 1 + self.nx + self.nu, device=xu_hat.device
             )
-            v_dg_dxu_grad = xu_hat[:, 0:3, :, [3]] * dg_dxu_grad  # multiply with V_k
+            v_dg_dxu_grad = torch.zeros(
+                (ns, self.g_ny, nH, 1 + dg_dxu_grad.shape[3]), device=xu_hat.device
+            )
+            v_dg_dxu_grad[:, :, :, self.env_model.pad_vg] = (
+                xu_hat[:, 0:3, :, [3]] * dg_dxu_grad
+            )  # multiply with V_k
             v_dg_dxu_grad[:, :, :, 2] = dg_dxu_grad[:, :, :, 0]  # set grad_v
             pad_dg_dxu_grad[:, :, :, self.env_model.pad_g] = v_dg_dxu_grad
             # pad_dg_dxu_grad[:, :, :, self.env_model.pad_g] = dg_dxu_grad

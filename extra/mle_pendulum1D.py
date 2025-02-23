@@ -17,7 +17,7 @@ from src.environments.car_model_residual import CarKinematicsModel as bicycle
 
 # 1) Load the config file
 # with open(workspace + "/params/" + "params_pendulum1D_samples" + ".yaml") as file:
-with open(workspace + "/params/" + "params_car_mle" + ".yaml") as file:
+with open(workspace + "/params/" + "params_car_residual_mle" + ".yaml") as file:
     params = yaml.load(file, Loader=yaml.FullLoader)
 params["env"]["i"] = 21
 params["env"]["name"] = 0
@@ -57,7 +57,7 @@ g_nu = params["agent"]["g_dim"]["nu"]
 g_ny = params["agent"]["g_dim"]["ny"]
 in_dim = g_nx + g_nu
 
-gp_idx = 2
+gp_idx = 0
 
 likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
     num_tasks=in_dim + 1, noise_constraint=gpytorch.constraints.GreaterThan(0.0)

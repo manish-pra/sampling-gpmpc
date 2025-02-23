@@ -6,9 +6,9 @@ env:
     lf: 1.105 #0.55 #1.105, 0.275
     lr: 1.738 #0.85 #1.738, 0.425
   prior_dyn_meas: True 
-  train_data_has_derivatives: False
-  n_data_x: 4
-  n_data_u: 7
+  train_data_has_derivatives: True
+  n_data_x: 36
+  n_data_u: 36
   ellipses:
     # n1 : [26, 5.0, 9.0, 1.0, 5.67]  # x0, y0, a^2, b^2, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
     n1 : [20, 1.0, 9.0, 1.0, 5.67]
@@ -30,13 +30,12 @@ agent:
     nu : 2
   Dyn_gp_lengthscale :
     # both : [[[0.21266, 0.56651, 1.05719]], [[2.2651, 4.6306, 7.6728]], [[20.9180, 6.1829, 3.7340]]]
-    # both : [[[ 3.5447,  3.7175]], [[ 3.9424,  3.2711]], [[50.3278,  3.3770]]]
     both : [[[5.3173, 5.7947]], [[4.9286, 5.0788]], [[52.2931,  1.9544]]]
   Dyn_gp_noise : 1.0e-6 # zero noise (modulo GP jitter below)
   Dyn_gp_outputscale : 
     y1 : 0.1040 #0.3040 #0.75  #0.65
     y2 : 0.1071 #0.3071 #0.65 #0.455, noise multiplier 3.0e-7 results in smooth trajectories
-    both : [0.0035, 0.0265, 0.0001] #[0.0357, 0.1621, 0.0054] #[0.223, 0.0847, 0.0082]  #[0.123, 0.0447, 0.0042]
+    both : [0.0035, 0.0265, 0.0001] #[0.223, 0.0847, 0.0082]  #[0.123, 0.0447, 0.0042]
   Dyn_gp_task_noises : 
     val : [1.4, 0.48, 0.515]
     multiplier : 1.0e-6                     #1.0e-5 Low noise value make it crazy fast
