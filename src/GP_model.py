@@ -66,9 +66,19 @@ class BatchMultitaskGPModelWithDerivatives(gpytorch.models.ExactGP):
         self.base_kernel = base_kernel_fun(
             ard_num_dims=ard_num_dims, batch_shape=batch_shape
         )
+
         self.covar_module = gpytorch.kernels.ScaleKernel(
             self.base_kernel, batch_shape=batch_shape
         )
+        # scale_base_kernel = gpytorch.kernels.ScaleKernel(
+        #     self.base_kernel, batch_shape=batch_shape
+        # )
+        # n_devices = torch.cuda.device_count()
+        # self.covar_module = gpytorch.kernels.MultiDeviceKernel(
+        #     scale_base_kernel,
+        #     device_ids=range(n_devices),
+        #     output_device=torch.device("cuda"),
+        # )
         self.batch_shape = batch_shape
         self.use_grad = use_grad
 

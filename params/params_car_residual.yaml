@@ -38,13 +38,13 @@ agent:
     both : [0.0357, 0.1621, 0.0054] #[0.223, 0.0847, 0.0082]  #[0.123, 0.0447, 0.0042]
   Dyn_gp_task_noises : 
     val : [1.4, 0.48, 1.47, 0.515]
-    multiplier : 1.0e-5                     #1.0e-5 Low noise value make it crazy fast
+    multiplier : 1.0e-6                     #1.0e-5 Low noise value make it crazy fast
   Dyn_gp_beta : 3.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 10     
+  num_dyn_samples: 1     
   mean_as_dyn_sample: False
-  true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
+  true_dyn_as_sample: True        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
   Dyn_gp_variance_is_zero: -1.0 # -1 : deactivated
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
@@ -84,7 +84,7 @@ optimizer:
   w: 40
   Qx: [2, 36, 0.07, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
   # Qx: [2, 38, 0.11, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
-  Qu: [2, 2]
+  Qu: [20, 2]
   cost: "expected"
   options: {
     levenberg_marquardt: 1.0e-1
