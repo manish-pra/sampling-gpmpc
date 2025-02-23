@@ -17,24 +17,26 @@ sys.path.append(workspace)
 from src.agent import Agent
 from src.environments.pendulum import Pendulum as pendulum
 from src.environments.pendulum1D import Pendulum as Pendulum1D
-from src.environments.car_model import CarKinematicsModel as bicycle
+from src.environments.car_model_residual import CarKinematicsModel as bicycle
 
 # 1) Load the config file
-with open(workspace + "/params/" + "params_car_samples" + ".yaml") as file:
+with open(workspace + "/params/" + "params_car_residual" + ".yaml") as file:
     params = yaml.load(file, Loader=yaml.FullLoader)
 params["env"]["i"] = 21
 params["env"]["name"] = 0
 print(params)
-
+gp_idx = 2
 n_data_x = params["env"]["n_data_x"]
 n_data_u = params["env"]["n_data_u"]
 
-params["env"]["n_data_x"] *= 4  # 80
-params["env"]["n_data_u"] *= 4  # 100
+params["env"]["n_data_x"] *= 10  # 80
+params["env"]["n_data_u"] *= 10  # 100
 
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
-true_function_norm, _, _ = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+true_function_norm, _, _ = compute_rkhs_norm(
+    Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx
+)
 print(true_function_norm)
 
 params["env"]["n_data_x"] = n_data_x
@@ -44,7 +46,9 @@ env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
 mean_norm, alpha, y = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params)
 
-kernel_norm_diff = compute_posterior_norm_diff(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+kernel_norm_diff = compute_posterior_norm_diff(
+    Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx
+)
 print(mean_norm, kernel_norm_diff)
 y = Dyn_gp_Y_train[0, :, 0].reshape(-1, 1)
 Cd = (
@@ -62,13 +66,13 @@ params["common"]["use_cuda"] = False
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
 
-# eB_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params)
-B_phi = (
-    1.0e-1
-    * torch.log(torch.tensor([1 / params["agent"]["tight"]["dyn_eps"]]))
-    ** params["agent"]["g_dim"]["nx"]
-)
-eB_phi = torch.exp(-B_phi)
+eB_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx)
+# B_phi = (
+#     1.0e-1
+#     * torch.log(torch.tensor([1 / params["agent"]["tight"]["dyn_eps"]]))
+#     ** params["agent"]["g_dim"]["nx"]
+# )
+# eB_phi = torch.exp(-B_phi)
 eB_phi = eB_phi.cuda()
 delta = torch.tensor([0.01]).cuda()  # safety with 99% probability (1-\delta)
 Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-Cd) * eB_phi)

@@ -33,13 +33,13 @@ def compute_kernel(x1, x2, length_scale):
     return 0.5 * torch.exp(-torch.sum(scaled_diff, dim=-1))
 
 
-def compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params):
+def compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx=0):
     Dyn_gp_noise = 0.0
     likelihood = gpytorch.likelihoods.GaussianLikelihood(
         noise_constraint=gpytorch.constraints.GreaterThan(Dyn_gp_noise),
         # batch_shape=torch.Size([3, 1]),
     )
-    gp_idx = 0
+
     model_1 = ExactGPModel(
         Dyn_gp_X_train, Dyn_gp_Y_train[gp_idx, :, 0], likelihood, params
     )
@@ -80,13 +80,13 @@ def compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params):
     return norm, alpha, y
 
 
-def compute_posterior_norm_diff(Dyn_gp_X_train, Dyn_gp_Y_train, params):
+def compute_posterior_norm_diff(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx=0):
     Dyn_gp_noise = 0.0
     likelihood = gpytorch.likelihoods.GaussianLikelihood(
         noise_constraint=gpytorch.constraints.GreaterThan(Dyn_gp_noise),
         # batch_shape=torch.Size([3, 1]),
     )
-    gp_idx = 0
+
     model_1 = ExactGPModel(
         Dyn_gp_X_train, Dyn_gp_Y_train[gp_idx, :, 0], likelihood, params
     )
@@ -108,7 +108,7 @@ def compute_posterior_norm_diff(Dyn_gp_X_train, Dyn_gp_Y_train, params):
     return out
 
 
-def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params):
+def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx=0):
 
     # Computation of C_D
     # 1) Compute RKHS norm of the mean function
@@ -125,13 +125,15 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params):
         noise_constraint=gpytorch.constraints.GreaterThan(Dyn_gp_noise)
     )
     # model = ExactGPModel(train_x, train_y, likelihood)
-    model = ExactGPModel(Dyn_gp_X_train, Dyn_gp_Y_train[0, :, 0], likelihood, params)
+    model = ExactGPModel(
+        Dyn_gp_X_train, Dyn_gp_Y_train[gp_idx, :, 0], likelihood, params
+    )
     # model.covar_module.base_kernel.lengthscale = torch.tensor(
     #     params["agent"]["Dyn_gp_lengthscale"]["both"]
     # )
     # model.likelihood.noise = 1.0e-6
     # model.covar_module.outputscale = 0.1
-    gp_idx = 0
+
     model.covar_module.base_kernel.lengthscale = torch.tensor(
         params["agent"]["Dyn_gp_lengthscale"]["both"][gp_idx]
     )
@@ -164,8 +166,12 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params):
         )
     else:
         # Define the ranges
-        x_range = (params["optimizer"]["x_min"][0], params["optimizer"]["x_max"][0])
-        z_range = (params["optimizer"]["u_min"], params["optimizer"]["u_max"])
+        if params["env"]["dynamics"] == "bicycle":
+            x_range = (params["optimizer"]["x_min"][2], params["optimizer"]["x_max"][2])
+            z_range = (params["optimizer"]["u_min"][0], params["optimizer"]["u_max"][0])
+        else:
+            x_range = (params["optimizer"]["x_min"][0], params["optimizer"]["x_max"][0])
+            z_range = (params["optimizer"]["u_min"], params["optimizer"]["u_max"])
 
         # Define the number of points in each dimension
         num_points = 11  # You can adjust this number as needed
