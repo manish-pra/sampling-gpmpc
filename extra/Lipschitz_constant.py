@@ -18,6 +18,7 @@ norm2_list = []
 # for delta in [x / 20.0 for x in range(-6, 6, 1)]:
 #     for theta in [x / 200.0 for x in range(-114, 114, 1)]:
 #         for v in [x / 20.0 for x in range(-10, 150, 1)]:
+max_val = -1
 for delta in range_float(-0.6, 0.6, 0.1):
     for theta in range_float(-0.8, 0.8, 0.02):
         for v in range_float(5, 10, 0.2):  # Lipschitz constant is sensitive to v
@@ -57,20 +58,29 @@ for delta in range_float(-0.6, 0.6, 0.1):
             )
             norm2 = LA.norm(J, ord=2)
             norm2_list.append(norm2)
+            max_round = np.max(np.sum(J, axis=1))
+            if max_val < max_round:
+                max_val = max_round
 print(norm2_list)
 max_norm2 = max(norm2_list)
 print(max_norm2)
+print("Max", max_val)
 
 # # Pendulum example
-# dt = 0.015
-# l = 10
-# g = 9.81
-# theta = np.pi
-# norm2_list = []
-# for i in range(100):
-#     J = np.array([[1, dt, 0], [-g * np.cos(theta * i / 50) * dt / l, 1, dt]])
-#     norm2 = LA.norm(J, ord=np.inf)
-#     norm2_list.append(norm2)
-# print(norm2_list)
-# max_norm2 = max(norm2_list)
-# print(max_norm2)
+dt = 0.015
+l = 10
+g = 9.81
+theta = np.pi
+norm2_list = []
+max_val = -1
+for i in range(100):
+    J = np.array([[1, dt, 0], [-g * np.cos(theta * i / 50) * dt / l, 1, dt]])
+    max_round = np.max(np.sum(J, axis=1))
+    if max_val < max_round:
+        max_val = max_round
+    norm2 = LA.norm(J, ord=np.inf)
+    norm2_list.append(norm2)
+print(norm2_list)
+max_norm2 = max(norm2_list)
+print(max_norm2)
+print("Max", max_val)

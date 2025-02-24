@@ -50,8 +50,8 @@ agent:
   Dyn_gp_variance_is_zero: -1.0 # -1 : deactivated
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
   tight:
-    use: False
-    dyn_eps: 0.00003
+    use: True
+    dyn_eps: 0.003
     Lipschitz: 1.1
     w_bound: 0.000001
   shift_soln: False
