@@ -1,7 +1,7 @@
 env:
   start: [0.0, 1.95, 0.0, 7.0] # x,y,theta,v
   goal_state: [70, 1.95, 0.0, 0.0]
-  dynamics: 'bicycle' # "pendulum"
+  dynamics: 'bicycle_Bdx' # "pendulum"
   params: 
     lf: 1.105 #0.55 #1.105, 0.275
     lr: 1.738 #0.85 #1.738, 0.425

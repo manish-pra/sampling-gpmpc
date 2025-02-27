@@ -198,3 +198,16 @@ class CarKinematicsModel(object):
             state_kp1 = self.discrete_dyn(state_input)
             state_list.append(state_kp1.reshape(-1))
         return np.stack(state_list)
+
+    def transform_sensitivity(self, dg_dxu_grad, xu_hat):
+        ns = dg_dxu_grad.shape[0]
+        nH = dg_dxu_grad.shape[2]
+
+        v_dg_dxu_grad = torch.zeros(
+            (ns, self.g_ny, nH, 1 + dg_dxu_grad.shape[3]), device=dg_dxu_grad.device
+        )
+        v_dg_dxu_grad[:, :, :, self.pad_vg] = (
+            xu_hat[:, 0:3, :, [3]] * dg_dxu_grad
+        )  # multiply with V_k
+        v_dg_dxu_grad[:, :, :, 2] = dg_dxu_grad[:, :, :, 0]  # set grad_v
+        return v_dg_dxu_grad

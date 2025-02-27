@@ -10,7 +10,8 @@ from src.DEMPC import DEMPC
 from src.visu import Visualizer
 from src.agent import Agent
 from src.environments.pendulum import Pendulum as pendulum
-from src.environments.car_model_residual import CarKinematicsModel as bicycle
+from src.environments.car_model_residual import CarKinematicsModel as bicycle_Bdx
+from src.environments.car_model import CarKinematicsModel as bicycle
 from src.environments.pendulum1D import Pendulum as Pendulum1D
 import numpy as np
 import torch

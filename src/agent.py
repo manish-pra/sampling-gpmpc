@@ -498,15 +498,9 @@ class Agent(object):
             pad_dg_dxu_grad = torch.zeros(
                 ns, self.g_ny, nH, 1 + self.nx + self.nu, device=xu_hat.device
             )
-            v_dg_dxu_grad = torch.zeros(
-                (ns, self.g_ny, nH, 1 + dg_dxu_grad.shape[3]), device=xu_hat.device
-            )
-            v_dg_dxu_grad[:, :, :, self.env_model.pad_vg] = (
-                xu_hat[:, 0:3, :, [3]] * dg_dxu_grad
-            )  # multiply with V_k
-            v_dg_dxu_grad[:, :, :, 2] = dg_dxu_grad[:, :, :, 0]  # set grad_v
-            pad_dg_dxu_grad[:, :, :, self.env_model.pad_g] = v_dg_dxu_grad
-            # pad_dg_dxu_grad[:, :, :, self.env_model.pad_g] = dg_dxu_grad
+            # transform grad depending on B_d vs B_d(x)
+            dg_dxu_grad = self.env_model.transform_sensitivity(dg_dxu_grad, xu_hat)
+            pad_dg_dxu_grad[:, :, :, self.env_model.pad_g] = dg_dxu_grad
             # B_d = torch.eye(self.nx, self.g_ny, device=xu_hat.device)
             y_sample = df_dxu_grad + torch.matmul(
                 self.env_model.B_d, pad_dg_dxu_grad.transpose(1, 2)

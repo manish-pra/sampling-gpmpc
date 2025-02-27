@@ -42,9 +42,11 @@ agent:
   Dyn_gp_variance_is_zero: 1.1e-6
   Dyn_gp_min_data_dist: 1.0e-4
   tight:
+    use: False
     dyn_eps: 0.001
     Lipschitz: 1.015
     w_bound: 0.007
+  shift_soln: True
 
 visu:
   show: True

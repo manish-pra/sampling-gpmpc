@@ -197,3 +197,6 @@ class CarKinematicsModel(object):
             state_kp1 = self.discrete_dyn(state_input)
             state_list.append(state_kp1.reshape(-1))
         return np.stack(state_list)
+
+    def transform_sensitivity(self, dg_dxu_grad, xu_hat):
+        return dg_dxu_grad

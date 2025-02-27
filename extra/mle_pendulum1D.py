@@ -12,8 +12,8 @@ sys.path.append(workspace)
 import yaml
 from src.environments.pendulum import Pendulum
 from src.environments.pendulum1D import Pendulum as Pendulum1D
-from src.environments.car_model_residual import CarKinematicsModel as bicycle
-
+from src.environments.car_model import CarKinematicsModel as bicycle
+from src.environments.car_model_residual import CarKinematicsModel as bicycle_Bdx
 
 # 1) Load the config file
 # with open(workspace + "/params/" + "params_pendulum1D_samples" + ".yaml") as file:

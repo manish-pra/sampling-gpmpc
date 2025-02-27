@@ -236,3 +236,6 @@ class Pendulum(object):
             x_history.append(x.flatten())
             u_history.append(u.flatten())
         return np.vstack(x_history), np.vstack(u_history)
+
+    def transform_sensitivity(self, dg_dxu_grad, xu_hat):
+        return dg_dxu_grad
