@@ -30,7 +30,7 @@ class Visualizer:
 
     def initialize_plot_handles(self, path):
         if self.params["env"]["dynamics"] == "bicycle":
-            fig_gp, ax = plt.subplots(figsize=(16 / 2.4, 1.8 / 2.4))
+            fig_gp, ax = plt.subplots(figsize=(30 / 2.4, 3.375 / 2.4))
         elif "endulum" in self.params["env"]["dynamics"]:
             fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
         # fig_gp.tight_layout(pad=0)
@@ -92,7 +92,7 @@ class Visualizer:
             ax.set_aspect("equal", "box")
             ax.set_xlim(x_min, x_max - 10)
             relax = 0
-            # ax.set_ylim(y_min - relax, y_max + relax)
+            ax.set_ylim(y_min - relax, y_max + relax)
             ax.set_yticklabels([])
             ax.set_xticklabels([])
             plt.xticks([])
@@ -328,8 +328,8 @@ class Visualizer:
         return rm
 
     def plot_box(self, ax, x, y, lx, ly):
-        lx = np.stack(lx)
-        ly = np.stack(ly)
+        lx = np.stack(lx) * 2
+        ly = np.stack(ly) * 2
         # Compute lower-left corners of all boxes (vectorized)
         lower_left_x = (x[: lx.shape[0]].transpose() - lx / 2).transpose()
         lower_left_y = (y[: ly.shape[0]].transpose() - ly / 2).transpose()
