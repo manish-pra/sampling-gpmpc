@@ -106,8 +106,8 @@ class Visualizer:
             )
             ax.set_aspect("equal", "box")
             relax = 0.3
-            ax.set_xlim(0 - relax, x_max + relax)
-            ax.set_ylim(0 - relax, y_max + relax)
+            ax.set_xlim(x_min - relax, x_max + relax)
+            ax.set_ylim(y_min - relax, y_max + relax)
 
             if "P" in self.params["optimizer"]["terminal_tightening"]:
                 xf = np.array(self.params["env"]["start"])
