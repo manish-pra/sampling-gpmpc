@@ -110,7 +110,7 @@ class Visualizer:
             ax.set_ylim(0 - relax, y_max + relax)
 
             if "P" in self.params["optimizer"]["terminal_tightening"]:
-                xf = np.array(self.params["env"]["goal_state"])
+                xf = np.array(self.params["env"]["start"])
                 P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])
                 delta = self.params["optimizer"]["terminal_tightening"]["delta"]
                 L = np.linalg.cholesky(P / delta)
@@ -295,7 +295,7 @@ class Visualizer:
         X = self.state_traj[-1]
         U = self.input_traj[-1]
         rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
-        if self.tilde_eps_list is not None:
+        if self.tilde_eps_list is not None and self.params["agent"]["tight"]["use"]:
             rm.append(
                 self.plot_box(
                     ax,
