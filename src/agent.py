@@ -226,6 +226,54 @@ class Agent(object):
                 self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
                 self.Hallcinated_Y_train = self.Hallcinated_Y_train.cuda()
 
+    def get_posterior_uncertainity(self, X, U):
+        # create a model with real data
+        # evaluate posterior at point Z
+        num_tasks = self.in_dim + 1
+        likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
+            num_tasks=num_tasks,
+            noise_constraint=gpytorch.constraints.GreaterThan(0.0),
+            batch_shape=torch.Size([1, 2]),
+        )  # Value + Derivative
+
+        Dyn_gp_X_train_batch = torch.tile(
+            self.Dyn_gp_X_train, dims=(1, self.g_ny, 1, 1)
+        )
+        Dyn_gp_Y_train_batch = torch.tile(self.Dyn_gp_Y_train, dims=(1, 1, 1, 1))
+        data_X, data_Y = (
+            Dyn_gp_X_train_batch,
+            Dyn_gp_Y_train_batch,
+        )
+        self.model_real = BatchMultitaskGPModelWithDerivatives_fromParams(
+            data_X, data_Y, likelihood, self.params, batch_shape=torch.Size([1, 2])
+        )
+        self.model_real.eval()
+        likelihood.eval()
+
+        Z = torch.cat([torch.from_numpy(X[:-1]), U], dim=1)
+        if self.use_cuda:
+            self.model_real = self.model_real.cuda()
+            Z = Z.cuda()
+
+        del data_X
+        del data_Y
+        del Dyn_gp_X_train_batch
+        del Dyn_gp_Y_train_batch
+
+        pred = self.model_real(torch.tile(Z, dims=(1, self.g_ny, 1, 1)))
+        # print("Posterior mean", pred.mean)
+        print("Posterior variance", pred.stddev[0, 0, :, 0], pred.stddev[0, 1, :, 0])
+        # quit()
+
+    def online_learnt_datapoints(self, X_data, Y_data):
+        self.Dyn_gp_X_train = torch.cat([self.Dyn_gp_X_train, X_data], dim=0)
+        self.Dyn_gp_Y_train = torch.cat([self.Dyn_gp_Y_train, Y_data], dim=1)
+        self.real_data_batch()
+
+    def train_real_data():
+
+        return
+
     def concatenate_real_hallucinated_data(self):
         data_X = torch.concat(
             [self.Dyn_gp_X_train_batch, self.Hallcinated_X_train], dim=2

@@ -104,6 +104,9 @@ class Visualizer:
             ax.add_line(
                 plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
             )
+            ax.add_line(
+                plt.Line2D([x_max, x_max], [y_min, y_max], color="red", linestyle="--")
+            )
             ax.set_aspect("equal", "box")
             relax = 0.3
             ax.set_xlim(x_min - relax, x_max + relax)
@@ -169,18 +172,18 @@ class Visualizer:
         X2_kp1 = X2_k - g * np.sin(X1_k) * dt / l + U_k * dt / (l * l)
         return X1_kp1, X2_kp1
 
-    def propagate_true_dynamics(self, x_init, U):
-        state_list = []
-        state_list.append(x_init)
-        for ele in range(U.shape[0]):
-            state_input = (
-                torch.from_numpy(np.hstack([state_list[-1], U[ele]]))
-                .reshape(1, -1)
-                .float()
-            )
-            state_kp1 = self.agent.env_model.discrete_dyn(state_input)
-            state_list.append(state_kp1.reshape(-1))
-        return np.stack(state_list)
+    # def propagate_true_dynamics(self, x_init, U):
+    #     state_list = []
+    #     state_list.append(x_init)
+    #     for ele in range(U.shape[0]):
+    #         state_input = (
+    #             torch.from_numpy(np.hstack([state_list[-1], U[ele]]))
+    #             .reshape(1, -1)
+    #             .float()
+    #         )
+    #         state_kp1 = self.agent.env_model.discrete_dyn(state_input)
+    #         state_list.append(state_kp1.reshape(-1))
+    #     return np.stack(state_list)
 
     # def propagate_true_dynamics(self, x_init, U):
     #     x1_list = []
@@ -363,7 +366,7 @@ class Visualizer:
         # plt.legend([i for i in range(self.params["agent"]["num_dyn_samples"])])
         plt.xlabel("theta")
         plt.ylabel("theta_dot")
-        x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
+        x1_true, x2_true = self.agent.env_model.propagate_true_dynamics(X[0, 0:2], U)
         plt.plot(x1_true, x2_true, color="black", label="true", linestyle="--")
         x1_mean, x2_mean = self.propagate_mean_dyn(X[0, 0:2], U)
         print("x1_mean", x1_mean, x2_mean)
@@ -392,7 +395,7 @@ class Visualizer:
         # state_input = torch.from_numpy(
         #     np.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
         # ).float()
-        state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U)
+        state_kp1 = self.agent.env_model.propagate_true_dynamics(X[0][: self.nx], U)
         self.true_state_traj.append(state_kp1)
         # x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
         # self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0, 1))

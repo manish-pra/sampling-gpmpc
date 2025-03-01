@@ -5,7 +5,7 @@ env:
   prior_dyn_meas: True 
   train_data_has_derivatives: True
   n_data_x: 3
-  n_data_u: 5
+  n_data_u: 3
   params:
     m: 1.0
     l: 1.0
@@ -31,11 +31,11 @@ agent:
     both : [0.65, 0.55] #[65,55] #[0.65, 0.55]
   Dyn_gp_task_noises : 
     val : [3.8, 1.27, 3.8, 1.27]
-    multiplier : 1.0e-6                     #1.0e-5 Low noise value make it crazy fast
-  Dyn_gp_beta : 2.5 # 1.5
+    multiplier : 1.0e-5                     #1.0e-5 Low noise value make it crazy fast
+  Dyn_gp_beta : 3.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 20 
+  num_dyn_samples: 50 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -53,7 +53,7 @@ visu:
 
 common:
   use_cuda : True
-  num_MPC_itrs : 30
+  num_MPC_itrs : 37
   dynamics_rejection: False
 
 optimizer:

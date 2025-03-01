@@ -36,6 +36,7 @@ class DEMPC:
 
     def receding_horizon(self):
         print("Receding Horizon")
+        nx = self.params["agent"]["dim"]["nx"]
         for i in range(self.params["common"]["num_MPC_itrs"]):
             self.agent.mpc_iteration(i)
             torch.cuda.empty_cache()
@@ -53,7 +54,21 @@ class DEMPC:
             #         0,
             #     )
             X, U = self.one_step_planner(st_curr)
-            state_input = torch.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
+
+            # check for uncertainity and online learn the data
+            # Initialize the next state at the point nearest to the goal
+            # propagate the trajectory
+            X_true_traj = self.agent.env_model.propagate_true_dynamics(X[0, 0:nx], U)
+            self.agent.get_posterior_uncertainity(X_true_traj, U)
+            # let's jump twice
+            jump_idx = 0
+            state_input = torch.hstack(
+                [torch.from_numpy(X_true_traj[jump_idx][: self.nx]), U[jump_idx]]
+            ).reshape(1, -1)
+            if i % 2 == 0:
+                Y_data = self.agent.env_model.get_prior_data(state_input)
+                self.agent.online_learnt_datapoints(state_input.cuda(), Y_data)
+
             state_kp1 = self.agent.env_model.discrete_dyn(state_input)
             self.agent.update_current_state(state_kp1)
             # propagate the agent to the next state

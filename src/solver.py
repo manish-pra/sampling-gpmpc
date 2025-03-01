@@ -89,6 +89,12 @@ class DEMPC_solver(object):
                 print("Converged")
                 break
 
+            # Ideal implementation get uncertainity of z only with real data at the sampled locations
+            # Create a GP model with read data and pass in the X, U
+            # Alternatively when you have the true x, u; filter data based on uncertainity and add it to true data.
+            # write an initializer
+            # Plot cross points on new data collected points, and X and U
+
             # create model with updated data
             player.train_hallucinated_dynGP(sqp_iter)
             batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)

@@ -186,3 +186,16 @@ class Pendulum(object):
 
     def transform_sensitivity(self, dg_dxu_grad, xu_hat):
         return dg_dxu_grad
+
+    def propagate_true_dynamics(self, x_init, U):
+        state_list = []
+        state_list.append(x_init)
+        for ele in range(U.shape[0]):
+            state_input = (
+                torch.from_numpy(np.hstack([state_list[-1], U[ele]]))
+                .reshape(1, -1)
+                .float()
+            )
+            state_kp1 = self.discrete_dyn(state_input)
+            state_list.append(state_kp1.reshape(-1))
+        return np.stack(state_list)
