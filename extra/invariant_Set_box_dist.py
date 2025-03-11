@@ -240,4 +240,5 @@ plt.plot(np.vstack([arr[:, 0], arr[0, 0]]), np.vstack([arr[:, 1], arr[0, 1]]), "
 
 plt.legend(loc="lower left")
 plt.grid(True)
-plt.savefig(f"temp_ellipse_{ns}_bigger.png")
+# plt.savefig(f"temp_ellipse_{ns}_bigger.png")
+plt.show()

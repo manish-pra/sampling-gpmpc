@@ -98,7 +98,7 @@ gp_val, y_grad, u_grad = agent.dyn_fg_jacobians(batch_x_hat, 0)
 
 n = 2
 m = 1
-rho = 0.99
+rho = 0.95
 E = cp.Variable((n, n), PSD=True)
 Y = cp.Variable((m, n))
 bar_w_2 = cp.Variable()
@@ -280,8 +280,8 @@ for i in range(len(Au)):
 
 plt.legend(loc="lower left")
 plt.grid(True)
-plt.savefig(f"temp_ellipse_{ns}2_u0.6.png")
-# plt.show()
+# plt.savefig(f"temp_ellipse_{ns}2_u0.6.png")
+plt.show()
 
 
 # import numpy as np
