@@ -40,7 +40,7 @@ class DEMPC_solver(object):
         dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
         w_bound = self.params["agent"]["tight"]["w_bound"]
         var_eps = dyn_eps + w_bound
-
+        P_inv = np.linalg.inv(self.params["optimizer"]["terminal_tightening"]["P"])
         tilde_eps_0 = 0
         self.tilde_eps_list = [tilde_eps_0]
         self.ci_list = []

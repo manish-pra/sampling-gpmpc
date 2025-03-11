@@ -56,12 +56,18 @@ common:
 
 optimizer:
   H : 1 # horizon
-  u_min : [-1] # Minimum control input
-  u_max : [10] 
+  # u_min : [-1] # Minimum control input
+  # u_max : [10] 
+  # # u_min : [-30, -30] # Minimum control input
+  # # u_max : [30, 30] 
+  # x_min : [-0.44, -2.5] # Minimum state value
+  # x_max : [ 3.14, 2.5] # x,y,v,theta,theta_dot
+  u_min : [-7.0] # Minimum control input
+  u_max : [7.0] 
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [-0.44, -2.5] # Minimum state value
-  x_max : [ 3.14, 2.5] # x,y,v,theta,theta_dot
+  x_min : [2.4, -2.5] # Minimum state value
+  x_max : [ 3.6, 2.5] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:
     max_sqp_iter: 10

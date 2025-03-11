@@ -121,6 +121,17 @@ class Visualizer:
                 ax.plot(
                     ell[0, :] + xf[0],
                     ell[1, :] + xf[1],
+                    color="green",
+                    label="Terminal set",
+                )
+                L = np.linalg.cholesky(P)
+                t = np.linspace(0, 2 * np.pi, 200)
+                z = np.vstack([np.cos(t), np.sin(t)])
+                ell = np.linalg.inv(L.T) @ z
+
+                ax.plot(
+                    ell[0, :] + xf[0],
+                    ell[1, :] + xf[1],
                     color="red",
                     label="Terminal set",
                 )

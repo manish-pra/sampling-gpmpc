@@ -60,26 +60,27 @@ def export_dempc_ocp(params):
     if params["env"]["dynamics"] == "Pendulum1D":
         tilde_eps_i = p[2]
         model.con_h_expr = ca.vertcat(model_x - tilde_eps_i, model_x + tilde_eps_i)
-        terminal_tight = np.array(
-            params["optimizer"]["terminal_tightening"]["x_tight"] * num_dyn
+    #     terminal_tight = np.array(
+    #         params["optimizer"]["terminal_tightening"]["x_tight"] * num_dyn
+    #     )
+    #     const_expr = []
+    # #     tilde_eps_i = 0.1082
+    # #     # +ve
+    #     for vec in [
+    #         np.array([1, 1]) * tilde_eps_i,
+    #         np.array([-1, 1]) * tilde_eps_i,
+    #         np.array([1, -1]) * tilde_eps_i,
+    #         np.array([-1, -1]) * tilde_eps_i,
+    #     ]:
+    const_expr = []
+    for i in range(num_dyn):
+        xf = np.array(params["env"]["goal_state"])
+        expr = (
+            (model_x[nx * i : nx * (i + 1)] - xf).T
+            @ np.array(params["optimizer"]["terminal_tightening"]["P"])
+            @ (model_x[nx * i : nx * (i + 1)] - xf)
         )
-        const_expr = []
-        tilde_eps_i = 0.1082
-        # +ve
-        for vec in [
-            np.array([1, 1]) * tilde_eps_i,
-            np.array([-1, 1]) * tilde_eps_i,
-            np.array([1, -1]) * tilde_eps_i,
-            np.array([-1, -1]) * tilde_eps_i,
-        ]:
-            for i in range(num_dyn):
-                xf = np.array(params["env"]["goal_state"])
-                expr = (
-                    (model_x[nx * i : nx * (i + 1)] - xf - vec).T
-                    @ np.array(params["optimizer"]["terminal_tightening"]["P"])
-                    @ (model_x[nx * i : nx * (i + 1)] - xf - vec)
-                )
-                const_expr = ca.vertcat(const_expr, expr)
+        const_expr = ca.vertcat(const_expr, expr)
         # for i in range(num_dyn):
         #     xf = np.array(params["env"]["goal_state"])
         #     expr = (
@@ -96,7 +97,7 @@ def export_dempc_ocp(params):
         #         @ (model_x[nx * i : nx * (i + 1)] - xf + tilde_eps_i)
         #     )
         #     const_expr = ca.vertcat(const_expr, expr)
-        model.con_h_expr_e = const_expr
+    model.con_h_expr_e = const_expr
         # model.con_h_expr_e = ca.vertcat(
         #     model_x - terminal_tight, model_x + terminal_tight, const_expr
         # )
@@ -156,8 +157,8 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     ocp.constraints.ubu = np.array(params["optimizer"]["u_max"])
     ocp.constraints.idxbu = np.arange(ocp.constraints.ubu.shape[0])
 
-    lbx = np.array(params["optimizer"]["x_min"] * ns)
-    ubx = np.array(params["optimizer"]["x_max"] * ns)
+    lbx = np.array(params["optimizer"]["x_min"] * ns) 
+    ubx = np.array(params["optimizer"]["x_max"] * ns) 
 
     x0 = np.zeros(ocp.model.x.shape[0])
     x0 = np.array(params["env"]["start"] * ns)  # np.ones(x_dim)*0.72
@@ -174,8 +175,8 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
         ocp.constraints.lh = np.hstack([lbx, lbx])
         ocp.constraints.uh = np.hstack([ubx, ubx])
         delta = params["optimizer"]["terminal_tightening"]["delta"]
-        ocp.constraints.lh_e = np.hstack([[0] * ns * 4])
-        ocp.constraints.uh_e = np.hstack([[delta] * ns * 4])
+        ocp.constraints.lh_e = np.hstack([[0] * ns])
+        ocp.constraints.uh_e = np.hstack([[delta] * ns])
         # size = len(ocp.constraints.lh)
         # ocp.cost.Zl = 1e6 * np.array([1] * size)
         # ocp.cost.Zu = 1e5 * np.array([1] * size)

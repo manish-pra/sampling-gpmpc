@@ -1,11 +1,11 @@
 env:
-  start: [2.0, 2.3] # x,y,theta,v # 2.2, 2.3
+  start: [2.35, 1.85] # x,y,theta,v # 2.2, 2.3
   goal_state: [3.1416, 0.0]
   dynamics: 'Pendulum1D' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: False
-  n_data_x: 5 #5 #5 #18 #3
-  n_data_u: 9 #9 #9 #30 #5
+  n_data_x: 4 #5 #5 #18 #3
+  n_data_u: 10 #9 #9 #30 #5
   params:
     m: 1.0
     l: 10.0
@@ -43,8 +43,8 @@ agent:
   Dyn_gp_min_data_dist: 1.0e-4
   tight:
     use: True
-    dyn_eps: 0.005
-    Lipschitz: 1.03
+    dyn_eps: 0.004
+    Lipschitz: 0.951 #1.03
     w_bound: 0.0001
   shift_soln: True
 
@@ -54,17 +54,17 @@ visu:
 
 common:
   use_cuda : True
-  num_MPC_itrs : 100
+  num_MPC_itrs : 10
   dynamics_rejection: False
 
 optimizer:
   H : 10 # horizon
-  u_min : [-6] # Minimum control input
-  u_max : [6] 
+  u_min : [-7.0] # Minimum control input
+  u_max : [7.0] 
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [1.85, -2.5] # Minimum state value
-  x_max : [ 3.64, 2.5] # x,y,v,theta,theta_dot
+  x_min : [2.3, -2.3] # Minimum state value
+  x_max : [ 3.6, 2.3] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:
     max_sqp_iter: 10
@@ -101,8 +101,18 @@ optimizer:
     # delta: 1.0
     # P: [[3.49375316, 0.88438582],[0.88438582, 0.31367212]] # w >5
     # delta: 1.0
-    P:  [[4.48651083, 1.48325991],[1.48325991, 0.65037241]]
-    delta: 1.0
+    # P:  [[4.48651083, 1.48325991],[1.48325991, 0.65037241]]
+    # delta: 1.0
+    # P: [[51.15935795, 11.49689237], [11.49689237, 3.34257094]]
+    # delta: 1.0
+    # P: [[34.92096505,  7.76312014], [ 7.76312014,  1.98764905]] 
+    # delta: 1.0
+    # P: [[82.4078528,  14.65465174],[14.65465174,  3.15608763]]
+    # delta: 1.0
+    # P: [[70.2500599,  13.61364022],[13.61364022,  3.07087328]]
+    # delta: 1.0
+    P: [[32.74419024,  7.05317913],[ 7.05317913,  1.78822139]]
+    delta: 0.934 #1.0
 
 experiment:
   name: "DEMPC" #

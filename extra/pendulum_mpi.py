@@ -36,8 +36,8 @@ rand_x = np.random.uniform(-1, 1, nx * H * ns).reshape(H, nx, ns)
 x_1 = np.pi
 x_2 = 0
 u = 0
-dtheta = 1.0
-domega = 2.5
+dtheta = 0.5
+domega = 2.1
 x_h = np.zeros_like(rand_x)
 x_h[:, 0, :] = rand_x[:, 0, :] * dtheta + x_1
 x_h[:, 1, :] = rand_x[:, 1, :] * domega + x_2
@@ -48,7 +48,7 @@ x_h[:, 1, :] = rand_x[:, 1, :] * domega + x_2
 # plt.savefig("temp.png")
 
 x_h = x_h.transpose(0, 2, 1).reshape(H, -1)
-rand_u = np.random.uniform(-1, 1, nu * H * ns).reshape(H, nu, ns) * 0.6
+rand_u = np.random.uniform(-1, 1, nu * H * ns).reshape(H, nu, ns) * 0.2
 u_h = np.zeros_like(rand_u)
 u_h[:, 0, :] = rand_u[:, 0, :] + u
 u_h = u_h.reshape(H, -1)
@@ -95,10 +95,14 @@ gp_val, y_grad, u_grad = agent.dyn_fg_jacobians(batch_x_hat, 0)
 #         B = u_grad[i, :, j, :]
 #         K = np.ones((1, 2)) * (0.0)
 #         constraints += [(A + B * K).transpose(0, 1) * P * (A + B * K) << P]
-
+L = 0.965
+Horizon = 10
+eps = 0.004
+shrinkage = np.power(L, Horizon-1)*eps + eps*2*np.sum([np.power(L, i) for i in range(Horizon-1)])
 n = 2
 m = 1
-rho = 0.95
+rho = 1-shrinkage
+print("rho", rho)
 E = cp.Variable((n, n), PSD=True)
 Y = cp.Variable((m, n))
 bar_w_2 = cp.Variable()
@@ -149,7 +153,9 @@ for i, A_i in enumerate(Ax_i):
 
 # input constraints
 Au = np.array([[1], [-1]])
-bu = np.array([[6], [6]])
+u_max = params["optimizer"]["u_max"][0]
+u_min = -1*params["optimizer"]["u_min"][0]
+bu = np.array([[u_max], [u_min]])
 for Au_i, bu_i in zip(Au, bu):
     Au_i = Au_i.reshape(1, 1)
     bu_i = bu_i.reshape(1, 1)
@@ -400,3 +406,63 @@ plt.show()
 # plt.legend()
 # plt.grid()
 # plt.show()
+
+def transform_matrix(J, P):
+    # Compute P^{1/2} using matrix square root (eigendecomposition)
+    eigvals, eigvecs = np.linalg.eigh(P)  # P must be symmetric positive definite
+    P_sqrt = eigvecs @ np.diag(np.sqrt(eigvals)) @ eigvecs.T
+    P_inv_sqrt = eigvecs @ np.diag(1 / np.sqrt(eigvals)) @ eigvecs.T
+
+    # Compute P^{-1/2} J P^{1/2}
+    # transformed_J = P_sqrt @ J
+    # transformed_J = P_inv_sqrt @ J @ P_sqrt
+    transformed_J = P_sqrt @ J @ P_inv_sqrt
+    # transformed_J = P_sqrt @ J.T @ P @ J @ P_inv_sqrt
+    return transformed_J
+
+
+from scipy.linalg import solve_discrete_are
+from numpy import linalg as LA
+
+Q = np.array([[10, 0], [0, 1]])  # State cost matrix
+R = np.array([[1]])  # Control cost matrix
+# # Pendulum example
+dt = 0.015
+l = 10
+g = 9.81
+theta = np.pi
+norm2_list = []
+max_val = -1
+for i in range(100):
+    # P = np.array([[5.42156267, 1.8713373], [1.8713373, 0.80592194]])
+    # K = np.array([[-13.81818248, -4.44151409]])
+    # P = np.array([[4.07070798, 1.35050928], [1.35050928, 0.60804891]])
+    # K = np.array([[-12.10018314, -3.99232037]])
+    # P = np.array([[2.61719978, 0.82286531], [0.82286531, 0.41871497]])
+    # K = np.array([[-9.68932421, -3.17352989]])
+    # rho=0.95
+    # P = np.array([[51.15935795, 11.49689237], [11.49689237, 3.34257094]])
+    # K = np.array([[-29.26571774, -10.56473448]])
+    # P = np.array([[34.92096505,  7.76312014], [ 7.76312014,  1.98764905]])
+    # K = np.array([[-23.66438105,  -7.58198189]])
+    # P = np.array([[56.35692934, 12.3262689], [12.3262689, 3.27775006]])
+    # K = np.array([[-32.82044444, -10.40084854]])
+    # P = np.array([[220.09074475, 25.18699789], [25.18699789, 5.311497]])
+    # K = np.array([[-30.01183042, -12.3192521]])
+    B = np.array([[0], [1]]) * dt
+    A = np.array([[1, dt], [-g * np.cos(theta * i / 50) * dt / l, 1]])
+    # P = solve_discrete_are(A, B, Q, R)  # Discrete Algebraic Riccati Equation
+    # K = -np.linalg.inv(R) @ B.T @ P
+    # print(K, P)
+    J = A + B @ K
+    transformed_J = transform_matrix(J, P)
+    # transformed_J = np.linalg.sqrtm(J)
+    max_round = np.max(np.sum(transformed_J, axis=1))
+    if max_val < max_round:
+        max_val = max_round
+    norm2 = LA.norm(transformed_J, ord=2)
+    norm2_list.append(norm2)
+# print(norm2_list)
+max_norm2 = max(norm2_list)
+print(max_norm2)
+print("Max", max_val)
