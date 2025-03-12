@@ -63,6 +63,7 @@ class DEMPC_solver(object):
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
         x_equi = np.array(self.params["env"]["goal_state"])
+        ns = self.params["agent"]["num_dyn_samples"]
         for sqp_iter in range(self.max_sqp_iter):
             x_h_old = self.x_h.copy()
             u_h_old = self.u_h.copy()
@@ -93,11 +94,11 @@ class DEMPC_solver(object):
             # create model with updated data
             player.train_hallucinated_dynGP(sqp_iter)
             # batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)
-            batch_x_hat = player.get_batch_x_hat_u_diff(self.x_h, -(self.x_h.reshape(10, 20, -1)-x_equi)@K.T + np.tile(self.u_h[:, None,:], (20,1)))
+            batch_x_hat = player.get_batch_x_hat_u_diff(self.x_h, (x_equi-self.x_h.reshape(10, ns, -1))@K.T + np.tile(self.u_h[:, None,:], (ns,1)))
             # sample the gradients
             gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
             
-            y_grad = y_grad + u_grad @ K
+            y_grad = y_grad - u_grad @ K
             del batch_x_hat
 
             for stage in range(self.H):

@@ -53,7 +53,10 @@ class DEMPC:
             #         0,
             #     )
             X, U = self.one_step_planner(st_curr)
-            state_input = torch.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
+            K = torch.tensor(self.params["optimizer"]["terminal_tightening"]["K"], device=X.device)
+            x_equi = torch.tensor(self.params["env"]["goal_state"], device=X.device)
+            U_i = (x_equi-X[0][: self.nx])@K.T + U[0]
+            state_input = torch.hstack([X[0][: self.nx], U_i]).reshape(1, -1)
             state_kp1 = self.agent.env_model.discrete_dyn(state_input)
             self.agent.update_current_state(state_kp1)
             # propagate the agent to the next state
@@ -90,6 +93,9 @@ class DEMPC:
 
         if self.params["agent"]["shift_soln"]:
             X, U, Sl = self.dempc_solver.get_and_shift_solution()
+            # K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
+            # x_equi = np.array(self.params["env"]["goal_state"])
+            # U = (x_equi-X[:10,:].reshape(10, 20, -1))@K.T + np.tile(U[:, None,:], (20,1))
         else:
             X, U, Sl = self.dempc_solver.get_solution()
         #

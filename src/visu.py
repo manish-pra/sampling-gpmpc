@@ -183,14 +183,20 @@ class Visualizer:
     def propagate_true_dynamics(self, x_init, U):
         state_list = []
         state_list.append(x_init)
+        K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
+        x_equi = np.array(self.params["env"]["goal_state"])
+        U_act = []
         for ele in range(U.shape[0]):
+            U_i = (x_equi-state_list[-1])@K.T + U[ele]
             state_input = (
-                torch.from_numpy(np.hstack([state_list[-1], U[ele]]))
+                torch.from_numpy(np.hstack([state_list[-1], U_i]))
                 .reshape(1, -1)
                 .float()
             )
-            state_kp1 = self.agent.env_model.discrete_dyn(state_input)
+            state_kp1 = self.agent.env_model.discrete_dyn(state_input).numpy()
             state_list.append(state_kp1.reshape(-1))
+            U_act.append(U_i)
+        print("U_act", U_act)
         return np.stack(state_list)
 
     # def propagate_true_dynamics(self, x_init, U):
