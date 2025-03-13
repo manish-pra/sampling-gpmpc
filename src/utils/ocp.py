@@ -22,10 +22,18 @@ def export_dempc_ocp(params):
     )
     n_order = params["optimizer"]["order"]
     x_dim = params["agent"]["dim"]["nx"]
+    u_dim = params["agent"]["dim"]["nu"]
 
-    const_expr, p = dempc_const_expr(
-        x_dim, n_order, params
-    )  # think of a pendulum and -pi/2,pi, pi/2 region is unsafe
+    xg = ca.SX.sym("xg", 1)
+    # we = ca.SX.sym("we", 1, 1)
+    cw = ca.SX.sym("cw", 1, 1)
+    tightening = ca.SX.sym("tilde_eps_i", x_dim + u_dim + 1, 1) #[tightening, tilde_eps]
+
+    p= ca.vertcat(xg, cw, tightening)
+
+    # const_expr, p = dempc_const_expr(
+    #     x_dim, n_order, params
+    # )  # think of a pendulum and -pi/2,pi, pi/2 region is unsafe
 
     model = export_linear_model(name_prefix + "dempc", p, params)  # start pendulum at 0
     nx = params["agent"]["dim"]["nx"]
@@ -59,13 +67,17 @@ def export_dempc_ocp(params):
 
     if params["env"]["dynamics"] == "Pendulum1D":
         x_equi = np.array(params["env"]["goal_state"])
-        tilde_eps_i = p[2]
+        # tilde_eps_i = p[2]
         u_expr = []
         K = np.array(params["optimizer"]["terminal_tightening"]["K"])
         for i in range(num_dyn):
-            expr = K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u
+            expr = K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u + tightening[x_dim]
             u_expr = ca.vertcat(u_expr, expr)
-        model.con_h_expr = ca.vertcat(model_x - tilde_eps_i, model_x + tilde_eps_i, u_expr)
+        for i in range(num_dyn):
+            expr = K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u - tightening[x_dim]
+            u_expr = ca.vertcat(u_expr, expr)
+        tighten_ns = ca.repmat(tightening[:x_dim], num_dyn)
+        model.con_h_expr = ca.vertcat(model_x - tighten_ns, model_x + tighten_ns, u_expr)
 
     #     terminal_tight = np.array(
     #         params["optimizer"]["terminal_tightening"]["x_tight"] * num_dyn
@@ -117,14 +129,14 @@ def export_dempc_ocp(params):
     return ocp
 
 
-def dempc_const_expr(x_dim, n_order, params):
-    xg = ca.SX.sym("xg", 1)
-    we = ca.SX.sym("we", 1, 1)
-    cw = ca.SX.sym("cw", 1, 1)
-    tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
+# def dempc_const_expr(x_dim, n_order, params):
+#     xg = ca.SX.sym("xg", 1)
+#     we = ca.SX.sym("we", 1, 1)
+#     cw = ca.SX.sym("cw", 1, 1)
+#     tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
 
-    p_lin = ca.vertcat(xg, cw, tilde_eps_i)
-    return 1, p_lin
+#     p_lin = ca.vertcat(xg, cw, tilde_eps_i)
+#     return 1, p_lin
 
 
 def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
@@ -179,8 +191,8 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     ocp.constraints.idxbx_e = np.arange(lbx.shape[0])
 
     if params["env"]["dynamics"] == "Pendulum1D":
-        ocp.constraints.lh = np.hstack([lbx, lbx, params["optimizer"]["u_min"]*ns])
-        ocp.constraints.uh = np.hstack([ubx, ubx, params["optimizer"]["u_max"]*ns])
+        ocp.constraints.lh = np.hstack([lbx, lbx, params["optimizer"]["u_min"]*2*ns])
+        ocp.constraints.uh = np.hstack([ubx, ubx, params["optimizer"]["u_max"]*2*ns])
         # ocp.constraints.lh = np.hstack([lbx, lbx])
         # ocp.constraints.uh = np.hstack([ubx, ubx])
         delta = params["optimizer"]["terminal_tightening"]["delta"]
@@ -192,12 +204,12 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
         # ocp.cost.zl = 1e6 * np.array([1] * size)
         # ocp.cost.zu = 1e5 * np.array([1] * size)
         # ocp.constraints.idxsh = np.arange(size_e)
-        # size_e = len(ocp.constraints.lh_e)
-        # ocp.cost.Zl_e = 1e6 * np.array([1] * size_e)
-        # ocp.cost.Zu_e = 1e5 * np.array([1] * size_e)
-        # ocp.cost.zl_e = 1e6 * np.array([1] * size_e)
-        # ocp.cost.zu_e = 1e5 * np.array([1] * size_e)
-        # ocp.constraints.idxsh_e = np.arange(size_e)
+        size_e = len(ocp.constraints.lh_e)
+        ocp.cost.Zl_e = 1e6 * np.array([1] * size_e)
+        ocp.cost.Zu_e = 1e5 * np.array([1] * size_e)
+        ocp.cost.zl_e = 1e6 * np.array([1] * size_e)
+        ocp.cost.zu_e = 1e5 * np.array([1] * size_e)
+        ocp.constraints.idxsh_e = np.arange(size_e)
     # ocp.constraints.idxsh = np.arange(2 * lbx.shape[0])
 
     if params["env"]["dynamics"] == "bicycle":

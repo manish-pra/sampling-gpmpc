@@ -301,6 +301,31 @@ class Visualizer:
     def plot_receding_traj(self):
         rm = []
         ax = self.f_handle["gp"].axes[0]
+        X = self.state_traj[-1]
+        U = self.input_traj[-1]
+        if self.tilde_eps_list is not None:
+            lx = np.stack(self.tilde_eps_list)[:,0]
+            ly = np.stack(self.tilde_eps_list)[:,1]
+            eps_tightening = np.stack(self.tilde_eps_list)[:,-1]
+            # rm.append(
+            #     self.plot_box(
+            #         ax,
+            #         X[:, :: self.nx],
+            #         X[:, 1 :: self.nx],
+            #         lx,
+            #         ly,
+            #     )
+            # )
+            rm.append(
+                self.plot_ellipses(
+                    ax,
+                    X[:, :: self.nx],
+                    X[:, 1 :: self.nx],
+                    eps_tightening
+                )
+            )
+
+
         physical_state_traj = np.vstack(self.physical_state_traj)
         ax.plot(
             physical_state_traj[:, 0],
@@ -309,19 +334,9 @@ class Visualizer:
             label="real",
             linestyle="-",
         )
-        X = self.state_traj[-1]
-        U = self.input_traj[-1]
+
         rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
-        if self.tilde_eps_list is not None:
-            rm.append(
-                self.plot_box(
-                    ax,
-                    X[:, :: self.nx],
-                    X[:, 1 :: self.nx],
-                    self.tilde_eps_list,
-                    self.tilde_eps_list,
-                )
-            )
+
         pred_true_state = np.vstack(self.true_state_traj[-1])
         rm.append(
             ax.plot(
@@ -343,6 +358,35 @@ class Visualizer:
             )
         )
         return rm
+    
+    def plot_ellipses(self, ax, x, y, eps_list):
+        P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])
+        nH = len(eps_list)-1 # not required on terminal state
+        n_pts = 50
+        ns_sub = int(x.shape[1]/4) + 1
+        P_scaled = np.tile(P, (nH,1,1))/(eps_list[:nH,None, None]+1e-8)
+        L = np.linalg.cholesky(P_scaled)
+        t = np.linspace(0, 2 * np.pi, n_pts)
+        z = np.vstack([np.cos(t), np.sin(t)])
+        ell = np.linalg.inv(np.transpose(L, (0,2,1))) @ z
+
+        all_ell = np.tile(ell, (ns_sub, 1, 1, 1))
+        x_plt = all_ell[:,:,0,:] + x.T[:ns_sub,:nH,None]
+        y_plt = all_ell[:,:,1,:] + y.T[:ns_sub,:nH,None]
+        return ax.plot(x_plt.reshape(-1,n_pts).T, y_plt.reshape(-1,n_pts).T, color="blue", label="Terminal set", linewidth=0.5)
+
+        # x_plt = ell[:,0,:] + x[:,[0]]
+        # y_plt = ell[:,1,:] + y[:,[0]]
+        # return ax.plot(x_plt.T, y_plt.T, color="blue", label="Terminal set")
+
+        # all_ell = np.tile(ell, (100, 1, 1, 1))
+        # x_plt = all_ell[:,:,0,:] + x.T[:,:,None]
+        # y_plt = all_ell[:,:,1,:] + y.T[:,:,None]
+        # return ax.plot(
+        #     x_plt.reshape(-1),y_plt.reshape(-1), 
+        #     color="blue",
+        #     label="Terminal set",
+        # )
 
     def plot_box(self, ax, x, y, lx, ly):
         lx = np.stack(lx) * 2

@@ -105,7 +105,7 @@ from scipy.linalg import solve_discrete_are
 Q = np.array([[10, 0], [0, 1]])  # State cost matrix
 R = np.array([[1]])  # Control cost matrix
 # # Pendulum example
-dt = 0.015
+dt = 0.015*2
 l = 10
 g = 9.81
 theta = np.pi

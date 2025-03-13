@@ -33,7 +33,7 @@ params["env"]["n_data_u"] *= 10  # 100
 
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
-true_function_norm, _, _ = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+true_function_norm, _, _, _ = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params)
 print(true_function_norm)
 
 params["env"]["n_data_x"] = n_data_x
@@ -41,7 +41,8 @@ params["env"]["n_data_u"] = n_data_u
 
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
-mean_norm, alpha, y = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+mean_norm, alpha, y, beta_data = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params)
+print("Beta", torch.sqrt(true_function_norm)+beta_data)
 
 kernel_norm_diff = compute_posterior_norm_diff(Dyn_gp_X_train, Dyn_gp_Y_train, params)
 print(mean_norm, kernel_norm_diff)

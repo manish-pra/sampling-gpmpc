@@ -73,11 +73,13 @@ def compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx=0):
     norm = torch.matmul(y.t(), alpha)
     print("RKHS norm of the mean function", norm)
 
+    beta_data = torch.sqrt(torch.log(torch.det(K_DD/lambda_sq + torch.eye(K_DD.shape[0]))) + 9.21)
+    print("Beta", beta_data)
     print("lengthscale", model_1.covar_module.base_kernel.lengthscale)
     print("noise", model_1.likelihood.noise)
     print("outputscale", model_1.covar_module.outputscale)
     # alpha = eval_covar_module.inv_matmul(y)
-    return norm, alpha, y
+    return norm, alpha, y, beta_data
 
 
 def compute_posterior_norm_diff(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx=0):
@@ -191,7 +193,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_id
 
     # X = torch.linspace(-np.pi, np.pi, 100)
 
-    total_samples = 100000
+    total_samples = 1000000
     with torch.no_grad(), gpytorch.settings.observation_nan_policy(
         "mask"
     ), gpytorch.settings.fast_computations(
