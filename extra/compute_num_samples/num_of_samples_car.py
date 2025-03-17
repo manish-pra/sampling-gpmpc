@@ -26,7 +26,9 @@ with open(workspace + "/params/" + "params_car_residual" + ".yaml") as file:
 params["env"]["i"] = 21
 params["env"]["name"] = 0
 print(params)
-gp_idx = 1
+# gp_idx, N_grid = 0, 6
+gp_idx, N_grid = 1, 6
+# gp_idx, N_grid = 2, 4
 n_data_x = params["env"]["n_data_x"]
 n_data_u = params["env"]["n_data_u"]
 
@@ -35,7 +37,7 @@ params["env"]["n_data_u"] *= 10  # 100
 
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
-true_function_norm, _, _ = compute_rkhs_norm(
+true_function_norm, _, _,_ = compute_rkhs_norm(
     Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx
 )
 print(true_function_norm)
@@ -45,7 +47,7 @@ params["env"]["n_data_u"] = n_data_u
 
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
-mean_norm, alpha, y = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx)
+mean_norm, alpha, y,_ = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx)
 
 kernel_norm_diff = compute_posterior_norm_diff(
     Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx
@@ -67,15 +69,16 @@ params["common"]["use_cuda"] = False
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
 
-eB_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx)
-print(eB_phi)
-B_phi = (
-    0.6
-    * torch.log(torch.tensor([1 / params["agent"]["tight"]["dyn_eps"]]))
-    ** params["agent"]["g_dim"]["nx"]
-)
-eB_phi = torch.exp(-B_phi)
-print(eB_phi)
+
+eB_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_grid, gp_idx)
+# print(eB_phi)
+# B_phi = (
+#     0.6
+#     * torch.log(torch.tensor([1 / params["agent"]["tight"]["dyn_eps"]]))
+#     ** params["agent"]["g_dim"]["nx"]
+# )
+# eB_phi = torch.exp(-B_phi)
+# print(eB_phi)
 eB_phi = eB_phi.cuda()
 delta = torch.tensor([0.01]).cuda()  # safety with 99% probability (1-\delta)
 Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-Cd) * eB_phi)

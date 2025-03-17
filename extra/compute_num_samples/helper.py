@@ -168,7 +168,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_gri
         )
     else:
         # Define the ranges
-        if params["env"]["dynamics"] == "bicycle":
+        if "bicycle" in params["env"]["dynamics"]:
             x_range = (params["optimizer"]["x_min"][2], params["optimizer"]["x_max"][2])
             z_range = (params["optimizer"]["u_min"][0], params["optimizer"]["u_max"][0])
         else:
@@ -193,7 +193,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_gri
 
     # X = torch.linspace(-np.pi, np.pi, 100)
 
-    total_samples = 10000
+    total_samples = 100000
     with torch.no_grad(), gpytorch.settings.observation_nan_policy(
         "mask"
     ), gpytorch.settings.fast_computations(
