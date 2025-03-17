@@ -110,7 +110,7 @@ def compute_posterior_norm_diff(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx=0
     return out
 
 
-def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx=0):
+def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_grid=8, gp_idx=0):
 
     # Computation of C_D
     # 1) Compute RKHS norm of the mean function
@@ -126,7 +126,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_id
     likelihood = gpytorch.likelihoods.GaussianLikelihood(
         noise_constraint=gpytorch.constraints.GreaterThan(Dyn_gp_noise)
     )
-    # model = ExactGPModel(train_x, train_y, likelihood)
+    # model = ExactGPModel(train_x, train_y, likelihood, params)
     model = ExactGPModel(
         Dyn_gp_X_train, Dyn_gp_Y_train[gp_idx, :, 0], likelihood, params
     )
@@ -152,7 +152,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_id
         delta_range = (params["optimizer"]["u_min"][0], params["optimizer"]["u_max"][0])
 
         # Define the number of points in each dimension
-        num_points = 5  # You can adjust this number as needed
+        num_points = N_grid  # You can adjust this number as needed
         # Generate the linspace for each dimension
         x = np.linspace(phi_range[0], phi_range[1], num_points)
         y = np.linspace(v_range[0], v_range[1], num_points)
@@ -176,7 +176,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_id
             z_range = (params["optimizer"]["u_min"], params["optimizer"]["u_max"])
 
         # Define the number of points in each dimension
-        num_points = 11  # You can adjust this number as needed
+        num_points = N_grid  # You can adjust this number as needed
         # Generate the linspace for each dimension
         x = np.linspace(x_range[0], x_range[1], num_points)
         z = np.linspace(z_range[0], z_range[1], num_points)
@@ -193,7 +193,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_id
 
     # X = torch.linspace(-np.pi, np.pi, 100)
 
-    total_samples = 1000000
+    total_samples = 10000
     with torch.no_grad(), gpytorch.settings.observation_nan_policy(
         "mask"
     ), gpytorch.settings.fast_computations(
@@ -213,7 +213,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_id
     # plt.savefig("samples.png")
 
     eps = params["agent"]["tight"]["dyn_eps"]
-    in_samples = torch.logical_and(sample_diff > -eps, sample_diff < eps)
+    in_samples = torch.logical_and(sample_diff >= -eps, sample_diff <= eps)
     total_in_samples = torch.sum(torch.all(in_samples, dim=1))
     print("in samples", total_in_samples)
     print("Probability", total_in_samples / total_samples)
@@ -222,3 +222,108 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_id
     print("noise", model.likelihood.noise)
     print("outputscale", model.covar_module.outputscale)
     return total_in_samples / total_samples
+
+
+
+def compute_epsilon_fix_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_grid=8, prob = 0.9, gp_idx=0):
+
+    # Computation of C_D
+    # 1) Compute RKHS norm of the mean function
+    #######################################
+
+    Dyn_gp_noise = 0.0
+    likelihood = gpytorch.likelihoods.GaussianLikelihood(
+        noise_constraint=gpytorch.constraints.GreaterThan(Dyn_gp_noise)
+    )
+    model = ExactGPModel(
+        Dyn_gp_X_train, Dyn_gp_Y_train[gp_idx, :, 0], likelihood, params
+    )
+
+    model.covar_module.base_kernel.lengthscale = torch.tensor(
+        params["agent"]["Dyn_gp_lengthscale"]["both"][gp_idx]
+    )
+    # model.covar_module.base_kernel.lengthscale = 5.2649
+    model.likelihood.noise = torch.tensor(params["agent"]["Dyn_gp_noise"])
+    model.covar_module.outputscale = torch.tensor(
+        params["agent"]["Dyn_gp_outputscale"]["both"][gp_idx]
+    )
+
+    if Dyn_gp_X_train.shape[1] == 3:
+        # Define the ranges
+        phi_range = (params["optimizer"]["x_min"][2], params["optimizer"]["x_max"][2])
+        v_range = (params["optimizer"]["x_min"][3], params["optimizer"]["x_max"][3])
+        delta_range = (params["optimizer"]["u_min"][0], params["optimizer"]["u_max"][0])
+
+        # Define the number of points in each dimension
+        num_points = N_grid  # You can adjust this number as needed
+        # Generate the linspace for each dimension
+        x = np.linspace(phi_range[0], phi_range[1], num_points)
+        y = np.linspace(v_range[0], v_range[1], num_points)
+        z = np.linspace(delta_range[0], delta_range[1], num_points)
+
+        # Create a meshgrid for multi-dimensional space
+        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+
+        # Flatten the grid and stack the coordinates into a tensor of shape (-1, 3)
+
+        grid_points = torch.from_numpy(
+            np.stack([X.flatten(), Y.flatten(), Z.flatten()], axis=-1)
+        )
+    else:
+        # Define the ranges
+        if params["env"]["dynamics"] == "bicycle":
+            x_range = (params["optimizer"]["x_min"][2], params["optimizer"]["x_max"][2])
+            z_range = (params["optimizer"]["u_min"][0], params["optimizer"]["u_max"][0])
+        else:
+            x_range = (params["optimizer"]["x_min"][0], params["optimizer"]["x_max"][0])
+            z_range = (params["optimizer"]["u_min"], params["optimizer"]["u_max"])
+
+        # Define the number of points in each dimension
+        num_points = N_grid  # You can adjust this number as needed
+        # Generate the linspace for each dimension
+        x = np.linspace(x_range[0], x_range[1], num_points)
+        z = np.linspace(z_range[0], z_range[1], num_points)
+
+        # Create a meshgrid for multi-dimensional space
+        X, Z = np.meshgrid(x, z, indexing="ij")
+
+        # Flatten the grid and stack the coordinates into a tensor of shape (-1, 3)
+
+        grid_points = torch.from_numpy(np.stack([X.flatten(), Z.flatten()], axis=-1))
+    if params["common"]["use_cuda"] and torch.cuda.is_available():
+        grid_points = grid_points.cuda()
+    print(grid_points.shape)
+
+    # X = torch.linspace(-np.pi, np.pi, 100)
+
+    total_samples = 10000
+    with torch.no_grad(), gpytorch.settings.observation_nan_policy(
+        "mask"
+    ), gpytorch.settings.fast_computations(
+        covar_root_decomposition=False, log_prob=False, solves=False
+    ), gpytorch.settings.cholesky_jitter(
+        float_value=params["agent"]["Dyn_gp_jitter"],
+        double_value=params["agent"]["Dyn_gp_jitter"],
+        half_value=params["agent"]["Dyn_gp_jitter"],
+    ):
+        model.eval()
+        model_call = model(grid_points)
+        samples = model_call.sample(sample_shape=torch.Size([total_samples]))
+
+    assert not torch.any(torch.isnan(samples))
+    # sample_diff = samples - model_call.mean
+    sample_diff = torch.abs(samples - model_call.mean)
+    # plt.plot(X, samples.transpose(0, 1), lw=0.1)
+    # plt.savefig("samples.png")
+    max_val, _ = torch.max(sample_diff,1)
+    eps = torch.quantile(max_val, prob)
+    # eps = params["agent"]["tight"]["dyn_eps"]
+    # in_samples = torch.logical_and(sample_diff >= -eps, sample_diff <= eps)
+    # total_in_samples = torch.sum(torch.all(in_samples, dim=1))
+    # print("in samples", total_in_samples)
+    # print("Probability", total_in_samples / total_samples)
+
+    # print("lengthscale", model.covar_module.base_kernel.lengthscale)
+    # print("noise", model.likelihood.noise)
+    # print("outputscale", model.covar_module.outputscale)
+    return eps
