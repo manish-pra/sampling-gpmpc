@@ -187,8 +187,8 @@ class Visualizer:
         x_equi = np.array(self.params["env"]["goal_state"])
         U_act = []
         for ele in range(U.shape[0]):
+            curr_state = state_list[-1]
             if self.params["agent"]["feedback"]["use"]:
-                curr_state = state_list[-1]
                 if sqp_true_traj is not None:
                     curr_state = sqp_true_traj[ele]
                 U_i = (x_equi-curr_state)@K.T + U[ele]
