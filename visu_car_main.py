@@ -84,13 +84,13 @@ nx = params["agent"]["dim"]["nx"]
 ax = visu.f_handle["gp"].axes[0]
 (l,) = ax.plot([], [], "tab:orange")
 for i in range(0, len(state_traj)):
-    mean_state_traj = state_traj[i][:, :nx]
+    mean_state_traj = state_traj[i][:, :nx] # This is not mean
     visu.record_out(
         physical_state_traj[i],
         state_traj[i],
         input_traj[i],
         true_state_traj[i],
-        mean_state_traj,
+        mean_state_traj, 
     )
     # print(true_state_traj[i])
     temp_obj = visu.plot_receding_traj()

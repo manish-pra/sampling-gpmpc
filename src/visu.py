@@ -180,7 +180,7 @@ class Visualizer:
         X2_kp1 = X2_k - g * np.sin(X1_k) * dt / l + U_k * dt / (l * l)
         return X1_kp1, X2_kp1
 
-    def propagate_true_dynamics(self, x_init, U):
+    def propagate_true_dynamics(self, x_init, U, sqp_true_traj=None):
         state_list = []
         state_list.append(x_init)
         K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
@@ -188,11 +188,14 @@ class Visualizer:
         U_act = []
         for ele in range(U.shape[0]):
             if self.params["agent"]["feedback"]["use"]:
-                U_i = (x_equi-state_list[-1])@K.T + U[ele]
+                curr_state = state_list[-1]
+                if sqp_true_traj is not None:
+                    curr_state = sqp_true_traj[ele]
+                U_i = (x_equi-curr_state)@K.T + U[ele]
             else:
                 U_i = U[ele]
             state_input = (
-                torch.from_numpy(np.hstack([state_list[-1], U_i]))
+                torch.from_numpy(np.hstack([curr_state, U_i]))
                 .reshape(1, -1)
                 .float()
             )
@@ -453,10 +456,12 @@ class Visualizer:
             # self.gp_model_after_solve.append(copy.deepcopy(self.agent.model_i))
             self.gp_model_after_solve_train_X.append(self.agent.model_i.train_inputs[0])
             self.gp_model_after_solve_train_Y.append(self.agent.model_i.train_targets)
-        # state_input = torch.from_numpy(
-        #     np.hstack([X[0][: self.nx], U[0]]).reshape(1, -1)
-        # ).float()
-        state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U)
+
+        # For debugging, the optimizied true dynamics is different from actual dyanamic due to SQP linearization errors
+        # Or becuase we solve for only 1 sqp iteration and not until convergence
+        # The difference is more evident in feedback case since different in U is higher
+        state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U, X[:,: self.nx])
+        # state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U)
         self.true_state_traj.append(state_kp1)
         # x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
         # self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0, 1))
