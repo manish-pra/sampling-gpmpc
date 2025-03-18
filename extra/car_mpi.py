@@ -217,7 +217,11 @@ for delta in range_float(delta_min, delta_max, 0.1):
             # P = solve_discrete_are(A, B, Q, R)  # Discrete Algebraic Riccati Equation
             # K = -np.linalg.inv(R) @ B.T @ P # 2x4
             # # print(K, P)
-            J = A + B @ K
+            K = np.array([[-8.70325634e-05, -5.80935002e-04, -8.59414487e-01,
+                        2.81945619e-03],
+                    [-2.19896176e-03,  3.74071269e-04, -5.67735217e-04,
+                        -2.80473875e-01]])
+            J = A #+ B @ K
             transformed_J = transform_matrix(J, P)
             norm2 = LA.norm(transformed_J, ord=2)
             norm2_list.append(norm2)

@@ -58,8 +58,8 @@ def export_dempc_ocp(params):
             const_expr_e = const_expr
         if params["agent"]["tight"]["use"]:
             tighten_ns = ca.repmat(tightening[:x_dim], num_dyn)
-            con_h_expr = ca.vertcat(con_h_expr, model_x - tighten_ns, model_x + tighten_ns)
-            con_h_expr_e = ca.vertcat(con_h_expr_e , model_x - tighten_ns, model_x + tighten_ns)
+            const_expr = ca.vertcat(const_expr, model_x - tighten_ns, model_x + tighten_ns)
+            const_expr_e = ca.vertcat(const_expr_e , model_x - tighten_ns, model_x + tighten_ns)
         if params["agent"]["feedback"]["use"]:
             x_equi = np.array(params["env"]["goal_state"])
             K = np.array(params["optimizer"]["terminal_tightening"]["K"])
