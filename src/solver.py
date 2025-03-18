@@ -101,7 +101,7 @@ class DEMPC_solver(object):
 
             # create model with updated data
             player.train_hallucinated_dynGP(sqp_iter)
-            if self.params["agent"]["feedback"]:
+            if self.params["agent"]["feedback"]["use"]:
                 batch_x_hat = player.get_batch_x_hat_u_diff(self.x_h, (x_equi-self.x_h.reshape(self.H, ns, -1))@K.T + np.tile(self.u_h[:, None,:], (ns,1)))
                 # sample the gradients
                 gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)

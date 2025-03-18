@@ -187,7 +187,7 @@ class Visualizer:
         x_equi = np.array(self.params["env"]["goal_state"])
         U_act = []
         for ele in range(U.shape[0]):
-            if self.params["agent"]["feedback"]:
+            if self.params["agent"]["feedback"]["use"]:
                 U_i = (x_equi-state_list[-1])@K.T + U[ele]
             else:
                 U_i = U[ele]

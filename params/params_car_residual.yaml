@@ -43,9 +43,9 @@ agent:
   Dyn_gp_beta : 3.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 20     
+  num_dyn_samples: 1     
   mean_as_dyn_sample: False
-  true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
+  true_dyn_as_sample: True        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
   Dyn_gp_variance_is_zero: -1.0 # -1 : deactivated
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
@@ -55,7 +55,10 @@ agent:
     Lipschitz: 1.0061 #1.0884 #1.0061 #1.00001
     w_bound: 0.000001
   shift_soln: False
-  feedback: False
+  feedback: 
+    use: True
+    v_min : [-1000, -1000] # Minimum control input
+    v_max : [1000, 1000] 
 
 visu:
   show: False
@@ -84,9 +87,10 @@ optimizer:
   order: 2
   dt: 0.06 # 0.010
   w: 40
+  # Qx: [2, 36, 0.07, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
   Qx: [2, 36, 0.07, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
-  # Qx: [2, 38, 0.11, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
-  Qu: [20, 2]
+  # Qu: [20, 2]
+  Qu: [5, 0.5]
   cost: "expected"
   options: {
     levenberg_marquardt: 1.0e-1
