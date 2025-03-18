@@ -1,3 +1,27 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def softmax(x):
+    return np.exp(x) / (np.exp(x) + 1)
+
+def constraint_function(z1, A=3.5, B=0.5, beta=0.5, c1=15, c2=45):
+    return A * (softmax(beta * (z1 - c1)) - softmax(-beta * (c2 - z1))) + B
+
+# Generate values for plotting
+z1_vals = np.linspace(0, 60, 100)
+z2_vals = constraint_function(z1_vals)
+
+# Plot
+plt.plot(z1_vals, z2_vals, 'k', label=r'$\mathcal{X}(z_1)$ (smooth constraint)')
+plt.xlabel(r'$z_1 [m]$')
+plt.ylabel(r'$z_2 [m]$')
+plt.legend()
+plt.grid()
+plt.show()
+
+quit()
+
+
 # import numpy as np
 # import cvxpy as cp
 

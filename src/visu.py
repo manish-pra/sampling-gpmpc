@@ -29,7 +29,7 @@ class Visualizer:
             self.initialize_plot_handles(path)
 
     def initialize_plot_handles(self, path):
-        if self.params["env"]["dynamics"] == "bicycle":
+        if "bicycle" in self.params["env"]["dynamics"]:
             fig_gp, ax = plt.subplots(figsize=(30 / 2.4, 3.375 / 2.4))
         elif "endulum" in self.params["env"]["dynamics"]:
             fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
@@ -42,7 +42,7 @@ class Visualizer:
         y_max = self.params["optimizer"]["x_max"][1]
         x_min = self.params["optimizer"]["x_min"][0]
         x_max = self.params["optimizer"]["x_max"][0]
-        if self.params["env"]["dynamics"] == "bicycle":
+        if "bicycle" in self.params["env"]["dynamics"]:
             x_max = self.params["optimizer"]["x_max"][0]
             y_ref = self.params["env"]["goal_state"][1]
 
@@ -187,7 +187,10 @@ class Visualizer:
         x_equi = np.array(self.params["env"]["goal_state"])
         U_act = []
         for ele in range(U.shape[0]):
-            U_i = (x_equi-state_list[-1])@K.T + U[ele]
+            if self.params["agent"]["feedback"]:
+                U_i = (x_equi-state_list[-1])@K.T + U[ele]
+            else:
+                U_i = U[ele]
             state_input = (
                 torch.from_numpy(np.hstack([state_list[-1], U_i]))
                 .reshape(1, -1)
@@ -360,10 +363,10 @@ class Visualizer:
         return rm
     
     def plot_ellipses(self, ax, x, y, eps_list):
-        P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])
+        P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])[:2,:2]
         nH = len(eps_list)-1 # not required on terminal state
         n_pts = 50
-        ns_sub = int(x.shape[1]/4) + 1
+        ns_sub = x.shape[1] #int(x.shape[1]/4) + 1
         P_scaled = np.tile(P, (nH,1,1))/(eps_list[:nH,None, None]+1e-8)
         L = np.linalg.cholesky(P_scaled)
         t = np.linspace(0, 2 * np.pi, n_pts)

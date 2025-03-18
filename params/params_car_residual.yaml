@@ -43,18 +43,19 @@ agent:
   Dyn_gp_beta : 3.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 5     
+  num_dyn_samples: 20     
   mean_as_dyn_sample: False
-  true_dyn_as_sample: True        # This is for debugging, set num_dyn_samples to 1
+  true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
   Dyn_gp_variance_is_zero: -1.0 # -1 : deactivated
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
   tight:
-    use: True
+    use: False
     dyn_eps: 0.002
-    Lipschitz: 1.0045
+    Lipschitz: 1.0061 #1.0884 #1.0061 #1.00001
     w_bound: 0.000001
   shift_soln: False
+  feedback: False
 
 visu:
   show: False
@@ -65,7 +66,7 @@ common:
   dynamics_rejection: False
 
 optimizer:
-  H : 15 # horizon
+  H : 10 # horizon
   u_min : [-0.6, -2] # Minimum control input
   u_max : [0.6, 2] 
   # u_min : [-30, -30] # Minimum control input
@@ -78,7 +79,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 7
+    max_sqp_iter: 4
     tol_nlp: 1.0e-4 
   order: 2
   dt: 0.06 # 0.010
@@ -90,9 +91,45 @@ optimizer:
   options: {
     levenberg_marquardt: 1.0e-1
   }
-  # tightening:
-  #   x_tight: [0.1, 0.1, 0.2, 0.1] #
-  #   u_tight: [0.1, 0.1]
+  terminal_tightening:
+    x_tight: [0.1, 0.1, 0.2, 0.1] #
+    u_tight: [0.1, 0.1]
+    # P: [[ 1.12828901e-04, -1.05390439e-05, -4.23137172e-06,
+    #      1.08040258e-02],
+    #    [-1.05390439e-05,  5.04375356e-05,  3.69307784e-04,
+    #     -1.81153013e-03],
+    #    [-4.23137172e-06,  3.69307784e-04,  1.52666403e+00,
+    #     -3.15966456e-03],
+    #    [ 1.08040258e-02, -1.81153013e-03, -3.15966456e-03,
+    #      2.64830397e+00]]
+    # K: [[-3.34604185e-05, -1.63595028e-04, -6.83500287e-01,
+    #      2.45142486e-03],
+    #    [-1.32818256e-02,  2.23104091e-03,  3.46640098e-02,
+    #     -3.25489745e+00]]
+    # L = 1.0061
+    P : [[ 4.72094384, -0.47599795, -0.02729461,  3.2994403 ],
+       [-0.47599795,  1.9905184 ,  0.45593676, -0.54949058],
+       [-0.02729461,  0.45593676,  4.58647656, -0.02961135],
+       [ 3.2994403 , -0.54949058, -0.02961135,  3.89450263]]
+    K : [[-1.89407083e-02, -1.11382956e-01, -1.28381008e+00,
+        -6.28269126e-04],
+       [-3.16677494e+00,  5.13529865e-01, -1.11286760e-01,
+        -3.94326739e+00]]
+    # tilde_eps_49 = [1.65915914 1.68434298 1.08780602 1.84099779 1.38079175 4.61222586 5.30076991]
+    # L = 1.0884
+    # P : [[ 2.74157326e+01, -2.42938369e+00, -1.91044868e-01,
+    #      9.45462671e+00],
+    #    [-2.42938369e+00,  1.26932905e+01,  1.32804704e+00,
+    #     -1.52345386e+00],
+    #    [-1.91044868e-01,  1.32804704e+00,  5.66188806e+00,
+    #      5.48373925e-03],
+    #    [ 9.45462671e+00, -1.52345386e+00,  5.48373925e-03,
+    #      5.16297189e+00]]
+    # K : [[-6.66339035e-02, -3.82952054e-01, -1.41730559e+00,
+    #     -1.04700192e-03],
+    #    [-5.50331049e+00,  8.98900120e-01, -5.81585865e-02,
+    #     -4.27749547e+00]] 
+    # tilde_eps_49 = [ 1.75863574  1.61763311  2.37838638  4.09307979  3.33287335 11.30324305 31.17850812]
 
 experiment:
   name: "DEMPC" #

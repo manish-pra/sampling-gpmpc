@@ -44,7 +44,7 @@ class DEMPC_solver(object):
         K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
         tilde_eps_0 = 0
         tightenings = np.sqrt(np.diag(P_inv)*tilde_eps_0)
-        u_tight = np.sqrt(K@P_inv@K.T*tilde_eps_0)[0]
+        u_tight = np.sqrt(np.diag(K@P_inv@K.T)*tilde_eps_0)
         self.tilde_eps_list = []
         self.tilde_eps_list.append(np.concatenate([tightenings.tolist(), u_tight.tolist(), [tilde_eps_0]]))
         self.ci_list = []
@@ -60,7 +60,7 @@ class DEMPC_solver(object):
                 tilde_eps_i += c_i
                 # box constraints tightenings
                 tightenings = np.sqrt(np.diag(P_inv)*tilde_eps_i)
-                u_tight = np.sqrt(K@P_inv@K.T*tilde_eps_i)[0]
+                u_tight = np.sqrt(np.diag(K@P_inv@K.T)*tilde_eps_i)
                 print(f"u_tight_{stage} = {u_tight}")
                 self.tilde_eps_list.append(np.concatenate([tightenings.tolist(), u_tight.tolist(), [tilde_eps_i]]))
                 self.ci_list.append(c_i)
@@ -101,12 +101,17 @@ class DEMPC_solver(object):
 
             # create model with updated data
             player.train_hallucinated_dynGP(sqp_iter)
-            # batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)
-            batch_x_hat = player.get_batch_x_hat_u_diff(self.x_h, (x_equi-self.x_h.reshape(self.H, ns, -1))@K.T + np.tile(self.u_h[:, None,:], (ns,1)))
-            # sample the gradients
-            gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
-            
-            y_grad = y_grad - u_grad @ K
+            if self.params["agent"]["feedback"]:
+                batch_x_hat = player.get_batch_x_hat_u_diff(self.x_h, (x_equi-self.x_h.reshape(self.H, ns, -1))@K.T + np.tile(self.u_h[:, None,:], (ns,1)))
+                # sample the gradients
+                gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
+                
+                y_grad = y_grad - u_grad @ K
+            else:
+                batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)
+                # sample the gradients
+                gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
+
             del batch_x_hat
 
             for stage in range(self.H):

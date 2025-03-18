@@ -12,7 +12,7 @@ import scipy.spatial as sp
 # shrinkage = np.power(L, Horizon-1)*eps + eps*2*np.sum([np.power(L, i) for i in range(Horizon-1)])
 n = 4
 m = 2
-rho = 0.9999
+rho = 0.96
 print("rho", rho)
 E = cp.Variable((n, n), PSD=True)
 Y = cp.Variable((m, n))
@@ -40,7 +40,7 @@ delta_min = -0.6
 delta_max = 0.6
 theta_min = -0.8
 theta_max = 0.8
-v_min = 7
+v_min = 13
 v_max = 14
 
 for delta in range_float(delta_min, delta_max, 0.2):
@@ -85,8 +85,10 @@ for delta in range_float(delta_min, delta_max, 0.2):
 
 
 # state constraints
-Ax_i = np.array([[1, 0, 0, 0], [-1, 0, 0, 0], [0, 1, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, -1, 0], [0, 0, 0, 1], [0, 0, 0, -1]])
-bx_i = np.array([[20.0], [-5.4], [13.0], [-13.0],[theta_max], [theta_min],[v_max], [v_min]])
+# Ax_i = np.array([[1, 0, 0, 0], [-1, 0, 0, 0], [0, 1, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, -1, 0], [0, 0, 0, 1], [0, 0, 0, -1]])
+# bx_i = np.array([[20.0], [-5.4], [13.0], [-13.0],[theta_max], [theta_min],[v_max], [v_min]])
+Ax_i = np.array([ [0, 0, 1, 0], [0, 0, -1, 0], [0, 0, 0, 1], [0, 0, 0, -1]])
+bx_i = np.array([[theta_max], [theta_min],[v_max], [v_min]])
 for i, A_i in enumerate(Ax_i):
     constraints += [cp.quad_form(A_i, E) <= bx_i[i] ** 2]
 

@@ -40,7 +40,7 @@ def export_dempc_ocp(params):
     model_x = model.x
     model_u = model.u
     num_dyn = params["agent"]["num_dyn_samples"]
-    if params["env"]["dynamics"] == "bicycle":
+    if "bicycle" in params["env"]["dynamics"]:
         const_expr = []
         if params["env"]["ellipses"]:
             for ellipse in params["env"]["ellipses"]:
@@ -57,13 +57,18 @@ def export_dempc_ocp(params):
             model.con_h_expr = const_expr
             model.con_h_expr_e = const_expr
         if params["agent"]["tight"]["use"]:
-            tilde_eps_i = p[2]
-            model.con_h_expr = ca.vertcat(
-                const_expr, model_x - tilde_eps_i, model_x + tilde_eps_i
-            )
-            model.con_h_expr_e = ca.vertcat(
-                const_expr, model_x - tilde_eps_i, model_x + tilde_eps_i
-            )
+            x_equi = np.array(params["env"]["goal_state"])
+            K = np.array(params["optimizer"]["terminal_tightening"]["K"])
+            u_expr = []
+            for i in range(num_dyn):
+                expr = K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u #+ tightening[x_dim]
+                u_expr = ca.vertcat(u_expr, expr)
+            for i in range(num_dyn):
+                expr = K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u #- tightening[x_dim]
+                u_expr = ca.vertcat(u_expr, expr)
+            tighten_ns = ca.repmat(tightening[:x_dim], num_dyn)
+            model.con_h_expr = ca.vertcat(model.con_h_expr, model_x - tighten_ns, model_x + tighten_ns,u_expr)
+            model.con_h_expr_e = ca.vertcat(model.con_h_expr_e , model_x - tighten_ns, model_x + tighten_ns)
 
     if params["env"]["dynamics"] == "Pendulum1D":
         x_equi = np.array(params["env"]["goal_state"])
@@ -79,47 +84,18 @@ def export_dempc_ocp(params):
         tighten_ns = ca.repmat(tightening[:x_dim], num_dyn)
         model.con_h_expr = ca.vertcat(model_x - tighten_ns, model_x + tighten_ns, u_expr)
 
-    #     terminal_tight = np.array(
-    #         params["optimizer"]["terminal_tightening"]["x_tight"] * num_dyn
-    #     )
-    #     const_expr = []
-    # #     tilde_eps_i = 0.1082
-    # #     # +ve
-    #     for vec in [
-    #         np.array([1, 1]) * tilde_eps_i,
-    #         np.array([-1, 1]) * tilde_eps_i,
-    #         np.array([1, -1]) * tilde_eps_i,
-    #         np.array([-1, -1]) * tilde_eps_i,
-    #     ]:
-    const_expr = []
-    for i in range(num_dyn):
-        xf = np.array(params["env"]["goal_state"])
-        expr = (
-            (model_x[nx * i : nx * (i + 1)] - xf).T
-            @ np.array(params["optimizer"]["terminal_tightening"]["P"])
-            @ (model_x[nx * i : nx * (i + 1)] - xf)
-        )
-        const_expr = ca.vertcat(const_expr, expr)
-        # for i in range(num_dyn):
-        #     xf = np.array(params["env"]["goal_state"])
-        #     expr = (
-        #         (model_x[nx * i : nx * (i + 1)] - xf - tilde_eps_i).T
-        #         @ np.array(params["optimizer"]["terminal_tightening"]["P"])
-        #         @ (model_x[nx * i : nx * (i + 1)] - xf - tilde_eps_i)
-        #     )
-        #     const_expr = ca.vertcat(const_expr, expr)
-        # for i in range(num_dyn):
-        #     xf = np.array(params["env"]["goal_state"])
-        #     expr = (
-        #         (model_x[nx * i : nx * (i + 1)] - xf + tilde_eps_i).T
-        #         @ np.array(params["optimizer"]["terminal_tightening"]["P"])
-        #         @ (model_x[nx * i : nx * (i + 1)] - xf + tilde_eps_i)
-        #     )
-        #     const_expr = ca.vertcat(const_expr, expr)
-    model.con_h_expr_e = const_expr
-        # model.con_h_expr_e = ca.vertcat(
-        #     model_x - terminal_tight, model_x + terminal_tight, const_expr
-        # )
+        const_expr = []
+        for i in range(num_dyn):
+            xf = np.array(params["env"]["goal_state"])
+            expr = (
+                (model_x[nx * i : nx * (i + 1)] - xf).T
+                @ np.array(params["optimizer"]["terminal_tightening"]["P"])
+                @ (model_x[nx * i : nx * (i + 1)] - xf)
+            )
+            const_expr = ca.vertcat(const_expr, expr)
+
+        model.con_h_expr_e = const_expr
+
     ocp.model = model
     ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params)
 
@@ -172,8 +148,12 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     tilde_eps_i = p[2]
     ns = params["agent"]["num_dyn_samples"]
     # constraints
-    ocp.constraints.lbu = np.array([-100])
-    ocp.constraints.ubu = np.array([100]) 
+    if params["agent"]["feedback"]:
+        ocp.constraints.lbu = np.array([-100])
+        ocp.constraints.ubu = np.array([100]) 
+    else:
+        ocp.constraints.lbu = np.array(params["optimizer"]["u_min"])
+        ocp.constraints.ubu = np.array(params["optimizer"]["u_max"])
     ocp.constraints.idxbu = np.arange(ocp.constraints.ubu.shape[0])
 
     lbx = np.array(params["optimizer"]["x_min"] * ns) 
@@ -212,16 +192,16 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
         ocp.constraints.idxsh_e = np.arange(size_e)
     # ocp.constraints.idxsh = np.arange(2 * lbx.shape[0])
 
-    if params["env"]["dynamics"] == "bicycle":
+    if "bicycle" in params["env"]["dynamics"]:
         if params["env"]["ellipses"]:
             nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
             f = params["env"]["ellipses"]["n1"][4]
             if params["agent"]["tight"]["use"]:
                 ocp.constraints.lh = np.hstack(
-                    [[f] * nh, lbx, lbx]
+                    [[f] * nh, lbx, lbx, params["optimizer"]["u_min"]*2*ns]
                 )  # np.array([f] * nh)
                 ocp.constraints.uh = np.hstack(
-                    [[1e8] * nh, ubx, ubx]
+                    [[1e8] * nh, ubx, ubx, params["optimizer"]["u_max"]*2*ns]
                 )  # np.array([1e3] * nh)
                 ocp.constraints.lh_e = np.hstack(
                     [[f] * nh, lbx, lbx]
