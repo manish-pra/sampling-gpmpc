@@ -48,7 +48,10 @@ agent:
     Lipschitz: 0.96 #1.03
     w_bound: 0.0001
   shift_soln: True
-
+  feedback: 
+    use: True
+    v_min : [-1000] # Minimum control input
+    v_max : [1000] 
 
 visu:
   show: True
