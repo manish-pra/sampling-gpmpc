@@ -141,8 +141,8 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
         #     @ Qx
         #     @ (model_x[nx * i : nx * (i + 1)] - xg)
         # )
-        expr += 2*(model_x[nx * i + pos_dim] - p) ** 2 #+ model_x[nx*i+2]**2 #+ w * (model_u[1]-12)** 2
-    ocp.model.cost_expr_ext_cost = expr / ns + (model_u-u_vec).T @ (Qu) @ (model_u-u_vec)
+        expr += 2*(model_x[nx * i + pos_dim] - p) ** 2 + (model_x[nx*i+3]-16)**2 #+ w * (model_u[1]-12)** 2
+    ocp.model.cost_expr_ext_cost = expr / ns + (model_u).T @ (Qu) @ (model_u)
     ocp.model.cost_expr_ext_cost_e = 2*(model_x[nx * i + pos_dim] - 1.95) ** 2/ ns
 
     return ocp
@@ -246,6 +246,9 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
             ocp.cost.zu_e = 1e5 * np.array([1] * ns)
             ocp.cost.Zl_e = 1e6 * np.array([1] * ns)
             ocp.cost.Zu_e = 1e5 * np.array([1] * ns)
+        # else:
+        #     ocp.constraints.lh = np.array(params["optimizer"]["u_min"]*2*ns)
+        #     ocp.constraints.uh = np.array(params["optimizer"]["u_max"]*2*ns)
 
     ocp.parameter_values = np.zeros((ocp.model.p.shape[0],))
     return ocp
