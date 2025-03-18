@@ -67,7 +67,13 @@ class DEMPC_solver(object):
             print(f"tilde_eps_{stage} = {self.tilde_eps_list[-1]}")
 
     def solve(self, player, plot_pendulum=False):
-        w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
+        # w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
+        len_a = 14
+        len_b = 24
+        len_c = self.H + 1 - len_a - len_b # 13
+        a = 1.95
+        b = 11.0
+        w = np.concatenate([a*np.ones(len_a), b*np.ones(len_b), a*np.ones(len_c)])
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
         x_equi = np.array(self.params["env"]["goal_state"])

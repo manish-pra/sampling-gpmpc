@@ -12,7 +12,7 @@ import scipy.spatial as sp
 # shrinkage = np.power(L, Horizon-1)*eps + eps*2*np.sum([np.power(L, i) for i in range(Horizon-1)])
 n = 4
 m = 2
-rho = 0.96
+rho = 0.98
 print("rho", rho)
 E = cp.Variable((n, n), PSD=True)
 Y = cp.Variable((m, n))
@@ -38,10 +38,10 @@ lf = 1.105
 
 delta_min = -0.6
 delta_max = 0.6
-theta_min = -0.8
-theta_max = 0.8
-v_min = 13
-v_max = 14
+theta_min = -1.0
+theta_max = 1.0
+v_min = 16
+v_max = 17
 
 for delta in range_float(delta_min, delta_max, 0.2):
     for theta in range_float(theta_min, theta_max, 0.2):
@@ -217,11 +217,11 @@ for delta in range_float(delta_min, delta_max, 0.1):
             # P = solve_discrete_are(A, B, Q, R)  # Discrete Algebraic Riccati Equation
             # K = -np.linalg.inv(R) @ B.T @ P # 2x4
             # # print(K, P)
-            K = np.array([[-8.70325634e-05, -5.80935002e-04, -8.59414487e-01,
-                        2.81945619e-03],
-                    [-2.19896176e-03,  3.74071269e-04, -5.67735217e-04,
-                        -2.80473875e-01]])
-            J = A #+ B @ K
+            # K = np.array([[-8.70325634e-05, -5.80935002e-04, -8.59414487e-01,
+            #             2.81945619e-03],
+            #         [-2.19896176e-03,  3.74071269e-04, -5.67735217e-04,
+            #             -2.80473875e-01]])
+            J = A + B @ K
             transformed_J = transform_matrix(J, P)
             norm2 = LA.norm(transformed_J, ord=2)
             norm2_list.append(norm2)

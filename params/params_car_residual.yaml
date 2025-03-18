@@ -1,5 +1,5 @@
 env:
-  start: [0.0, 1.95, 0.0, 10.0] # x,y,theta,v
+  start: [0.0, 1.95, 0.0, 12.0] # x,y,theta,v
   goal_state: [70, 1.95, 0.0, 0.0]
   dynamics: 'bicycle_Bdx' # "pendulum"
   params: 
@@ -9,10 +9,10 @@ env:
   train_data_has_derivatives: False
   n_data_x: 5
   n_data_u: 9
-  ellipses:
+  # ellipses:
     # n1 : [26, 5.0, 9.0, 1.0, 5.67]  # x0, y0, a^2, b^2, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
     # n1 : [15, 1.0, 9.0, 1.0, 5.67]
-    n1 : [20, 1.0, 6.0, 9.0, 12.67]
+    # n1 : [20, 1.0, 6.0, 9.0, 12.67]
     # n3 : [42, 1.0, 9.0, 1.0, 5.67]
     # n4 : [58, 5.0, 9.0, 1.0, 5.67]
     # n1 : [24, 4.5, 9.0, 1.0, 5.67]  # x0, y0, a, b, f equation of ellipse: (x-x0)^2/a^2 + (y-y0)^2/b^2 = f
@@ -53,7 +53,7 @@ agent:
   tight:
     use: False
     dyn_eps: 0.002
-    Lipschitz: 1.033 #1.0019 #1.0884 #1.0061 #1.00001
+    Lipschitz: 1.0344 #1.0019 #1.0884 #1.0061 #1.00001
     w_bound: 0.000001
   shift_soln: False
   feedback: 
@@ -66,7 +66,7 @@ visu:
 
 common:
   use_cuda : False
-  num_MPC_itrs : 5
+  num_MPC_itrs : 1
   dynamics_rejection: False
 
 optimizer:
@@ -75,8 +75,8 @@ optimizer:
   u_max : [0.6, 2] 
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [-2.14, -2.0, -4.8, 2] # Minimum state value
-  x_max : [ 70, 16.0, 4.8, 12] # x,y,v,theta,theta_dot
+  x_min : [-2.14, -2.0, -1.0, 9] # Minimum state value
+  x_max : [ 70, 16.0, 1.0, 16] # x,y,v,theta,theta_dot
   # x_max : [ 70, 6.0, 1.14, 10] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:
@@ -84,17 +84,17 @@ optimizer:
     tol_nlp: 1.0e-6
   SEMPC:
     max_sqp_iter: 100
-    tol_nlp: 1.0e-2 
+    tol_nlp: 1.0e-4 
   order: 2
   dt: 0.06 # 0.010
   w: 40
   # Qx: [2, 36, 0.07, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
   Qx: [2, 40, 0.07, 0.005] # n=40 [2, 32, 0.1, 0.05], n=20 [2, 32, 0.07, 0.005]
-  Qu: [20, 2]
+  Qu: [0.2, 20]
   # Qu: [5, 0.5]
   cost: "expected"
   options: {
-    levenberg_marquardt: 1.0e-3
+    levenberg_marquardt: 4.0
   }
   terminal_tightening:
     x_tight: [0.1, 0.1, 0.2, 0.1] #
@@ -112,10 +112,10 @@ optimizer:
        [-2.19896176e-03,  3.74071269e-04, -5.67735217e-04,
         -2.80473875e-01]]
     # L = 1.0019
-    P: [[ 0.42138752, -0.02380119,  0.02524016,  0.44946914],
-       [-0.02380119,  0.28595396,  0.28868359, -0.07366244],
-       [ 0.02524016,  0.28868359,  3.76150228,  0.01350056],
-       [ 0.44946914, -0.07366244,  0.01350056,  0.73906729]]
+    P: [[ 0.70988411, -0.02494711,  0.02610074,  0.63262496],
+       [-0.02494711,  0.56067853,  0.31748148, -0.10292962],
+       [ 0.02610074,  0.31748148,  4.51384718,  0.02323581],
+       [ 0.63262496, -0.10292962,  0.02323581,  0.97763984]]
     # K: [[-1.80972493e-02, -1.06607891e-01, -1.16431403e+00,
     #      1.20699928e-03],
     #    [-8.65520468e-01,  1.41444746e-01, -1.26757716e-02,

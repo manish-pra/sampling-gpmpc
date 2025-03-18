@@ -29,7 +29,7 @@ def export_dempc_ocp(params):
     cw = ca.SX.sym("cw", 1, 1)
     tightening = ca.SX.sym("tilde_eps_i", x_dim + u_dim + 1, 1) #[tightening, tilde_eps]
 
-    p= ca.vertcat(xg, cw, tightening)
+    p = ca.vertcat(xg, cw, tightening)
 
     # const_expr, p = dempc_const_expr(
     #     x_dim, n_order, params
@@ -43,7 +43,7 @@ def export_dempc_ocp(params):
     if "bicycle" in params["env"]["dynamics"]:
         const_expr = []
         const_expr_e = []
-        if params["env"]["ellipses"]:
+        if "ellipses" in params["env"]:
             for ellipse in params["env"]["ellipses"]:
                 x0 = params["env"]["ellipses"][ellipse][0]
                 y0 = params["env"]["ellipses"][ellipse][1]
@@ -100,7 +100,7 @@ def export_dempc_ocp(params):
         model.con_h_expr_e = const_expr
 
     ocp.model = model
-    ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params)
+    ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, cw, params)
 
     ocp = dempc_const_val(ocp, params, x_dim, n_order, p)
     ocp = dempc_set_options(ocp, params)
@@ -126,7 +126,7 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     xg = np.array(params["env"]["goal_state"])
     w = params["optimizer"]["w"]
     Qx = np.diag(np.array(params["optimizer"]["Qx"]))
-
+    u_vec = np.array([0,16])
     # cost
     ocp.cost.cost_type = "EXTERNAL"
     ocp.cost.cost_type_e = "EXTERNAL"
@@ -136,13 +136,14 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
         ns = params["agent"]["num_dyn_samples"]
     expr = 0
     for i in range(ns):
-        expr += (
-            (model_x[nx * i : nx * (i + 1)] - xg).T
-            @ Qx
-            @ (model_x[nx * i : nx * (i + 1)] - xg)
-        )
-    ocp.model.cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u
-    ocp.model.cost_expr_ext_cost_e = expr / ns
+        # expr += (
+        #     (model_x[nx * i : nx * (i + 1)] - xg).T
+        #     @ Qx
+        #     @ (model_x[nx * i : nx * (i + 1)] - xg)
+        # )
+        expr += 2*(model_x[nx * i + pos_dim] - p) ** 2 #+ model_x[nx*i+2]**2 #+ w * (model_u[1]-12)** 2
+    ocp.model.cost_expr_ext_cost = expr / ns + (model_u-u_vec).T @ (Qu) @ (model_u-u_vec)
+    ocp.model.cost_expr_ext_cost_e = 2*(model_x[nx * i + pos_dim] - 1.95) ** 2/ ns
 
     return ocp
 
@@ -196,7 +197,7 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     # ocp.constraints.idxsh = np.arange(2 * lbx.shape[0])
 
     if "bicycle" in params["env"]["dynamics"]:
-        if params["env"]["ellipses"]:
+        if "ellipses" in params["env"]:
             nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
             f = params["env"]["ellipses"]["n1"][4]
             if params["agent"]["tight"]["use"]:

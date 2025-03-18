@@ -64,7 +64,7 @@ class Visualizer:
             # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
             #                 edgecolor='r', fc='None', lw=2)
             # ax.add_patch(ellipse)
-            if self.params["env"]["ellipses"]:
+            if "ellipses" in self.params["env"]:
                 for ellipse in self.params["env"]["ellipses"]:
                     x0 = self.params["env"]["ellipses"][ellipse][0]
                     y0 = self.params["env"]["ellipses"][ellipse][1]
