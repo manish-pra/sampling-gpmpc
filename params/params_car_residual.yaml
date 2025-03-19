@@ -60,6 +60,7 @@ agent:
     use: False
     v_min : [-1000, -1000] # Minimum control input
     v_max : [1000, 1000] 
+  input_generation: True
 
 visu:
   show: False

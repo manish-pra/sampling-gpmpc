@@ -120,13 +120,13 @@ def export_dempc_ocp(params):
 
 def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     pos_dim = 1
+    v_dim =3
     nx = params["agent"]["dim"]["nx"]
     nu = params["agent"]["dim"]["nu"]
     Qu = np.diag(np.array(params["optimizer"]["Qu"]))
     xg = np.array(params["env"]["goal_state"])
     w = params["optimizer"]["w"]
     Qx = np.diag(np.array(params["optimizer"]["Qx"]))
-    u_vec = np.array([0,16])
     # cost
     ocp.cost.cost_type = "EXTERNAL"
     ocp.cost.cost_type_e = "EXTERNAL"
@@ -134,17 +134,22 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
         ns = 1
     else:
         ns = params["agent"]["num_dyn_samples"]
-    expr = 0
-    for i in range(ns):
-        # expr += (
-        #     (model_x[nx * i : nx * (i + 1)] - xg).T
-        #     @ Qx
-        #     @ (model_x[nx * i : nx * (i + 1)] - xg)
-        # )
-        expr += 2*(model_x[nx * i + pos_dim] - p) ** 2 + (model_x[nx*i+3]-16)**2 #+ w * (model_u[1]-12)** 2
-    ocp.model.cost_expr_ext_cost = expr / ns + (model_u).T @ (Qu) @ (model_u)
-    ocp.model.cost_expr_ext_cost_e = 2*(model_x[nx * i + pos_dim] - 1.95) ** 2/ ns
-
+    if params["agent"]["input_generation"]:
+        v_max = params["optimizer"]["x_max"][3]
+        expr = 2*(model_x[pos_dim] - p) ** 2 + (model_x[v_dim]-v_max)**2 #+ w * (model_u[1]-12)** 2
+        ocp.model.cost_expr_ext_cost = expr / ns + (model_u).T @ (Qu) @ (model_u)
+        ocp.model.cost_expr_ext_cost_e = 2*(model_x[pos_dim] - 1.95) ** 2/ ns
+        return ocp
+    else:
+        expr = 0
+        for i in range(ns):
+            expr += (
+                (model_x[nx * i : nx * (i + 1)] - xg).T
+                @ Qx
+                @ (model_x[nx * i : nx * (i + 1)] - xg)
+            )
+        ocp.model.cost_expr_ext_cost = expr / ns + (model_u).T @ (Qu) @ (model_u)
+        ocp.model.cost_expr_ext_cost_e = expr / ns 
     return ocp
 
 
@@ -197,38 +202,58 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     # ocp.constraints.idxsh = np.arange(2 * lbx.shape[0])
 
     if "bicycle" in params["env"]["dynamics"]:
+        lh = np.empty(0)
+        uh = np.empty(0)
+        lh_e = np.empty(0)
+        uh_e = np.empty(0)
         if "ellipses" in params["env"]:
             nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
             f = params["env"]["ellipses"]["n1"][4]
-            if params["agent"]["tight"]["use"]:
-                ocp.constraints.lh = np.hstack(
-                    [[f] * nh, lbx, lbx, params["optimizer"]["u_min"]*2*ns]
-                )  # np.array([f] * nh)
-                ocp.constraints.uh = np.hstack(
-                    [[1e8] * nh, ubx, ubx, params["optimizer"]["u_max"]*2*ns]
-                )  # np.array([1e3] * nh)
-                ocp.constraints.lh_e = np.hstack(
-                    [[f] * nh, lbx, lbx]
-                )  # np.array([f] * nh)
-                ocp.constraints.uh_e = np.hstack(
-                    [[1e8] * nh, ubx, ubx]
-                )  # np.array([1e3] * nh)
-            elif params["agent"]["feedback"]["use"]:
-                ocp.constraints.lh = np.hstack(
-                    [[f] * nh, params["optimizer"]["u_min"]*2*ns]
-                )
-                ocp.constraints.uh = np.hstack(
-                    [[1e3] * nh, params["optimizer"]["u_max"]*2*ns]
-                )
-                ocp.constraints.lh_e = np.hstack([[f] * nh])
-                ocp.constraints.uh_e = np.hstack([[1e3] * nh]
-                )
-            else:
-                ocp.constraints.lh = np.array([f] * nh)
-                ocp.constraints.uh = np.array([1e3] * nh)
-                ocp.constraints.lh_e = np.array([f] * nh)
-                ocp.constraints.uh_e = np.array([1e3] * nh)
-
+            lh = np.hstack([[f] * nh])
+            uh = np.hstack([[1e8] * nh])
+            lh_e = np.hstack([[f] * nh])
+            uh_e = np.hstack([[1e8] * nh])
+        if params["agent"]["tight"]["use"]:
+            lh = np.hstack([lh, lbx, lbx])
+            uh = np.hstack([uh, ubx, ubx])
+            lh_e = np.hstack([lh_e, lbx, lbx])
+            uh_e = np.hstack([uh_e, ubx, ubx])
+        if params["agent"]["feedback"]["use"]:
+            lh = np.hstack([lh, params["optimizer"]["u_min"]*2*ns])
+            uh = np.hstack([uh, params["optimizer"]["u_max"]*2*ns])
+        ocp.constraints.lh = lh
+        ocp.constraints.uh = uh
+        ocp.constraints.lh_e = lh_e
+        ocp.constraints.uh_e = uh_e
+            # if params["agent"]["tight"]["use"]:
+            #     ocp.constraints.lh = np.hstack(
+            #         [[f] * nh, lbx, lbx, params["optimizer"]["u_min"]*2*ns]
+            #     )  # np.array([f] * nh)
+            #     ocp.constraints.uh = np.hstack(
+            #         [[1e8] * nh, ubx, ubx, params["optimizer"]["u_max"]*2*ns]
+            #     )  # np.array([1e3] * nh)
+            #     ocp.constraints.lh_e = np.hstack(
+            #         [[f] * nh, lbx, lbx]
+            #     )  # np.array([f] * nh)
+            #     ocp.constraints.uh_e = np.hstack(
+            #         [[1e8] * nh, ubx, ubx]
+            #     )  # np.array([1e3] * nh)
+            # elif params["agent"]["feedback"]["use"]:
+            #     ocp.constraints.lh = np.hstack(
+            #         [[f] * nh, params["optimizer"]["u_min"]*2*ns]
+            #     )
+            #     ocp.constraints.uh = np.hstack(
+            #         [[1e3] * nh, params["optimizer"]["u_max"]*2*ns]
+            #     )
+            #     ocp.constraints.lh_e = np.hstack([[f] * nh])
+            #     ocp.constraints.uh_e = np.hstack([[1e3] * nh]
+            #     )
+            # else:
+            #     ocp.constraints.lh = np.array([f] * nh)
+            #     ocp.constraints.uh = np.array([1e3] * nh)
+            #     ocp.constraints.lh_e = np.array([f] * nh)
+            #     ocp.constraints.uh_e = np.array([1e3] * nh)
+        if "ellipses" in params["env"]:
             # nbx = 0
             nbx = len(lbx)
             ocp.constraints.idxsbx = np.arange(nbx)
