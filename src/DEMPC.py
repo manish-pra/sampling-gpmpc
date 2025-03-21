@@ -56,7 +56,7 @@ class DEMPC:
             if self.params["agent"]["feedback"]["use"]:
                 K = torch.tensor(self.params["optimizer"]["terminal_tightening"]["K"], device=X.device)
                 x_equi = torch.tensor(self.params["env"]["goal_state"], device=X.device)
-                U_i = (x_equi-X[0][: self.nx])@K.T + U[0]
+                U_i = -(x_equi-X[0][: self.nx])@K.T + U[0]
             else:
                 U_i = U[0]
             state_input = torch.hstack([X[0][: self.nx], U_i]).reshape(1, -1)

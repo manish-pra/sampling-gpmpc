@@ -44,12 +44,12 @@ agent:
   Dyn_gp_beta : 3.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 1     
+  num_dyn_samples: 10     
   mean_as_dyn_sample: False
   true_dyn_as_sample: True        # This is for debugging, set num_dyn_samples to 1
-  Dyn_gp_jitter: 1.0e-6
-  Dyn_gp_variance_is_zero: -1.0 # -1 : deactivated
-  Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
+  Dyn_gp_jitter: 1.0e-20
+  Dyn_gp_variance_is_zero: 1.1e-9 #-1.0 # -1 : deactivated
+  Dyn_gp_min_data_dist: 1.1e-4 # -1 : deactivated
   tight:
     use: False
     dyn_eps: 0.002
@@ -67,11 +67,11 @@ visu:
 
 common:
   use_cuda : False
-  num_MPC_itrs : 1
+  num_MPC_itrs : 50
   dynamics_rejection: False
 
 optimizer:
-  H : 50 # horizon
+  H : 1 # horizon
   u_min : [-0.6, -2] # Minimum control input
   u_max : [0.6, 2] 
   # u_min : [-30, -30] # Minimum control input
@@ -84,7 +84,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 150
+    max_sqp_iter: 2
     tol_nlp: 1.0e-4 
   order: 2
   dt: 0.06 # 0.010

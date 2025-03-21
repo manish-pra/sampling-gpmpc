@@ -191,7 +191,7 @@ class Visualizer:
             if self.params["agent"]["feedback"]["use"]:
                 if sqp_true_traj is not None:
                     curr_state = sqp_true_traj[ele]
-                U_i = (x_equi-curr_state)@K.T + U[ele]
+                U_i = -(x_equi-curr_state)@K.T + U[ele]
             else:
                 U_i = U[ele]
             state_input = (
@@ -370,7 +370,7 @@ class Visualizer:
         nH = len(eps_list)-1 # not required on terminal state
         n_pts = 50
         ns_sub = x.shape[1] #int(x.shape[1]/4) + 1
-        P_scaled = np.tile(P, (nH,1,1))/(eps_list[:nH,None, None]+1e-8)
+        P_scaled = np.tile(P, (nH,1,1))/(eps_list[:nH,None, None]**2+1e-8)
         L = np.linalg.cholesky(P_scaled)
         t = np.linspace(0, 2 * np.pi, n_pts)
         z = np.vstack([np.cos(t), np.sin(t)])
@@ -460,8 +460,8 @@ class Visualizer:
         # For debugging, the optimizied true dynamics is different from actual dyanamic due to SQP linearization errors
         # Or becuase we solve for only 1 sqp iteration and not until convergence
         # The difference is more evident in feedback case since different in U is higher
-        state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U, X[:,: self.nx])
-        # state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U)
+        # state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U, X[:,: self.nx])
+        state_kp1 = self.propagate_true_dynamics(X[0][: self.nx], U)
         self.true_state_traj.append(state_kp1)
         # x1_true, x2_true = self.propagate_true_dynamics(X[0, 0:2], U)
         # self.true_state_traj.append(torch.Tensor([x1_true, x2_true]).transpose(0, 1))

@@ -39,7 +39,8 @@ class DEMPC_solver(object):
         L = self.params["agent"]["tight"]["Lipschitz"]
         dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
         w_bound = self.params["agent"]["tight"]["w_bound"]
-        var_eps = dyn_eps + w_bound
+        B_d_norm = np.sqrt(self.params["optimizer"]["terminal_tightening"]["P"][1][1])
+        var_eps = (dyn_eps + w_bound)*B_d_norm
         P_inv = np.linalg.inv(self.params["optimizer"]["terminal_tightening"]["P"])
         K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
         tilde_eps_0 = 0
@@ -50,7 +51,7 @@ class DEMPC_solver(object):
         self.ci_list = []
         tilde_eps_i = 0
         for stage in range(1, self.H + 1):
-            c_i = np.power(L, stage - 1) * var_eps + 2 * dyn_eps * np.sum(
+            c_i = np.power(L, stage - 1) * var_eps + 2 * dyn_eps *B_d_norm* np.sum(
                 np.power(L, np.arange(0, stage - 1))
             )  # arange has inbuild -1 in [sstart, end-1]
             if stage == self.H:
@@ -59,21 +60,25 @@ class DEMPC_solver(object):
             else:
                 tilde_eps_i += c_i
                 # box constraints tightenings
-                tightenings = np.sqrt(np.diag(P_inv)*tilde_eps_i)
-                u_tight = np.sqrt(np.diag(K@P_inv@K.T)*tilde_eps_i)
+                tightenings = np.sqrt(np.diag(P_inv))*tilde_eps_i
+                u_tight = np.sqrt(np.diag(K@P_inv@K.T))*tilde_eps_i
                 print(f"u_tight_{stage} = {u_tight}")
                 self.tilde_eps_list.append(np.concatenate([tightenings.tolist(), u_tight.tolist(), [tilde_eps_i]]))
                 self.ci_list.append(c_i)
             print(f"tilde_eps_{stage} = {self.tilde_eps_list[-1]}")
+        # quit()
 
     def solve(self, player, plot_pendulum=False):
         # w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
-        len_a = 14
-        len_b = 24
-        len_c = self.H + 1 - len_a - len_b # 13
-        a = 1.95
-        b = 11.0
-        w = np.concatenate([a*np.ones(len_a), b*np.ones(len_b), a*np.ones(len_c)])
+        if self.params["agent"]["input_generation"]:
+            len_a = 14
+            len_b = 24
+            len_c = self.H + 1 - len_a - len_b # 13
+            a = 1.95
+            b = 11.0
+            w = np.concatenate([a*np.ones(len_a), b*np.ones(len_b), a*np.ones(len_c)])
+        else:
+            w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
         x_equi = np.array(self.params["env"]["goal_state"])
@@ -108,11 +113,11 @@ class DEMPC_solver(object):
             # create model with updated data
             player.train_hallucinated_dynGP(sqp_iter)
             if self.params["agent"]["feedback"]["use"]:
-                batch_x_hat = player.get_batch_x_hat_u_diff(self.x_h, (x_equi-self.x_h.reshape(self.H, ns, -1))@K.T + np.tile(self.u_h[:, None,:], (ns,1)))
+                batch_x_hat = player.get_batch_x_hat_u_diff(self.x_h, -(x_equi-self.x_h.reshape(self.H, ns, -1))@K.T + np.tile(self.u_h[:, None,:], (ns,1)))
                 # sample the gradients
                 gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
                 
-                y_grad = y_grad - u_grad @ K
+                y_grad = y_grad + u_grad @ K
             else:
                 batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)
                 # sample the gradients

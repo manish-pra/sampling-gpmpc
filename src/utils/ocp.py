@@ -65,29 +65,33 @@ def export_dempc_ocp(params):
             K = np.array(params["optimizer"]["terminal_tightening"]["K"])
             u_expr = []
             for i in range(num_dyn):
-                expr = K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u #+ tightening[x_dim]
+                expr = -K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u #+ tightening[x_dim]
                 u_expr = ca.vertcat(u_expr, expr)
             for i in range(num_dyn):
-                expr = K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u #- tightening[x_dim]
+                expr = -K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u #- tightening[x_dim]
                 u_expr = ca.vertcat(u_expr, expr)
             const_expr = ca.vertcat(const_expr, u_expr)
         model.con_h_expr = const_expr
         model.con_h_expr_e = const_expr_e
     if params["env"]["dynamics"] == "Pendulum1D":
-        x_equi = np.array(params["env"]["goal_state"])
-        # tilde_eps_i = p[2]
-        u_expr = []
-        K = np.array(params["optimizer"]["terminal_tightening"]["K"])
-        for i in range(num_dyn):
-            expr = K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u + tightening[x_dim]
-            u_expr = ca.vertcat(u_expr, expr)
-        for i in range(num_dyn):
-            expr = K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u - tightening[x_dim]
-            u_expr = ca.vertcat(u_expr, expr)
-        tighten_ns = ca.repmat(tightening[:x_dim], num_dyn)
-        model.con_h_expr = ca.vertcat(model_x - tighten_ns, model_x + tighten_ns, u_expr)
-
         const_expr = []
+        if params["agent"]["tight"]["use"]:
+            tighten_ns = ca.repmat(tightening[:x_dim], num_dyn)
+            const_expr = ca.vertcat(const_expr, model_x - tighten_ns, model_x + tighten_ns)
+        if params["agent"]["feedback"]["use"]:
+            x_equi = np.array(params["env"]["goal_state"])
+            u_expr = []
+            K = np.array(params["optimizer"]["terminal_tightening"]["K"])
+            for i in range(num_dyn):
+                expr = -K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u + tightening[x_dim]
+                u_expr = ca.vertcat(u_expr, expr)
+            for i in range(num_dyn):
+                expr = -K@(x_equi - model_x[nx * i : nx * (i + 1)]) + model_u - tightening[x_dim]
+                u_expr = ca.vertcat(u_expr, expr)
+            const_expr = ca.vertcat(const_expr, u_expr)
+        model.con_h_expr = const_expr
+
+        const_expr_e = []
         for i in range(num_dyn):
             xf = np.array(params["env"]["goal_state"])
             expr = (
@@ -95,9 +99,9 @@ def export_dempc_ocp(params):
                 @ np.array(params["optimizer"]["terminal_tightening"]["P"])
                 @ (model_x[nx * i : nx * (i + 1)] - xf)
             )
-            const_expr = ca.vertcat(const_expr, expr)
+            const_expr_e = ca.vertcat(const_expr_e, expr)
 
-        model.con_h_expr_e = const_expr
+        model.con_h_expr_e = const_expr_e
 
     ocp.model = model
     ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, cw, params)
@@ -180,13 +184,21 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     ocp.constraints.idxbx_e = np.arange(lbx.shape[0])
 
     if params["env"]["dynamics"] == "Pendulum1D":
-        ocp.constraints.lh = np.hstack([lbx, lbx, params["optimizer"]["u_min"]*2*ns])
-        ocp.constraints.uh = np.hstack([ubx, ubx, params["optimizer"]["u_max"]*2*ns])
+        lh = np.empty(0)
+        uh = np.empty(0)
+        if params["agent"]["tight"]["use"]:
+            lh = np.hstack([lbx, lbx])
+            uh = np.hstack([ubx, ubx])
+        if params["agent"]["feedback"]["use"]:
+            lh = np.hstack([lh, params["optimizer"]["u_min"]*2*ns])
+            uh = np.hstack([uh, params["optimizer"]["u_max"]*2*ns])
+        ocp.constraints.lh = lh
+        ocp.constraints.uh = uh
         # ocp.constraints.lh = np.hstack([lbx, lbx])
         # ocp.constraints.uh = np.hstack([ubx, ubx])
         delta = params["optimizer"]["terminal_tightening"]["delta"]
         ocp.constraints.lh_e = np.hstack([[0] * ns])
-        ocp.constraints.uh_e = np.hstack([[delta] * ns])
+        ocp.constraints.uh_e = np.hstack([[delta**2] * ns]) # squaring to avoid sqrt of xPx
         # size = len(ocp.constraints.lh)
         # ocp.cost.Zl = 1e6 * np.array([1] * size)
         # ocp.cost.Zu = 1e5 * np.array([1] * size)

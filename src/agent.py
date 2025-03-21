@@ -290,7 +290,8 @@ class Agent(object):
         L = self.params["agent"]["tight"]["Lipschitz"]
         dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
         w_bound = self.params["agent"]["tight"]["w_bound"]
-        var_eps = dyn_eps + w_bound
+        B_d_norm = np.sqrt(self.params["optimizer"]["terminal_tightening"]["P"][1][1])
+        var_eps = (dyn_eps + w_bound)*B_d_norm
 
         # Initialize forward sampling dataset
         self.FS_X_train_batch = torch.empty(n_sample, self.g_ny, 0, self.in_dim)
@@ -339,7 +340,7 @@ class Agent(object):
                 f_val = self.env_model.known_dyn(xu_hat).squeeze()
                 x_next = f_val + torch.matmul(self.env_model.B_d, g_val.t()).t()
                 diff = X_soln[i + 1, :, :] - x_next
-                c_i = np.power(L, i) * var_eps + 2 * dyn_eps * np.sum(
+                c_i = np.power(L, i) * var_eps + 2 * dyn_eps * B_d_norm * np.sum(
                     np.power(L, np.arange(0, i))
                 )  # arange has inbuild -1 in [start, end-1]
                 N_kp1 = torch.prod(torch.abs(diff) - c_i < 0, dim=1)
@@ -554,7 +555,7 @@ class Agent(object):
                 [idx_overwrite], :, :, :
             ]
             idx_overwrite += 1
-
+        # y_sample[:,:,:,1:]= torch.nan
         self.update_hallucinated_Dyn_dataset(g_xu_hat, y_sample)
         return y_sample
 
