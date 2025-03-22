@@ -1,6 +1,6 @@
 env:
   start: [0.0, 1.95, 0.0, 12.0] # x,y,theta,v
-  goal_state: [0.0, 0.0, 0.0, 0.0]
+  goal_state: [70.0, 1.95, 0.0, 0.0]
   dynamics: 'bicycle_Bdx' # "pendulum"
   params: 
     lf: 1.105 #0.55 #1.105, 0.275
@@ -32,12 +32,12 @@ agent:
   Dyn_gp_lengthscale :
     # both : [[[0.21266, 0.56651, 1.05719]], [[2.2651, 4.6306, 7.6728]], [[20.9180, 6.1829, 3.7340]]]
     # both : [[[ 3.5447,  3.7175]], [[ 3.9424,  3.2711]], [[50.3278,  3.3770]]]
-    both : [[[1.492, 1.508]], [[1.4, 1.1]], [[5.22931,  1.9544]]]
+    both : [[[1.492, 1.508]], [[1.7, 1.15]], [[5.22931,  1.9544]]]
   Dyn_gp_noise : 1.0e-6 # zero noise (modulo GP jitter below)
   Dyn_gp_outputscale : 
     y1 : 0.1040 #0.3040 #0.75  #0.65
     y2 : 0.1071 #0.3071 #0.65 #0.455, noise multiplier 3.0e-7 results in smooth trajectories
-    both : [0.065, 0.045, 0.01] #[0.0357, 0.1621, 0.0054] #[0.223, 0.0847, 0.0082]  #[0.123, 0.0447, 0.0042]
+    both : [0.065, 0.075, 0.01] #[0.0357, 0.1621, 0.0054] #[0.223, 0.0847, 0.0082]  #[0.123, 0.0447, 0.0042]
   Dyn_gp_task_noises : 
     val : [1.4, 1.48, 0.515]
     multiplier : 1.0e-6                     #1.0e-5 Low noise value make it crazy fast
@@ -47,7 +47,7 @@ agent:
   num_dyn_samples: 1     
   mean_as_dyn_sample: False
   true_dyn_as_sample: True        # This is for debugging, set num_dyn_samples to 1
-  Dyn_gp_jitter: 1.0e-6
+  Dyn_gp_jitter: 1.0e-20
   Dyn_gp_variance_is_zero: -1.0 # -1 : deactivated
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
   tight:
@@ -66,7 +66,7 @@ visu:
   show: False
 
 common:
-  use_cuda : False
+  use_cuda : True
   num_MPC_itrs : 1
   dynamics_rejection: False
 

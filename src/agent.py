@@ -28,7 +28,12 @@ class Agent(object):
         self.nu = params["agent"]["dim"]["nu"]
 
         # TODO: (Manish) replace self.in_dim --> self.g_nx + self.g_nu
-        self.in_dim = self.g_nx + self.g_nu
+        self.in_dim_x = self.g_nx + self.g_nu
+        if self.params["env"]["use_model_without_derivatives"]:
+            self.in_dim_y = 1 
+        else:
+            self.in_dim_y = 1 + self.in_dim_x
+        
         self.batch_shape = torch.Size(
             [self.params["agent"]["num_dyn_samples"], self.g_ny]
         )
@@ -48,15 +53,17 @@ class Agent(object):
         self.Hallcinated_Y_train = None
         self.model_i = None
 
-        self.Hallcinated_X_train = torch.empty(self.ns, self.g_ny, 0, self.in_dim)
+        self.Hallcinated_X_train = torch.empty(self.ns, self.g_ny, 0, self.in_dim_x)
         self.Hallcinated_Y_train = torch.empty(
-            self.ns, self.g_ny, 0, self.in_dim + 1
+            self.ns, self.g_ny, 0, self.in_dim_y
         )  # NOTE(amon): added+1 to in_dim
         if self.use_cuda:
             self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
             self.Hallcinated_Y_train = self.Hallcinated_Y_train.cuda()
 
         self.Dyn_gp_X_train, self.Dyn_gp_Y_train = env_model.initial_training_data()
+        if self.in_dim_y == 1:
+            self.Dyn_gp_Y_train = self.Dyn_gp_Y_train[:, :, [0]]
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
@@ -68,16 +75,16 @@ class Agent(object):
         beta = self.params["agent"]["Dyn_gp_beta"]
         n_mpc = self.params["common"]["num_MPC_itrs"]
         n_itrs = self.params["optimizer"]["SEMPC"]["max_sqp_iter"]
-        ret_mpc_iters = torch.empty(n_mpc, n_itrs, n_dyn, self.g_ny, H, self.in_dim + 1)
+        ret_mpc_iters = torch.empty(n_mpc, n_itrs, n_dyn, self.g_ny, H, self.in_dim_y)
         for j in range(self.params["common"]["num_MPC_itrs"]):
-            ret_itrs = torch.empty(n_itrs, n_dyn, self.g_ny, H, self.in_dim + 1)
+            ret_itrs = torch.empty(n_itrs, n_dyn, self.g_ny, H, self.in_dim_y)
             for i in range(self.params["optimizer"]["SEMPC"]["max_sqp_iter"]):
-                ret = torch.empty(0, self.g_ny, H, self.in_dim + 1)
+                ret = torch.empty(0, self.g_ny, H, self.in_dim_y)
                 while True:
                     w = torch.normal(
                         0,
                         1,
-                        size=(1, self.g_ny, H, self.in_dim + 1),
+                        size=(1, self.g_ny, H, self.in_dim_y),
                         device=self.torch_device,
                     )
                     if torch.all(w >= -beta) and torch.all(w <= beta):
@@ -132,7 +139,7 @@ class Agent(object):
             1, 1, 1, (self.nx + self.nu)
         )
         filter_these_out_y = filter_these_out.unsqueeze(-1).tile(
-            1, 1, 1, (self.g_nx + self.g_nu + 1)
+            1, 1, 1, (self.in_dim_y)
         )
         newX_filter = newX.clone()
         newY_filter = newY.clone()
@@ -186,7 +193,7 @@ class Agent(object):
         if use_model_without_derivatives:
             num_tasks = 1
         else:
-            num_tasks = self.in_dim + 1
+            num_tasks = self.in_dim_y
 
         likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
             num_tasks=num_tasks,
@@ -218,9 +225,9 @@ class Agent(object):
                 del self.Hallcinated_X_train
                 del self.Hallcinated_Y_train
 
-            self.Hallcinated_X_train = torch.empty(n_sample, self.g_ny, 0, self.in_dim)
+            self.Hallcinated_X_train = torch.empty(n_sample, self.g_ny, 0, self.in_dim_x)
             self.Hallcinated_Y_train = torch.empty(
-                n_sample, self.g_ny, 0, 1 + self.in_dim
+                n_sample, self.g_ny, 0, self.in_dim_y
             )
             if self.use_cuda:
                 self.Hallcinated_X_train = self.Hallcinated_X_train.cuda()
@@ -256,7 +263,7 @@ class Agent(object):
             ],
             dim=2,
         )
-        num_tasks = self.in_dim + 1
+        num_tasks = self.in_dim_y
 
         likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
             num_tasks=num_tasks,
@@ -294,8 +301,8 @@ class Agent(object):
         var_eps = (dyn_eps + w_bound)*B_d_norm
 
         # Initialize forward sampling dataset
-        self.FS_X_train_batch = torch.empty(n_sample, self.g_ny, 0, self.in_dim)
-        self.FS_Y_train_batch = torch.empty(n_sample, self.g_ny, 0, 1 + self.in_dim)
+        self.FS_X_train_batch = torch.empty(n_sample, self.g_ny, 0, self.in_dim_x)
+        self.FS_Y_train_batch = torch.empty(n_sample, self.g_ny, 0, self.in_dim_y)
 
         # Reshaping and load on cuda
         X_soln = X_soln.reshape(X_soln.shape[0], n_sample, self.nx).cuda()
@@ -544,9 +551,12 @@ class Agent(object):
         idx_overwrite = 0
         if self.params["agent"]["true_dyn_as_sample"]:
             # overwrite next sample with true dynamics
-            y_sample[idx_overwrite, :, :, :] = self.env_model.get_prior_data(
+            true_dyn_data = self.env_model.get_prior_data(
                 g_xu_hat[idx_overwrite, 0, :, :]
             )
+            if self.in_dim_y == 1:
+                true_dyn_data = true_dyn_data[:, :, [0]]
+            y_sample[idx_overwrite, :, :, :] = true_dyn_data
             idx_overwrite += 1
 
         if self.params["agent"]["mean_as_dyn_sample"]:
@@ -583,7 +593,7 @@ class Agent(object):
                 )
                 variance_numerically_zero_all_outputs = torch.all(
                     variance_numerically_zero, dim=-1, keepdim=True
-                ).tile(1, 1, 1, self.g_nx + self.g_nu + 1)
+                ).tile(1, 1, 1, self.in_dim_y)
                 variance_numerically_zero_num = torch.zeros_like(
                     self.model_i_call.variance
                 )
@@ -609,7 +619,7 @@ class Agent(object):
                 dist_too_small = (
                     torch.any(dist_norm <= min_distance, dim=2)
                     .unsqueeze(-1)
-                    .tile(1, 1, 1, self.g_nx + self.g_nu + 1)
+                    .tile(1, 1, 1, self.in_dim_y)
                 )
                 min_dist_input, min_dist_input_index = torch.min(dist_norm, dim=2)
                 # create tuple of tensors with indices of closest training data point

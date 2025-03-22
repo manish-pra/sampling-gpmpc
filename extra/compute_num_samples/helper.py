@@ -1,7 +1,10 @@
 import gpytorch
 import torch
 import numpy as np
-
+import os, sys
+workspace = "sampling-gpmpc"
+sys.path.append(workspace)
+from src.GP_model import BatchMultitaskGPModelWithDerivatives_fromParams
 
 class ExactGPModel(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, params):
@@ -119,7 +122,24 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_gri
     g_nx = params["agent"]["g_dim"]["nx"]
     g_nu = params["agent"]["g_dim"]["nu"]
     g_ny = params["agent"]["g_dim"]["ny"]
-
+    # use_model_without_derivatives = True
+    # batch_shape = torch.Size([1, g_ny])
+    # likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
+    #     num_tasks=1,
+    #     noise_constraint=gpytorch.constraints.GreaterThan(0.0),
+    #     batch_shape=batch_shape,
+    # )  # Value + Derivative
+    # data_X, data_Y = Dyn_gp_X_train, Dyn_gp_Y_train[None, :, :, [0]]
+    # model = BatchMultitaskGPModelWithDerivatives_fromParams(
+    #     data_X,
+    #     data_Y,
+    #     likelihood,
+    #     params,
+    #     batch_shape=batch_shape,
+    #     use_grad=not use_model_without_derivatives,
+    # )
+    # model.eval()
+    # likelihood.eval()
     train_x = torch.ones((1, g_nx + g_nu)) * 20000
     train_y = torch.zeros((1, g_ny))
     Dyn_gp_noise = 0.0
@@ -144,6 +164,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_gri
     model.covar_module.outputscale = torch.tensor(
         params["agent"]["Dyn_gp_outputscale"]["both"][gp_idx]
     )
+    model.eval()
 
     if Dyn_gp_X_train.shape[1] == 3:
         # Define the ranges
@@ -203,7 +224,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_gri
         double_value=params["agent"]["Dyn_gp_jitter"],
         half_value=params["agent"]["Dyn_gp_jitter"],
     ):
-        model.eval()
+        
         model_call = model(grid_points)
         samples = model_call.sample(sample_shape=torch.Size([total_samples]))
 
@@ -211,7 +232,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_gri
     sample_diff = samples - model_call.mean
     # plt.plot(X, samples.transpose(0, 1), lw=0.1)
     # plt.savefig("samples.png")
-
+    # sample_diff = sample_diff[:,0,gp_idx,:,0]
     eps = params["agent"]["tight"]["dyn_eps"]
     in_samples = torch.logical_and(sample_diff >= -eps, sample_diff <= eps)
     total_in_samples = torch.sum(torch.all(in_samples, dim=1))
@@ -296,7 +317,7 @@ def compute_epsilon_fix_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, p
 
     # X = torch.linspace(-np.pi, np.pi, 100)
 
-    total_samples = 10000
+    total_samples = 100000
     with torch.no_grad(), gpytorch.settings.observation_nan_policy(
         "mask"
     ), gpytorch.settings.fast_computations(

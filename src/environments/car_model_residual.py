@@ -202,10 +202,12 @@ class CarKinematicsModel(object):
     def transform_sensitivity(self, dg_dxu_grad, xu_hat):
         ns = dg_dxu_grad.shape[0]
         nH = dg_dxu_grad.shape[2]
+        gnew_dim = 4 # 1 + dg_dxu_grad.shape[3]
 
         v_dg_dxu_grad = torch.zeros(
-            (ns, self.g_ny, nH, 1 + dg_dxu_grad.shape[3]), device=dg_dxu_grad.device
+            (ns, self.g_ny, nH, gnew_dim), device=dg_dxu_grad.device
         )
+        # tranform gradient from g(theta, delta) to g(theta, v, delta) form 
         v_dg_dxu_grad[:, :, :, self.pad_vg] = (
             xu_hat[:, 0:3, :, [3]] * dg_dxu_grad
         )  # multiply with V_k

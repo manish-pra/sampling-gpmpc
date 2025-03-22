@@ -81,7 +81,7 @@ agent = Agent(params, env_model)
 # get saved input trajectory
 if params["agent"]["feedback"]["use"]:
     input_data_path = (
-        f"{save_path}{str(args.i)}/data_feedback_0.pkl"
+        f"{save_path}{str(args.i)}/data_feedback_70.pkl"
     )
 else:
     input_data_path = (
@@ -114,7 +114,7 @@ x_h = np.tile(x_curr, (1, ns)) #np.zeros((1, agent.nx * params["agent"]["num_dyn
 X_traj = torch.empty((ns, agent.nx, H + 1))
 x_equi = np.array(params["env"]["goal_state"])
 for H_idx in range(H):
-    agent.train_hallucinated_dynGP(1)
+    agent.train_hallucinated_dynGP(1, use_model_without_derivatives=params["env"]["use_model_without_derivatives"])
     agent.mpc_iteration(H_idx) # Hack for the sampling of epistemic uncertainty
     u_h = input_gpmpc_input_traj[H_idx].reshape(1, -1)
     if params["agent"]["feedback"]["use"]:

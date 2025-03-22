@@ -81,7 +81,7 @@ eB_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, 
 # print(eB_phi)
 eB_phi = eB_phi.cuda()
 delta = torch.tensor([0.01]).cuda()  # safety with 99% probability (1-\delta)
-Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-Cd) * eB_phi)
+Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-Cd.cuda()) * eB_phi)
 
 print(
     f"Number of dynamics samples for safety with {1-delta.item()} probability are {Num_samples.item()}"
