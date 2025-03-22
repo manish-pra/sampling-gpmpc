@@ -5,6 +5,7 @@ import numpy as np
 class CarKinematicsModel(object):
     def __init__(self, params):
         self.params = params
+        self.H = self.params["optimizer"]["H"]
         self.nx = self.params["agent"]["dim"]["nx"]
         self.nu = self.params["agent"]["dim"]["nu"]
         self.g_ny = self.params["agent"]["g_dim"]["ny"]
@@ -213,3 +214,69 @@ class CarKinematicsModel(object):
         )  # multiply with V_k
         v_dg_dxu_grad[:, :, :, 2] = dg_dxu_grad[:, :, :, 0]  # set grad_v
         return v_dg_dxu_grad
+
+    def get_reachable_set_ball(self):
+        # computation of tightenings
+        P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])
+        # P *=10
+        L = self.params["agent"]["tight"]["Lipschitz"]
+        dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
+        w_bound = self.params["agent"]["tight"]["w_bound"]
+        B_d_norm = np.sum(np.sqrt(np.diag(P[:3][:3])))*14
+        var_eps = (dyn_eps + w_bound)*B_d_norm
+        P_inv = np.linalg.inv(P)
+        K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
+        B_eps_0 = 0
+        tightenings = np.sqrt(np.diag(P_inv))*B_eps_0
+        u_tight = np.sqrt(np.diag(K@P_inv@K.T))*B_eps_0
+        self.tilde_eps_list = []
+        self.tilde_eps_list.append(np.concatenate([tightenings.tolist(), u_tight.tolist(), [B_eps_0]]))
+        self.ci_list = []
+        B_eps_k = 0
+        for stage in range(1, self.H + 1):
+            B_eps_k = var_eps * np.sum(np.power(L, np.arange(0, stage)))  
+            # arange has inbuild -1 in [sstart, end-1]
+            # box constraints tightenings
+            tightenings = np.sqrt(np.diag(P_inv))*B_eps_k
+            u_tight = np.sqrt(np.diag(K@P_inv@K.T))*B_eps_k
+            print(f"u_tight_{stage} = {u_tight}")
+            self.tilde_eps_list.append(np.concatenate([tightenings.tolist(), u_tight.tolist(), [B_eps_k]]))
+            self.ci_list.append(B_eps_k)
+            print(f"tilde_eps_{stage} = {self.tilde_eps_list[-1]}")
+        # quit()
+        return self.tilde_eps_list, self.ci_list
+
+    def get_mpc_tightenings(self):
+        # computation of tightenings
+        L = self.params["agent"]["tight"]["Lipschitz"]
+        dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
+        w_bound = self.params["agent"]["tight"]["w_bound"]
+        B_d_norm = np.sqrt(self.params["optimizer"]["terminal_tightening"]["P"][1][1])
+        var_eps = (dyn_eps + w_bound)*B_d_norm
+        P_inv = np.linalg.inv(self.params["optimizer"]["terminal_tightening"]["P"])
+        K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
+        tilde_eps_0 = 0
+        tightenings = np.sqrt(np.diag(P_inv)*tilde_eps_0)
+        u_tight = np.sqrt(np.diag(K@P_inv@K.T)*tilde_eps_0)
+        self.tilde_eps_list = []
+        self.tilde_eps_list.append(np.concatenate([tightenings.tolist(), u_tight.tolist(), [tilde_eps_0]]))
+        self.ci_list = []
+        tilde_eps_i = 0
+        for stage in range(1, self.H + 1):
+            c_i = np.power(L, stage - 1) * var_eps + 2 * dyn_eps *B_d_norm* np.sum(
+                np.power(L, np.arange(0, stage - 1))
+            )  # arange has inbuild -1 in [sstart, end-1]
+            if stage == self.H:
+                self.tilde_eps_list.append([c_i]*(self.nx+self.nu+1))
+                self.ci_list.append(c_i)
+            else:
+                tilde_eps_i += c_i
+                # box constraints tightenings
+                tightenings = np.sqrt(np.diag(P_inv))*tilde_eps_i
+                u_tight = np.sqrt(np.diag(K@P_inv@K.T))*tilde_eps_i
+                print(f"u_tight_{stage} = {u_tight}")
+                self.tilde_eps_list.append(np.concatenate([tightenings.tolist(), u_tight.tolist(), [tilde_eps_i]]))
+                self.ci_list.append(c_i)
+            print(f"tilde_eps_{stage} = {self.tilde_eps_list[-1]}")
+        # quit()
+        return self.tilde_eps_list, self.ci_list

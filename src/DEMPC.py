@@ -21,8 +21,8 @@ class DEMPC:
         self.n_order = params["optimizer"]["order"]
         self.nx = self.params["agent"]["dim"]["nx"]
         self.agent = agent
-        self.visu.tilde_eps_list = self.dempc_solver.tilde_eps_list
-        self.visu.ci_list = self.dempc_solver.ci_list
+        self.visu.tilde_eps_list = self.agent.tilde_eps_list
+        self.visu.ci_list = self.agent.ci_list
 
     def dempc_main(self):
         """_summary_ Responsible for initialization, logic for when to collect sample vs explore"""

@@ -7,6 +7,7 @@ env:
     lr: 1.738 #0.85 #1.738, 0.425
   prior_dyn_meas: True 
   train_data_has_derivatives: False
+  use_model_without_derivatives: False
   n_data_x: 5
   n_data_u: 9
   # ellipses:
@@ -52,8 +53,8 @@ agent:
   Dyn_gp_min_data_dist: -1.0 # -1 : deactivated
   tight:
     use: False
-    dyn_eps: 0.002
-    Lipschitz: 1.0344 #1.021 #1.0344 #1.0019 #1.0884 #1.0061 #1.00001
+    dyn_eps: 0.001
+    Lipschitz: 1.0344 #1.0344 #1.021 #1.0344 #1.0019 #1.0884 #1.0061 #1.00001
     w_bound: 0.000001
   shift_soln: False
   feedback: 

@@ -67,6 +67,9 @@ class Agent(object):
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
+        # self.tilde_eps_list, self.ci_list = env_model.get_mpc_tightenings()
+        self.tilde_eps_list, self.ci_list = env_model.get_reachable_set_ball()
+        # quit()
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling
