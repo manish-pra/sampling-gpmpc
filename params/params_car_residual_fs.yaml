@@ -45,7 +45,7 @@ agent:
   Dyn_gp_beta : 30.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 4000     
+  num_dyn_samples: 200000     
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-20

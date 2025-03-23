@@ -66,7 +66,7 @@ class Agent(object):
             self.Dyn_gp_Y_train = self.Dyn_gp_Y_train[:, :, [0]]
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
-        self.epistimic_random_vector = self.random_vector_within_bounds()
+        self.epistimic_random_vector = self.random_vector_within_bounds2()
         # self.tilde_eps_list, self.ci_list = env_model.get_mpc_tightenings()
         self.tilde_eps_list, self.ci_list = env_model.get_reachable_set_ball(params, np.ones(params["optimizer"]["H"]+1))
         # quit()
@@ -99,6 +99,38 @@ class Agent(object):
 
         if self.use_cuda:
             ret_mpc_iters = ret_mpc_iters.cuda()
+        return ret_mpc_iters
+    
+    def random_vector_within_bounds2(self):
+        # Extract parameters
+        H = self.params["optimizer"]["H"]
+        n_dyn = self.params["agent"]["num_dyn_samples"]
+        beta = self.params["agent"]["Dyn_gp_beta"]
+        n_mpc = self.params["common"]["num_MPC_itrs"]
+        n_itrs = self.params["optimizer"]["SEMPC"]["max_sqp_iter"]
+        
+        # Determine the device (CPU or GPU)
+        device = self.torch_device
+        
+        # Pre-allocate the result tensor on the correct device
+        ret_mpc_iters = torch.empty(n_mpc, n_itrs, n_dyn, self.g_ny, H, self.in_dim_y, device=device)
+        
+        # Generate all random vectors at once
+        total_samples = n_mpc * n_itrs * n_dyn
+        w = torch.normal(0, 1, size=(total_samples, self.g_ny, H, self.in_dim_y), device=device)
+        print("Max w", torch.max(w))
+        # Filter vectors within bounds
+        mask = (w >= -beta) & (w <= beta)
+        # Apply `all` along the last three dimensions (self.g_ny, H, self.in_dim_y)
+        valid_mask = mask.all(dim=1).all(dim=1).all(dim=1)  # Flatten the last three dimensions
+        
+        # Select valid samples
+        valid_samples = w[valid_mask]
+        
+        # Reshape and fill the result tensor
+        valid_samples = valid_samples.view(n_mpc, n_itrs, n_dyn, self.g_ny, H, self.in_dim_y)
+        ret_mpc_iters = valid_samples
+        
         return ret_mpc_iters
 
     def get_min_dist_train_data(self):

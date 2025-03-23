@@ -78,6 +78,10 @@ env_model = globals()[params["env"]["dynamics"]](params)
 
 agent = Agent(params, env_model)
 
+a_file = open(save_path + str(traj_iter) + "/data_epistemic_vector.pkl", "wb")
+pickle.dump(agent.epistimic_random_vector, a_file)
+a_file.close()
+quit()
 # get saved input trajectory
 if params["agent"]["feedback"]["use"]:
     input_data_path = (
