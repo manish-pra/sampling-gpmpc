@@ -100,7 +100,7 @@ class Agent(object):
         if self.use_cuda:
             ret_mpc_iters = ret_mpc_iters.cuda()
         return ret_mpc_iters
-    
+
     def random_vector_within_bounds2(self):
         # Extract parameters
         H = self.params["optimizer"]["H"]
@@ -126,7 +126,7 @@ class Agent(object):
         
         # Select valid samples
         valid_samples = w[valid_mask]
-        
+        print("Max w", torch.max(valid_samples))
         # Reshape and fill the result tensor
         valid_samples = valid_samples.view(n_mpc, n_itrs, n_dyn, self.g_ny, H, self.in_dim_y)
         ret_mpc_iters = valid_samples

@@ -76,11 +76,13 @@ if not os.path.exists(save_path + str(traj_iter)):
 
 env_model = globals()[params["env"]["dynamics"]](params)
 
-agent = Agent(params, env_model)
+for i in range(10):
+    agent = Agent(params, env_model)
 
-a_file = open(save_path + str(traj_iter) + "/data_epistemic_vector.pkl", "wb")
-pickle.dump(agent.epistimic_random_vector, a_file)
-a_file.close()
+    a_file = open(save_path + str(traj_iter) + f"/data_epistemic_vector_{i}.pkl", "wb")
+    pickle.dump(agent.epistimic_random_vector, a_file)
+    del agent.epistimic_random_vector
+    a_file.close()
 quit()
 # get saved input trajectory
 if params["agent"]["feedback"]["use"]:
