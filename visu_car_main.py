@@ -65,8 +65,10 @@ true_state_traj = data_dict["true_state_traj"]
 physical_state_traj = data_dict["physical_state_traj"]
 tilde_eps_list, ci_list = None, None
 if "tilde_eps_list" in data_dict:
-    tilde_eps_list = data_dict["tilde_eps_list"]
-    ci_list = data_dict["ci_list"]
+    from src.environments.car_model_residual import CarKinematicsModel as bicycle_Bdx
+    tilde_eps_list, ci_list = bicycle_Bdx.get_reachable_set_ball(params, state_traj[0][:,3])
+    # tilde_eps_list = data_dict["tilde_eps_list"]
+    # ci_list = data_dict["ci_list"]
 a_file.close()
 
 params["visu"]["show"] = True

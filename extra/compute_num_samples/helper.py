@@ -214,7 +214,7 @@ def compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_gri
 
     # X = torch.linspace(-np.pi, np.pi, 100)
 
-    total_samples = 100000
+    total_samples = 1000000
     with torch.no_grad(), gpytorch.settings.observation_nan_policy(
         "mask"
     ), gpytorch.settings.fast_computations(

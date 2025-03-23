@@ -81,7 +81,7 @@ agent = Agent(params, env_model)
 # get saved input trajectory
 if params["agent"]["feedback"]["use"]:
     input_data_path = (
-        f"{save_path}{str(args.i)}/data_feedback_70.pkl"
+        f"{save_path}{str(args.i)}/data_feedback_1e-8.pkl"
     )
 else:
     input_data_path = (

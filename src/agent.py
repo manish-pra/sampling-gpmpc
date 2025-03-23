@@ -68,7 +68,7 @@ class Agent(object):
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
         # self.tilde_eps_list, self.ci_list = env_model.get_mpc_tightenings()
-        self.tilde_eps_list, self.ci_list = env_model.get_reachable_set_ball()
+        self.tilde_eps_list, self.ci_list = env_model.get_reachable_set_ball(params, np.ones(params["optimizer"]["H"]+1))
         # quit()
 
     def random_vector_within_bounds(self):

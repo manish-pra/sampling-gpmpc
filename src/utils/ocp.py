@@ -140,9 +140,9 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
         ns = params["agent"]["num_dyn_samples"]
     if params["agent"]["input_generation"]:
         v_max = params["optimizer"]["x_max"][3]
-        expr = 2*(model_x[pos_dim] - p) ** 2 + (model_x[v_dim]-v_max)**2 #+ w * (model_u[1]-12)** 2
+        expr = Qx[1,1]*(model_x[pos_dim] - p) ** 2 + Qx[3,3]*(model_x[v_dim]-v_max)**2 #+ w * (model_u[1]-12)** 2
         ocp.model.cost_expr_ext_cost = expr / ns + (model_u).T @ (Qu) @ (model_u)
-        ocp.model.cost_expr_ext_cost_e = 2*(model_x[pos_dim] - 1.95) ** 2/ ns
+        ocp.model.cost_expr_ext_cost_e = Qx[1,1]*(model_x[pos_dim] - 1.95) ** 2/ ns
         return ocp
     else:
         expr = 0

@@ -12,7 +12,7 @@ import scipy.spatial as sp
 # shrinkage = np.power(L, Horizon-1)*eps + eps*2*np.sum([np.power(L, i) for i in range(Horizon-1)])
 n = 4
 m = 2
-rho = 0.98
+rho = 0.992
 print("rho", rho)
 E = cp.Variable((n, n), PSD=True)
 Y = cp.Variable((m, n))
@@ -40,12 +40,15 @@ delta_min = -0.6
 delta_max = 0.6
 theta_min = -1.0
 theta_max = 1.0
-v_min = 16
-v_max = 17
+v_min = 14
+v_max = 16.4
+d_delta = 0.1
+d_theta = 0.1
+d_v = 0.5
 
-for delta in range_float(delta_min, delta_max, 0.2):
-    for theta in range_float(theta_min, theta_max, 0.2):
-        for v in range_float(v_min, v_max, 1):  # Lipschitz constant is sensitive to v
+for delta in range_float(delta_min, delta_max, d_delta):
+    for theta in range_float(theta_min, theta_max, d_theta):
+        for v in range_float(v_min, v_max, d_v):  # Lipschitz constant is sensitive to v
             beta_in = (lr * np.tan(delta)) / (lf + lr)
             beta = np.arctan(beta_in)
 
@@ -178,9 +181,9 @@ norm2_list = []
 val_list = []
 max_val = -1
 
-for delta in range_float(delta_min, delta_max, 0.1):
-    for theta in range_float(theta_min, theta_max, 0.1):
-        for v in range_float(v_min, v_max, 1):  # Lipschitz constant is sensitive to v
+for delta in range_float(delta_min, delta_max, d_delta):
+    for theta in range_float(theta_min, theta_max, d_theta):
+        for v in range_float(v_min, v_max, d_v):  # Lipschitz constant is sensitive to v
             beta_in = (lr * np.tan(delta)) / (lf + lr)
             beta = np.arctan(beta_in)
 

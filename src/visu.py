@@ -367,6 +367,7 @@ class Visualizer:
     
     def plot_ellipses(self, ax, x, y, eps_list):
         P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])[:2,:2]
+        # P*=10
         nH = len(eps_list)-1 # not required on terminal state
         n_pts = 50
         ns_sub = x.shape[1] #int(x.shape[1]/4) + 1
