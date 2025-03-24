@@ -41,11 +41,11 @@ agent:
     both : [0.065, 0.075, 0.01] #[0.0357, 0.1621, 0.0054] #[0.223, 0.0847, 0.0082]  #[0.123, 0.0447, 0.0042]
   Dyn_gp_task_noises : 
     val : [1.4, 1.48, 0.515]
-    multiplier : 1.0e-8                     #1.0e-5 Low noise value make it crazy fast
+    multiplier : 1.0e-6                     #1.0e-5 Low noise value make it crazy fast
   Dyn_gp_beta : 30.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 400     
+  num_dyn_samples: 3000     
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-20

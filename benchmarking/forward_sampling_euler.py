@@ -18,11 +18,7 @@ import copy
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
 
-from src.DEMPC import DEMPC
-from src.visu import Visualizer
 from src.agent import Agent
-from src.environments.pendulum import Pendulum
-from src.environments.car_model import CarKinematicsModel
 from src.environments.car_model_residual import CarKinematicsModel as bicycle_Bdx
 
 warnings.filterwarnings("ignore")
@@ -33,6 +29,7 @@ parser.add_argument("-param", default="params_car_residual_fs")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=400)  # initialized at origin
+parser.add_argument("-epistemic_idx", type=int, default=400)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -76,14 +73,10 @@ if not os.path.exists(save_path + str(traj_iter)):
 
 env_model = globals()[params["env"]["dynamics"]](params)
 
-for i in range(10):
-    agent = Agent(params, env_model)
+agent = Agent(params, env_model)
+# with open(save_path + str(traj_iter) + f"/data_epistemic_vector_{args.epistemic_idx}.pkl", "rb") as epistemic_rv_file:
+#     agent.epistimic_random_vector = pickle.load(epistemic_rv_file)
 
-    a_file = open(save_path + str(traj_iter) + f"/data_epistemic_vector_{i}.pkl", "wb")
-    pickle.dump(agent.epistimic_random_vector, a_file)
-    del agent.epistimic_random_vector
-    a_file.close()
-quit()
 # get saved input trajectory
 if params["agent"]["feedback"]["use"]:
     input_data_path = (
@@ -164,6 +157,10 @@ X_traj[:, :, H_idx+1] = torch.tensor(gp_val[:,:,0,0])
 X_traj = X_traj.detach().cpu().numpy()
 plt.plot(X_traj[:,0,:].T, X_traj[:,1,:].T)
 plt.savefig("fs_60.png")
+# print(f"Saving data for {args.epistemic_idx}")
+# a_file = open(save_path + str(traj_iter) + f"/data_X_traj_{args.epistemic_idx}.pkl", "wb")
+# pickle.dump(X_traj, a_file)
+# a_file.close()
 quit()
 
 X_traj = torch.zeros(

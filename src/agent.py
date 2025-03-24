@@ -232,6 +232,7 @@ class Agent(object):
 
         likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
             num_tasks=num_tasks,
+            rank=0,
             noise_constraint=gpytorch.constraints.GreaterThan(0.0),
             batch_shape=self.batch_shape,
         )  # Value + Derivative
