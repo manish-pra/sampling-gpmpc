@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     state_traj = data_dict["state_traj"]
     input_traj = torch.Tensor(data_dict["input_traj"])
-    x0 = state_traj[0][0, 0:2]
+    x0 = state_traj[0][0, 0:nx]
 
     # only need single prediction
     params["agent"]["num_dyn_samples"] = 1
