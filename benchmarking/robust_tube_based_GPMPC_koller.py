@@ -17,6 +17,7 @@ sys.path.append(workspace)
 
 from src.agent import Agent
 from src.environments.pendulum import Pendulum
+from src.environments.car_model_residual import CarKinematicsModel
 
 # clone https://github.com/manish-pra/safe-exploration-koller and add it to the path
 # Add path to safe-exploration-koller
@@ -67,9 +68,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="A foo that bars")
     parser.add_argument("-param", default="params_pendulum")  # params
-
+    parser.add_argument("-env_model", type=str, default="pendulum")
     parser.add_argument("-env", type=int, default=0)
     parser.add_argument("-i", type=int, default=999)  # initialized at origin
+
     args = parser.parse_args()
 
     # 1) Load the config file
@@ -116,7 +118,13 @@ if __name__ == "__main__":
     # only need single prediction
     params["agent"]["num_dyn_samples"] = 1
 
-    env_model = Pendulum(params)
+    if args.env_model == "pendulum":
+        env_model = Pendulum(params)
+    elif args.env_model == "car":
+        env_model = CarKinematicsModel(params)
+    else:
+        raise ValueError("Unknown environment model, possible values: pendulum, car")
+
     # TODO: abstract data generation from agent and just call the data generation function here
     agent = Agent(params, env_model)
 
@@ -128,9 +136,13 @@ if __name__ == "__main__":
     gp_model_orig = agent.model_i
     gp_model_orig.eval()
 
-    gp_model = GPModelWithDerivativesProjectedToFunctionValues(
-        agent.model_i, batch_shape_tile=agent.model_i.batch_shape
-    )
+    if params["env"]["train_data_has_derivatives"]:
+        gp_model = GPModelWithDerivativesProjectedToFunctionValues(
+            agent.model_i, batch_shape_tile=agent.model_i.batch_shape
+        )
+    else:
+        gp_model = gp_model_orig
+
     likelihood = agent.likelihood  # NOTE: dimensions wrong, but not used in GpCemSSM
 
     conf = {

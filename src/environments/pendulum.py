@@ -21,6 +21,7 @@ class Pendulum(object):
             torch.set_default_device(self.torch_device)
 
         self.B_d = torch.eye(self.nx, self.g_ny, device=self.torch_device)
+        self.has_nominal_model = False
 
     def initial_training_data(self):
         # keep low output scale, TODO: check if variance on gradient output can be controlled Dyn_gp_task_noises

@@ -24,6 +24,7 @@ class CarKinematicsModel(object):
             torch.set_default_device(self.torch_device)
 
         self.B_d = torch.eye(self.nx, self.g_ny, device=self.torch_device)
+        self.has_nominal_model = True
 
     def initial_training_data(self):
         # need more training data for decent result
