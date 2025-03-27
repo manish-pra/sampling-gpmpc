@@ -5,6 +5,8 @@ env:
   params: 
     lf: 1.105 #0.55 #1.105, 0.275
     lr: 1.738 #0.85 #1.738, 0.425
+    l_mu: [0.05, 0.05, 0.05, 0.05]
+    l_sigma: [0.05, 0.05, 0.05, 0.05]
   prior_dyn_meas: True 
   train_data_has_derivatives: False
   use_model_without_derivatives: False

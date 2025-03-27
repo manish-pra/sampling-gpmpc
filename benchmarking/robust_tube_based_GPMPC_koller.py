@@ -37,6 +37,14 @@ class mean_and_variance:
     mean: torch.Tensor
     variance: torch.Tensor
 
+class FeatureSelector(torch.nn.Module):
+    def __init__(self, model, idx_select):
+        super().__init__()
+        self.idx_select = idx_select
+        self.model = model
+
+    def forward(self, x):
+        return self.model(x[:, self.idx_select])
 
 class GPModelWithDerivativesProjectedToFunctionValues(torch.nn.Module):
     def __init__(self, gp_model, batch_shape_tile=None):
@@ -61,14 +69,18 @@ class GPModelWithDerivativesProjectedToFunctionValues(torch.nn.Module):
         )
 
 class GPModelWithPriorMean(torch.nn.Module):
-    def __init__(self, gp_model, prior_mean_fun, Bd_fun):
+    def __init__(self, gp_model, prior_mean_fun, Bd_fun, gp_model_idx_inputs=None):
         super().__init__()
         self.gp_model = gp_model
         self.prior_mean_fun = prior_mean_fun
         self.Bd_fun = Bd_fun
+        if gp_model_idx_inputs is None:
+            gp_model_idx_inputs = torch.arange(0, prior_mean_fun.input_dim)
+        self.gp_model_idx_inputs = gp_model_idx_inputs
+        # self.gp_model_for_x = FeatureSelector(gp_model, gp_model_idx_inputs)
 
     def forward(self, x):
-        gp_dist = self.gp_model(x)
+        gp_dist = self.gp_model(x[:, self.gp_model_idx_inputs])
         full_mean = self.prior_mean_fun(x) + self.Bd_fun(x) @ gp_dist.mean
         gp_variance_diag = torch.vmap(torch.diag,in_dims=1)(gp_dist.variance)
         Bd_xu_tile = torch.tile(self.Bd_fun(x), (x.shape[0],1,1))
@@ -168,7 +180,11 @@ if __name__ == "__main__":
             gp_model,
             env_model.known_dyn_xu,
             env_model.unknown_dyn_Bd_fun,
+            gp_model_idx_inputs=env_model.g_idx_inputs,
         )
+
+    # if hasattr(env_model, "g_idx_inputs"):
+    #     gp_model = FeatureSelector(gp_model, env_model.g_idx_inputs)
 
     likelihood = agent.likelihood  # NOTE: dimensions wrong, but not used in GpCemSSM
 
@@ -209,7 +225,7 @@ if __name__ == "__main__":
             ps, qs, _ = onestep_reachability(
                 ps,
                 ssm,
-                input_traj[0][i].reshape(-1, 1),
+                input_traj[0][i].reshape(1, -1),
                 torch.tensor(l_mu).to(device),
                 torch.tensor(l_sigma).to(device),
                 q_shape=qs,
