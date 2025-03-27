@@ -25,7 +25,7 @@ sys.path.append(workspace_safe_exploration)
 
 from safe_exploration.gp_reachability_pytorch import onestep_reachability
 from safe_exploration.ssm_cem.gp_ssm_cem import GpCemSSM
-from safe_exploration.environments.environments import InvertedPendulum, Environment
+from safe_exploration.environments.environments import InvertedPendulum
 
 # save_path = "/home/manish/work/horrible/safe-exploration_cem/experiments"
 # a_file = open(save_path + "/data.pkl", "rb")
@@ -33,8 +33,10 @@ from safe_exploration.environments.environments import InvertedPendulum, Environ
 # save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
 # save_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
 
+
 def extract_function_value_for_first_sample(y):
     return y[0, :, :, 0]
+
 
 @dataclass
 class mean_and_variance:
@@ -47,9 +49,11 @@ class GPModelWithDerivativesProjectedToFunctionValues(torch.nn.Module):
         super().__init__()
         self.gp_model = gp_model
         if batch_shape_tile is None:
-            self.tile_shape = torch.Size([1,1,1,1])
+            self.tile_shape = torch.Size([1, 1, 1, 1])
         else:
-            self.tile_shape = torch.Size([batch_shape_tile[0], batch_shape_tile[1], 1, 1])
+            self.tile_shape = torch.Size(
+                [batch_shape_tile[0], batch_shape_tile[1], 1, 1]
+            )
 
     def forward(self, x):
         # mean_x = extract_function_value_for_first_sample(self.gp_model.mean_module(x))
@@ -60,8 +64,13 @@ class GPModelWithDerivativesProjectedToFunctionValues(torch.nn.Module):
         # covar_x = self.gp_model.covar_module(x_tile)
         # full_dist = gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
         full_dist_mean_proj = extract_function_value_for_first_sample(full_dist.mean)
-        full_dist_variance_proj = extract_function_value_for_first_sample(full_dist.variance)
-        return mean_and_variance(mean=full_dist_mean_proj, variance=full_dist_variance_proj)
+        full_dist_variance_proj = extract_function_value_for_first_sample(
+            full_dist.variance
+        )
+        return mean_and_variance(
+            mean=full_dist_mean_proj, variance=full_dist_variance_proj
+        )
+
 
 if __name__ == "__main__":
 
@@ -138,12 +147,10 @@ if __name__ == "__main__":
     gp_model_orig = agent.model_i
     gp_model_orig.eval()
 
-    gp_model = GPModelWithDerivativesProjectedToFunctionValues(agent.model_i, batch_shape_tile=agent.model_i.batch_shape)
-    likelihood = agent.likelihood # NOTE: dimensions wrong, but not used in GpCemSSM
-
-    env = InvertedPendulum(verbosity=0)
-    env.n_s = 2
-    env.n_u = 1
+    gp_model = GPModelWithDerivativesProjectedToFunctionValues(
+        agent.model_i, batch_shape_tile=agent.model_i.batch_shape
+    )
+    likelihood = agent.likelihood  # NOTE: dimensions wrong, but not used in GpCemSSM
 
     conf = {
         "exact_gp_kernel": "rbf",
@@ -155,13 +162,13 @@ if __name__ == "__main__":
 
     conf = EasyDict(conf)
 
-    n_s, n_u = env.n_s, env.n_u
-    ssm = GpCemSSM(conf, env.n_s, env.n_u, model=gp_model, likelihood=likelihood)
+    nx, nu = params["agent"]["dim"]["nx"], params["agent"]["dim"]["nu"]
+    ssm = GpCemSSM(conf, nx, nu, model=gp_model, likelihood=likelihood)
     device = "cpu"
 
-    a = torch.zeros((env.n_s, env.n_s), device=device)
-    b = torch.zeros((env.n_s, env.n_u), device=device)
-    k_fb_apply = torch.zeros((n_u, n_s))
+    a = torch.zeros((nx, nx), device=device)
+    b = torch.zeros((nx, nu), device=device)
+    k_fb_apply = torch.zeros((nu, nx))
 
     ps = torch.tensor([x0]).to(device)
     qs = None
@@ -172,8 +179,10 @@ if __name__ == "__main__":
     # iteratively compute it for the next steps
     for i in range(H):
         print(i)
-        # TODO: CONTINUE NAN STUFF 
-        if torch.any(torch.isnan(ps)) or (qs is not None and torch.any(torch.isnan(qs))):
+        # TODO: CONTINUE NAN STUFF
+        if torch.any(torch.isnan(ps)) or (
+            qs is not None and torch.any(torch.isnan(qs))
+        ):
             ellise = ellipse_list[-1]
             print("Nans in ps or qs")
         else:
@@ -210,7 +219,9 @@ if __name__ == "__main__":
 
     with open(os.path.join(save_path_iter, "koller_ellipse_data.pkl"), "wb") as a_file:
         pickle.dump(ellipse_list, a_file)
-    with open(os.path.join(save_path_iter, "koller_ellipse_center_data.pkl"), "wb") as a_file:
+    with open(
+        os.path.join(save_path_iter, "koller_ellipse_center_data.pkl"), "wb"
+    ) as a_file:
         pickle.dump(ellipse_center_list, a_file)
     # plt.xlim(-0.1, 1.45)
     # plt.ylim(-0.1, 2.7)
