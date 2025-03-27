@@ -160,6 +160,10 @@ class CarKinematicsModel(object):
         state_kp1 = torch.cat([X_kp1, Y_kp1, Phi_kp1, V_kp1], 1)
         return state_kp1
 
+    def known_dyn_xu(self, xu):
+        f_xu = self.known_dyn(xu.tile((1, self.nx, 1, 1)))[0, :, :]
+        return f_xu
+
     def unknown_dyn(self, xu):
         """_summary_"""
         # NOTE: xu already needs to be filtered to only contain modeled inputs
@@ -186,7 +190,7 @@ class CarKinematicsModel(object):
         # NOTE: takes only single xu
         assert xu.shape[1] == self.nx + self.nu
 
-        f_xu = self.known_dyn(xu.tile((1, self.nx, 1, 1)))[0, :, :]
+        f_xu = self.known_dyn_xu(xu)
         g_xu = self.unknown_dyn(xu[:, self.g_idx_inputs]).transpose(0, 1)
         B_d_xu = self.unknown_dyn_Bd_fun(xu)
         return f_xu + torch.matmul(B_d_xu, g_xu) 

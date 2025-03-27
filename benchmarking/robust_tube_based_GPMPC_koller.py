@@ -60,6 +60,25 @@ class GPModelWithDerivativesProjectedToFunctionValues(torch.nn.Module):
             mean=full_dist_mean_proj, variance=full_dist_variance_proj
         )
 
+class GPModelWithPriorMean(torch.nn.Module):
+    def __init__(self, gp_model, prior_mean_fun, Bd_fun):
+        super().__init__()
+        self.gp_model = gp_model
+        self.prior_mean_fun = prior_mean_fun
+        self.Bd_fun = Bd_fun
+
+    def forward(self, x):
+        gp_dist = self.gp_model(x)
+        full_mean = self.prior_mean_fun(x) + self.Bd_fun(x) @ gp_dist.mean
+        gp_variance_diag = torch.vmap(torch.diag,in_dims=1)(gp_dist.variance)
+        Bd_xu_tile = torch.tile(self.Bd_fun(x), (x.shape[0],1,1))
+        full_variance_matrix = torch.matmul(torch.matmul(Bd_xu_tile, gp_variance_diag), Bd_xu_tile.transpose(1,2))
+        full_variance_vector = torch.vmap(torch.diag,in_dims=0,out_dims=1)(full_variance_matrix)
+        return mean_and_variance(
+            mean=full_mean, 
+            variance=full_variance_vector
+        )
+
 
 if __name__ == "__main__":
 
@@ -111,6 +130,7 @@ if __name__ == "__main__":
     with open(os.path.join(save_path_iter, "data.pkl"), "rb") as pkl_file:
         data_dict = pickle.load(pkl_file)
 
+    nx, nu = params["agent"]["dim"]["nx"], params["agent"]["dim"]["nu"]
     state_traj = data_dict["state_traj"]
     input_traj = torch.Tensor(data_dict["input_traj"])
     x0 = state_traj[0][0, 0:nx]
@@ -143,6 +163,13 @@ if __name__ == "__main__":
     else:
         gp_model = gp_model_orig
 
+    if env_model.has_nominal_model:
+        gp_model = GPModelWithPriorMean(
+            gp_model,
+            env_model.known_dyn_xu,
+            env_model.unknown_dyn_Bd_fun,
+        )
+
     likelihood = agent.likelihood  # NOTE: dimensions wrong, but not used in GpCemSSM
 
     conf = {
@@ -154,8 +181,6 @@ if __name__ == "__main__":
     }
 
     conf = EasyDict(conf)
-
-    nx, nu = params["agent"]["dim"]["nx"], params["agent"]["dim"]["nu"]
     ssm = GpCemSSM(conf, nx, nu, model=gp_model, likelihood=likelihood)
     device = "cpu"
 

@@ -21,7 +21,7 @@ class Pendulum(object):
             torch.set_default_device(self.torch_device)
 
         self.B_d = torch.eye(self.nx, self.g_ny, device=self.torch_device)
-        self.has_nominal_model = False
+        self.has_nominal_model = True
 
     def initial_training_data(self):
         # keep low output scale, TODO: check if variance on gradient output can be controlled Dyn_gp_task_noises
@@ -119,7 +119,17 @@ class Pendulum(object):
         )
 
     def discrete_dyn(self, xu):
-        return self.unknown_dyn(xu)
+        """_summary_"""
+        # NOTE: takes only single xu
+        assert xu.shape[1] == self.nx + self.nu
+
+        f_xu = self.known_dyn_xu(xu)
+        g_xu = self.unknown_dyn(xu).transpose(0, 1)
+        B_d_xu = self.unknown_dyn_Bd_fun(xu)
+        return f_xu + torch.matmul(B_d_xu, g_xu) 
+
+    def known_dyn_xu(self, xu):
+        return torch.zeros((self.nx,1))
 
     def unknown_dyn(self, xu):
         m = self.params["env"]["params"]["m"]
@@ -131,6 +141,9 @@ class Pendulum(object):
         X2_kp1 = X2_k - g * torch.sin(X1_k) * dt / l + U_k * dt / (l * l)
         state_kp1 = torch.hstack([X1_kp1, X2_kp1])
         return state_kp1
+
+    def unknown_dyn_Bd_fun(self, xu):
+        return self.B_d
 
     def get_f_known_jacobian(self, xu):
         ns = xu.shape[0]
