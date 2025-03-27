@@ -25,13 +25,6 @@ sys.path.append(workspace_safe_exploration)
 
 from safe_exploration.gp_reachability_pytorch import onestep_reachability
 from safe_exploration.ssm_cem.gp_ssm_cem import GpCemSSM
-from safe_exploration.environments.environments import InvertedPendulum
-
-# save_path = "/home/manish/work/horrible/safe-exploration_cem/experiments"
-# a_file = open(save_path + "/data.pkl", "rb")
-# save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params/401_sampling_mpc/data.pkl"
-# save_path = "/home/manish/work/MPC_Dyn/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
-# save_path = "/home/amon/Repositories/sampling-gpmpc/experiments/pendulum/env_0/params_pendulum/22/data.pkl"
 
 
 def extract_function_value_for_first_sample(y):
@@ -56,13 +49,8 @@ class GPModelWithDerivativesProjectedToFunctionValues(torch.nn.Module):
             )
 
     def forward(self, x):
-        # mean_x = extract_function_value_for_first_sample(self.gp_model.mean_module(x))
-        # covar_x = extract_function_covariance_for_first_sample(self.gp_model.covar_module(x))
         x_tile = x.tile(self.tile_shape)
         full_dist = self.gp_model(x_tile)
-        # mean_x = self.gp_model.mean_module(x_tile)
-        # covar_x = self.gp_model.covar_module(x_tile)
-        # full_dist = gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
         full_dist_mean_proj = extract_function_value_for_first_sample(full_dist.mean)
         full_dist_variance_proj = extract_function_value_for_first_sample(
             full_dist.variance
@@ -98,16 +86,11 @@ if __name__ == "__main__":
 
     # 2) Set the path and copy params from file
     exp_name = params["experiment"]["name"]
-    env_load_path = (
-        workspace
-        + "/experiments/"
-        + params["experiment"]["folder"]
-        + "/env_"
-        + str(args.env)
-        + "/"
+    env_load_path = os.path.join(
+        workspace, "experiments", params["experiment"]["folder"], "env_" + str(args.env)
     )
-
-    save_path = env_load_path + "/" + args.param + "/"
+    save_path = os.path.join(env_load_path, args.param)
+    save_path_iter = os.path.join(save_path, str(args.i))
 
     if not os.path.exists(save_path):
         try:
@@ -120,10 +103,8 @@ if __name__ == "__main__":
     if args.i != -1:
         traj_iter = args.i
 
-    if not os.path.exists(save_path + str(traj_iter)):
-        os.makedirs(save_path + str(traj_iter))
-
-    save_path_iter = save_path + str(traj_iter)
+    if not os.path.exists(save_path_iter):
+        os.makedirs(save_path_iter)
 
     with open(os.path.join(save_path_iter, "data.pkl"), "rb") as pkl_file:
         data_dict = pickle.load(pkl_file)
@@ -169,6 +150,8 @@ if __name__ == "__main__":
     a = torch.zeros((nx, nx), device=device)
     b = torch.zeros((nx, nu), device=device)
     k_fb_apply = torch.zeros((nu, nx))
+    l_mu = params["env"]["params"]["l_mu"]
+    l_sigma = params["env"]["params"]["l_sigma"]
 
     ps = torch.tensor([x0]).to(device)
     qs = None
@@ -190,8 +173,8 @@ if __name__ == "__main__":
                 ps,
                 ssm,
                 input_traj[0][i].reshape(-1, 1),
-                torch.tensor(env.l_mu).to(device),
-                torch.tensor(env.l_sigm).to(device),
+                torch.tensor(l_mu).to(device),
+                torch.tensor(l_sigma).to(device),
                 q_shape=qs,
                 k_fb=k_fb_apply,
                 c_safety=conf.cem_beta_safety,
