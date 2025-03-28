@@ -66,7 +66,7 @@ class Agent(object):
             self.Dyn_gp_Y_train = self.Dyn_gp_Y_train[:, :, [0]]
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
-        self.epistimic_random_vector = self.random_vector_within_bounds2()
+        self.epistimic_random_vector = self.random_vector_within_bounds()
         # self.tilde_eps_list, self.ci_list = env_model.get_mpc_tightenings()
         self.tilde_eps_list, self.ci_list = env_model.get_reachable_set_ball(params, np.ones(params["optimizer"]["H"]+1))
         # quit()
@@ -577,7 +577,7 @@ class Agent(object):
             assert torch.all(g_xu_hat[:, i + 1, :, :] == g_xu_hat[:, i, :, :])
 
         if self.params["agent"]["true_dyn_as_sample"] and self.params["agent"]["num_dyn_samples"] == 1:
-            y_sample = torch.zeros((1, self.g_ny, self.params["optimizer"]["H"], self.g_nx + self.g_nu + 1))
+            y_sample = torch.zeros((1, self.g_ny, self.params["optimizer"]["H"], self.in_dim_y))
         else:
             y_sample = self.sample_gp(
                 g_xu_hat, base_samples=self.epistimic_random_vector[self.mpc_iter][sqp_iter]

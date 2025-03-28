@@ -28,7 +28,7 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car_residual_fs")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=400)  # initialized at origin
+parser.add_argument("-i", type=int, default=4)  # initialized at origin
 parser.add_argument("-epistemic_idx", type=int, default=400)  # initialized at origin
 args = parser.parse_args()
 
@@ -155,8 +155,20 @@ X_traj[:, :, H_idx+1] = torch.tensor(gp_val[:,:,0,0])
     #         X_traj_list[j][i + 1][:, :, :, 0 : agent.nx] = Y_perm
     #         # X_traj_list[i + 1] = torch.cat((Y_perm, U_tile), dim=-1)
 X_traj = X_traj.detach().cpu().numpy()
-plt.plot(X_traj[:,0,:].T, X_traj[:,1,:].T)
-plt.savefig("fs_60.png")
+plt.plot(X_traj[:,0,:].T, X_traj[:,1,:].T, linewidth=0.2)
+a_file = open(save_path + str(traj_iter) + "/data_feedback_1e-8.pkl", "rb")
+data_dict = pickle.load(a_file)
+true_state_traj = data_dict["true_state_traj"]
+state_traj = data_dict["state_traj"]
+a_file.close()
+from src.visu import Visualizer
+visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
+propagated_state = visu.propagate_true_dynamics(x_curr, input_gpmpc_input_traj)
+plt.plot(propagated_state[:,0], propagated_state[:,1], ls='--',color="black", label="propagated Trajectory", linewidth=0.5)
+plt.plot(state_traj[0][:,0], state_traj[0][:,1], color="black", label="SQP Trajectory", linewidth=0.5)
+plt.plot(true_state_traj[0][:,0], true_state_traj[0][:,1], color="red", label="True Trajectory", linewidth=0.5)
+plt.legend()
+plt.savefig("fs_61.png")
 # print(f"Saving data for {args.epistemic_idx}")
 # a_file = open(save_path + str(traj_iter) + f"/data_X_traj_{args.epistemic_idx}.pkl", "wb")
 # pickle.dump(X_traj, a_file)

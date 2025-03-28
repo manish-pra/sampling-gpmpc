@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car_residual_fs")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=4000)  # initialized at origin
+parser.add_argument("-i", type=int, default=4441)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -82,8 +82,9 @@ for i in range(1):
 print("Loaded input data")
 X_traj = np.vstack(input_gpmpc_data_list)
 
-# X_traj = X_traj[:151, :,:]
-X_traj = X_traj[:3493, :,:]
+# X_traj = X_traj[:20000, :,:]
+# X_traj = X_traj[:2000, :,:]
+X_traj = X_traj[:200, :,:]
 from scipy.spatial import ConvexHull, convex_hull_plot_2d
 
 hull_points = []
@@ -97,8 +98,8 @@ for i in range(1, X_traj.shape[2]):
         )
     else:
         hull_points.append(hull.points[hull.vertices])
-
-a_file = open(save_path + str(traj_iter) + "/data_convex_hull_eps4e-4.pkl", "wb")
+# hull_points.insert(0, np.array([[0, 1.95]]))
+a_file = open(save_path + str(traj_iter) + "/data_convex_hull_N200.pkl", "wb")
 pickle.dump(hull_points, a_file)
 a_file.close()
 
@@ -115,4 +116,10 @@ for i in range(X_traj.shape[2] - 2):
     )
 
 # plt.plot(X_traj[:,0,:].T, X_traj[:,1,:].T)
+# Load trajectory data
+a_file = open(save_path + str(traj_iter) + "/data_feedback_1e-8.pkl", "rb")
+data_dict = pickle.load(a_file)
+state_traj = data_dict["state_traj"]
+a_file.close()
+plt.plot(state_traj[0][:-1,0], state_traj[0][1:,1], color="black", label="Trajectory", linewidth=0.2)
 plt.savefig("fs_60.png")

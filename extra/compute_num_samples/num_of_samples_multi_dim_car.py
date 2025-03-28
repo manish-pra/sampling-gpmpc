@@ -8,7 +8,8 @@ from helper import (
     compute_rkhs_norm,
     compute_small_ball_probability,
     compute_posterior_norm_diff,
-    compute_multi_dim_small_ball_probability
+    compute_multi_dim_small_ball_probability,
+    compute_multi_dim_small_ball_probability_fixed_eps
 )
 
 # sample A and B matrices
@@ -27,55 +28,74 @@ with open(workspace + "/params/" + "params_car_residual" + ".yaml") as file:
 params["env"]["i"] = 21
 params["env"]["name"] = 0
 print(params)
+# gp_idx, N_grid = 0, 6
+# gp_idx, N_grid = 1, 6
+# gp_idx, N_grid = 2, 4
 gp_idx, N_grid = 0, 6
-# gp_idx, N_grid = 1, 6
-# gp_idx, N_grid = 2, 4
-# gp_idx, N_grid = 0, 4
-# gp_idx, N_grid = 1, 6
-# gp_idx, N_grid = 2, 4
-n_data_x = params["env"]["n_data_x"]
-n_data_u = params["env"]["n_data_u"]
+gp_idx, N_grid = 1, 6
+gp_idx, N_grid = 2, 5
 
-params["env"]["n_data_x"] *= 10  # 80
-params["env"]["n_data_u"] *= 10  # 100
+Cd_list = []
+for gp_idx in range(params["agent"]["g_dim"]["ny"]):
+    n_data_x = params["env"]["n_data_x"]
+    n_data_u = params["env"]["n_data_u"]
 
-env_model = globals()[params["env"]["dynamics"]](params)
-Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
-true_function_norm, _, _,_ = compute_rkhs_norm(
-    Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx
-)
-print(true_function_norm)
+    params["env"]["n_data_x"] *= 10  # 80
+    params["env"]["n_data_u"] *= 10  # 100
 
-params["env"]["n_data_x"] = n_data_x
-params["env"]["n_data_u"] = n_data_u
+    env_model = globals()[params["env"]["dynamics"]](params)
+    Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
+    true_function_norm, _, _,_ = compute_rkhs_norm(
+        Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx
+    )
+    print(true_function_norm)
 
-env_model = globals()[params["env"]["dynamics"]](params)
-Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
-mean_norm, alpha, y,_ = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx)
+    params["env"]["n_data_x"] = n_data_x
+    params["env"]["n_data_u"] = n_data_u
 
-kernel_norm_diff = compute_posterior_norm_diff(
-    Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx
-)
-print("Mean norm and kernel diff", mean_norm, kernel_norm_diff)
-y = Dyn_gp_Y_train[gp_idx, :, 0].reshape(-1, 1)
-Cd = (
-    true_function_norm
-    + mean_norm
-    - 2 * torch.matmul(y.t(), alpha)
-    + torch.sum(torch.abs(alpha)) * params["agent"]["tight"]["w_bound"]
-    + kernel_norm_diff / 2
-)
+    env_model = globals()[params["env"]["dynamics"]](params)
+    Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
+    mean_norm, alpha, y,_ = compute_rkhs_norm(Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx)
+
+    kernel_norm_diff = compute_posterior_norm_diff(
+        Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx
+    )
+    print("Mean norm and kernel diff", mean_norm, kernel_norm_diff)
+    y = Dyn_gp_Y_train[gp_idx, :, 0].reshape(-1, 1)
+    Cd = (
+        true_function_norm
+        + mean_norm
+        - 2 * torch.matmul(y.t(), alpha)
+        + torch.sum(torch.abs(alpha)) * params["agent"]["tight"]["w_bound"]
+        + kernel_norm_diff / 2
+    )
+    Cd_list.append(Cd)
 # posterior_norm_diff = compute_posterior_norm_diff(
 #     Dyn_gp_X_train, Dyn_gp_Y_train, params, gp_idx
 # )
-
+print("The C_d constants", Cd_list)
 params["common"]["use_cuda"] = False
 env_model = globals()[params["env"]["dynamics"]](params)
 Dyn_gp_X_train, Dyn_gp_Y_train = env_model.initial_training_data()
 
 
-eB_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_grid, gp_idx)
-# eB_phi = compute_multi_dim_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_grid, gp_idx)
+N_samples_list = torch.Tensor([200, 2000, 20000, 200000, 2000000, 20000000, 120000000]).cuda()
+N_samples_list = N_samples_list/2 
+delta = torch.tensor([0.01]).cuda() 
+Cd_tot = torch.sum(torch.stack(Cd_list))
+prob_eps = (1- torch.exp( torch.log(delta)/N_samples_list))/torch.exp(-Cd_tot.cuda())
+print(prob_eps)
+epsilons = compute_multi_dim_small_ball_probability_fixed_eps(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_grid=4, prob_eps=prob_eps.cpu())
+torch.set_printoptions(precision=16) 
+print(epsilons)
+quit()
+eB_phi_list = []
+# for gp_idx, N_grid in zip([0,1,2], [6,6,4]):
+#     eB_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_grid, gp_idx)
+#     eB_phi_list.append(eB_phi)
+N_grid=4
+eB_phi = compute_multi_dim_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, N_grid, gp_idx)
+eB_phi_list.append(eB_phi)
 # print(eB_phi)
 # B_phi = (
 #     0.6
@@ -84,9 +104,10 @@ eB_phi = compute_small_ball_probability(Dyn_gp_X_train, Dyn_gp_Y_train, params, 
 # )
 # eB_phi = torch.exp(-B_phi)
 # print(eB_phi)
-eB_phi = eB_phi.cuda()
+Cd_tot = torch.sum(torch.stack(Cd_list))
+eB_phi = torch.prod(torch.stack(eB_phi_list)).cuda()
 delta = torch.tensor([0.01]).cuda()  # safety with 99% probability (1-\delta)
-Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-2.0*Cd.cuda()) * eB_phi)
+Num_samples = torch.log(delta) / torch.log(1 - torch.exp(-Cd_tot.cuda()) * eB_phi)
 
 print(
     f"Number of dynamics samples for safety with {1-delta.item()} probability are {Num_samples.item()}"
