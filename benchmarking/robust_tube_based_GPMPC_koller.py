@@ -102,6 +102,7 @@ if __name__ == "__main__":
     parser.add_argument("-env_model", type=str, default="pendulum")
     parser.add_argument("-env", type=int, default=0)
     parser.add_argument("-i", type=int, default=999)  # initialized at origin
+    parser.add_argument("-plot_koller", type=bool, default=False)
 
     args = parser.parse_args()
 
@@ -158,6 +159,7 @@ if __name__ == "__main__":
         env_model = CarKinematicsModel(params)
         plot_dim = [0, 1]
         k_fb_apply = torch.tensor(params["optimizer"]["terminal_tightening"]["K"])
+        # k_fb_apply = torch.zeros((nu, nx))
     else:
         raise ValueError("Unknown environment model, possible values: pendulum, car")
         
@@ -176,7 +178,7 @@ if __name__ == "__main__":
     gp_model_orig.eval()
 
     # if params["env"]["train_data_has_derivatives"]:
-    gp_model = GPModelWithDerivativesProjectedToFunctionValues(
+    gp_model_proj = GPModelWithDerivativesProjectedToFunctionValues(
         agent.model_i, batch_shape_tile=agent.model_i.batch_shape
     )
     # else:
@@ -184,7 +186,7 @@ if __name__ == "__main__":
 
     if env_model.has_nominal_model:
         gp_model = GPModelWithPriorMean(
-            gp_model,
+            gp_model_proj,
             env_model.known_dyn_xu,
             env_model.unknown_dyn_Bd_fun,
             gp_model_idx_inputs=env_model.g_idx_inputs,
@@ -210,37 +212,48 @@ if __name__ == "__main__":
     a = torch.zeros((nx, nx), device=device)
     b = torch.zeros((nx, nu), device=device)
 
-
+    x_equi = np.array(params["env"]["goal_state"])
     ps = torch.tensor([x0]).to(device)
     qs = None
     H = params["optimizer"]["H"]
     ellipse_list = []
     ellipse_center_list = []
+    mean_pred_list = []
+    true_dyn_list = []
     # fig, ax = plt.subplots()
     # iteratively compute it for the next steps
-    for i in range(H):
-        print(i)
-        # TODO: CONTINUE NAN STUFF
-        if torch.any(torch.isnan(ps)) or (
-            qs is not None and torch.any(torch.isnan(qs))
-        ):
-            ellise = ellipse_list[-1]
-            print("Nans in ps or qs")
-        else:
+    with gpytorch.settings.observation_nan_policy(
+        "mask"
+    ), gpytorch.settings.fast_computations(
+        covar_root_decomposition=False, log_prob=False, solves=False
+    ), gpytorch.settings.cholesky_jitter(
+        float_value=params["agent"]["Dyn_gp_jitter"],
+        double_value=params["agent"]["Dyn_gp_jitter"],
+        half_value=params["agent"]["Dyn_gp_jitter"],
+    ):
+        for i in range(H):
+            print(i)
+            # TODO: CONTINUE NAN STUFF
+            gp_input_u = input_traj[0][i].reshape(-1, 1) + k_fb_apply @ (ps - x_equi).T
+            gp_input = torch.hstack((ps, gp_input_u.reshape(1, -1)))
+            gp_mean = gp_model(gp_input).mean.detach().numpy()
 
-            with gpytorch.settings.observation_nan_policy(
-                "mask"
-            ), gpytorch.settings.fast_computations(
-                covar_root_decomposition=False, log_prob=False, solves=False
-            ), gpytorch.settings.cholesky_jitter(
-                float_value=params["agent"]["Dyn_gp_jitter"],
-                double_value=params["agent"]["Dyn_gp_jitter"],
-                half_value=params["agent"]["Dyn_gp_jitter"],
+            gp_mean_zero_prior = gp_model_proj(gp_input[:,env_model.g_idx_inputs]).mean.detach().numpy()
+            Bd = env_model.unknown_dyn_Bd_fun(gp_input)
+            gp_mean_with_prior = env_model.known_dyn_xu(gp_input)
+            gp_mean_with_prior[0:3,:] += ps.numpy()[0,3] * gp_mean_zero_prior
+            true_dyn = env_model.discrete_dyn(gp_input)
+
+            if torch.any(torch.isnan(ps)) or (
+                qs is not None and torch.any(torch.isnan(qs))
             ):
+                ellise = ellipse_list[-1]
+                print("Nans in ps or qs")
+            else:
                 ps, qs, _ = onestep_reachability(
                     ps,
                     ssm,
-                    input_traj[0][i].reshape(1, -1),
+                    gp_input_u.reshape(1, -1),
                     torch.tensor(l_mu).to(device),
                     torch.tensor(l_sigma).to(device),
                     q_shape=qs,
@@ -250,24 +263,30 @@ if __name__ == "__main__":
                     a=a,
                     b=b,
                 )
-            print(ps, qs)
 
+                print(ps, qs)
+                print(f"Mean prediction error: {nLa.norm(ps- gp_mean.T)/nLa.norm(gp_mean.T + 1e-6)}")
+
+                r = nLa.cholesky(qs).T
+                r = r[:, :, 0]
+                r_plot = r[plot_dim, :][:, plot_dim]
+                # checks spd inside the function
+                t = np.linspace(0, 2 * np.pi, 100)
+                z = [np.cos(t), np.sin(t)]
+                ellipse = np.dot(r_plot, z) + ps.numpy()[0,plot_dim].reshape(-1, 1)
+
+            print(f"True dynamics error: {nLa.norm(gp_mean_with_prior.T- true_dyn.T)/nLa.norm(true_dyn.T + 1e-6)}")
+            print(f"Mean prediction error manual prior: {nLa.norm(gp_mean_with_prior.T- gp_mean.T)/nLa.norm(gp_mean.T + 1e-6)}")
             # x_tile = torch.tile(torch.hstack((ps, input_traj[0][i].reshape(-1, 1))),(1,2,1,1))
             # pred_orig = gp_model_orig(x_tile)
 
-            r = nLa.cholesky(qs).T
-            r = r[:, :, 0]
-            r_plot = r[plot_dim, :][:, plot_dim]
-            # checks spd inside the function
-            t = np.linspace(0, 2 * np.pi, 100)
-            z = [np.cos(t), np.sin(t)]
-            ellipse = np.dot(r_plot, z) + ps.numpy()[0,plot_dim].reshape(-1, 1)
+            ellipse_list.append(ellipse)
+            ellipse_center_list.append(ps.numpy().T)
+            mean_pred_list.append(gp_mean)
+            true_dyn_list.append(true_dyn)
+            # ax.plot(ellipse[0, :], ellipse[1, :])
 
-        ellipse_list.append(ellipse)
-        ellipse_center_list.append(ps.numpy().T)
-        # ax.plot(ellipse[0, :], ellipse[1, :])
-
-    # plt.show()
+        # plt.show()
 
     with open(os.path.join(save_path_iter, "koller_ellipse_data.pkl"), "wb") as a_file:
         pickle.dump(ellipse_list, a_file)
@@ -275,6 +294,10 @@ if __name__ == "__main__":
         os.path.join(save_path_iter, "koller_ellipse_center_data.pkl"), "wb"
     ) as a_file:
         pickle.dump(ellipse_center_list, a_file)
+    with open(os.path.join(save_path_iter, "koller_mean_data.pkl"), "wb") as a_file:
+        pickle.dump(mean_pred_list, a_file)
+    with open(os.path.join(save_path_iter, "koller_true_data.pkl"), "wb") as a_file:
+        pickle.dump(true_dyn_list, a_file)
     # plt.xlim(-0.1, 1.45)
     # plt.ylim(-0.1, 2.7)
     # plt.show()
