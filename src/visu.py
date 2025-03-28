@@ -364,6 +364,17 @@ class Visualizer:
             )
         )
         return rm
+
+    def plot_general_ellipsoid(self, ellipsoid_coords, **plot_kwargs):
+        ax = self.f_handle["gp"].axes[0]
+        if not np.any(np.isinf(ellipsoid_coords)) and not np.any(np.isnan(ellipsoid_coords)):
+            return ax.plot(
+                ellipsoid_coords[0, :], ellipsoid_coords[1, :], **plot_kwargs
+            )
+        else:
+            print("Inf/nan detected in ellispoids")
+            return None
+
     
     def plot_ellipses(self, ax, x, y, eps_list):
         P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])[:2,:2]
