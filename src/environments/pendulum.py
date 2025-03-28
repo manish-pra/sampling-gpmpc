@@ -10,6 +10,7 @@ class Pendulum(object):
         self.nx = self.params["agent"]["dim"]["nx"]
         self.nu = self.params["agent"]["dim"]["nu"]
         self.g_ny = self.params["agent"]["g_dim"]["ny"]
+        self.g_idx_inputs = [0, 1, 2]
         self.pad_g = [0, 1, 2, 3]  # 0, self.g_nx + self.g_nu :
         if self.params["common"]["use_cuda"] and torch.cuda.is_available():
             self.use_cuda = True

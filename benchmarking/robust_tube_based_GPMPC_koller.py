@@ -152,8 +152,10 @@ if __name__ == "__main__":
 
     if args.env_model == "pendulum":
         env_model = Pendulum(params)
+        plot_dim = [0, 1]
     elif args.env_model == "car":
         env_model = CarKinematicsModel(params)
+        plot_dim = [0, 1]
     else:
         raise ValueError("Unknown environment model, possible values: pendulum, car")
 
@@ -168,12 +170,12 @@ if __name__ == "__main__":
     gp_model_orig = agent.model_i
     gp_model_orig.eval()
 
-    if params["env"]["train_data_has_derivatives"]:
-        gp_model = GPModelWithDerivativesProjectedToFunctionValues(
-            agent.model_i, batch_shape_tile=agent.model_i.batch_shape
-        )
-    else:
-        gp_model = gp_model_orig
+    # if params["env"]["train_data_has_derivatives"]:
+    gp_model = GPModelWithDerivativesProjectedToFunctionValues(
+        agent.model_i, batch_shape_tile=agent.model_i.batch_shape
+    )
+    # else:
+    #     gp_model = gp_model_orig
 
     if env_model.has_nominal_model:
         gp_model = GPModelWithPriorMean(
@@ -222,19 +224,29 @@ if __name__ == "__main__":
             ellise = ellipse_list[-1]
             print("Nans in ps or qs")
         else:
-            ps, qs, _ = onestep_reachability(
-                ps,
-                ssm,
-                input_traj[0][i].reshape(1, -1),
-                torch.tensor(l_mu).to(device),
-                torch.tensor(l_sigma).to(device),
-                q_shape=qs,
-                k_fb=k_fb_apply,
-                c_safety=conf.cem_beta_safety,
-                verbose=0,
-                a=a,
-                b=b,
-            )
+
+            with gpytorch.settings.observation_nan_policy(
+                "mask"
+            ), gpytorch.settings.fast_computations(
+                covar_root_decomposition=False, log_prob=False, solves=False
+            ), gpytorch.settings.cholesky_jitter(
+                float_value=params["agent"]["Dyn_gp_jitter"],
+                double_value=params["agent"]["Dyn_gp_jitter"],
+                half_value=params["agent"]["Dyn_gp_jitter"],
+            ):
+                ps, qs, _ = onestep_reachability(
+                    ps,
+                    ssm,
+                    input_traj[0][i].reshape(1, -1),
+                    torch.tensor(l_mu).to(device),
+                    torch.tensor(l_sigma).to(device),
+                    q_shape=qs,
+                    k_fb=k_fb_apply,
+                    c_safety=conf.cem_beta_safety,
+                    verbose=0,
+                    a=a,
+                    b=b,
+                )
             print(ps, qs)
 
             # x_tile = torch.tile(torch.hstack((ps, input_traj[0][i].reshape(-1, 1))),(1,2,1,1))
@@ -242,10 +254,11 @@ if __name__ == "__main__":
 
             r = nLa.cholesky(qs).T
             r = r[:, :, 0]
+            r_plot = r[plot_dim, :][:, plot_dim]
             # checks spd inside the function
             t = np.linspace(0, 2 * np.pi, 100)
             z = [np.cos(t), np.sin(t)]
-            ellipse = np.dot(r, z) + ps.numpy().T
+            ellipse = np.dot(r_plot, z) + ps.numpy()[0,plot_dim].reshape(-1, 1)
 
         ellipse_list.append(ellipse)
         ellipse_center_list.append(ps.numpy().T)
