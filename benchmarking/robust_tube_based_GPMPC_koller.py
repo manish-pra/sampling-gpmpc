@@ -31,6 +31,18 @@ from safe_exploration.ssm_cem.gp_ssm_cem import GpCemSSM
 def extract_function_value_for_first_sample(y):
     return y[0, :, :, 0]
 
+def estimate_Lipschitz_constant(x_grid, f_grid):
+    # difference between all points
+    diff = x_grid.unsqueeze(1) - x_grid.unsqueeze(0)
+    # get the norm of the difference
+    diff_norm = torch.norm(diff, dim=2)
+    # get the norm of the difference in the function values
+    f_diff_norm = torch.norm(f_grid.unsqueeze(1) - f_grid.unsqueeze(0), dim=2)
+    # get the ratio of the function value difference and the input difference
+    ratio = f_diff_norm / (diff_norm + 1e-6)
+    # get the maximum ratio
+    return torch.max(ratio)
+
 
 @dataclass
 class mean_and_variance:
@@ -192,6 +204,39 @@ if __name__ == "__main__":
             gp_model_idx_inputs=env_model.g_idx_inputs,
         )
 
+    with gpytorch.settings.observation_nan_policy(
+            "mask"
+        ), gpytorch.settings.fast_computations(
+            covar_root_decomposition=False, log_prob=False, solves=False
+        ), gpytorch.settings.cholesky_jitter(
+            float_value=params["agent"]["Dyn_gp_jitter"],
+            double_value=params["agent"]["Dyn_gp_jitter"],
+            half_value=params["agent"]["Dyn_gp_jitter"],
+        ):
+        # compute Lipschitz constant of gradient of GP model
+        u_grid = torch.tensor(input_traj[0])
+        x_grid = torch.tensor(state_traj[0][0:-1,:])
+        z_grid = torch.hstack((x_grid, u_grid))
+        # differentiate the GP model
+        gp_model_mean_fun = lambda x: gp_model(x).mean
+        gp_model_var_fun = lambda x: gp_model(x).variance
+
+        f_var_grid_arr = torch.zeros((nx, z_grid.shape[0]))
+        for i in range(z_grid.shape[0]):
+            f_var_grid_arr[:,[i]] = gp_model_var_fun(z_grid[[i],:]).detach()
+
+        f_jac_grid_arr = torch.zeros((nx,1,z_grid.shape[0],nx+nu))
+        for i in range(z_grid.shape[0]):
+            f_jac_grid_arr[:,:,[i],:] = torch.autograd.functional.jacobian(gp_model_mean_fun, z_grid[[i],:]).detach()
+
+        l_mu_arr = torch.zeros((nx,))
+        l_sigma_arr = torch.zeros((nx,))
+        for x_dim in range(nx):
+            l_mu_arr[x_dim] = estimate_Lipschitz_constant(x_grid, f_jac_grid_arr[x_dim,0,:,:])
+            l_sigma_arr[x_dim] = estimate_Lipschitz_constant(x_grid, f_var_grid_arr[[x_dim],:].T)
+
+    l_mu_arr = params["agent"]["Dyn_gp_beta"] * torch.max(l_mu_arr, 1e-6 * torch.ones_like(l_mu_arr))
+    l_sigma_arr = torch.max(l_sigma_arr, 1e-6 * torch.ones_like(l_sigma_arr))
     # if hasattr(env_model, "g_idx_inputs"):
     #     gp_model = FeatureSelector(gp_model, env_model.g_idx_inputs)
 
@@ -254,8 +299,8 @@ if __name__ == "__main__":
                     ps,
                     ssm,
                     gp_input_u.reshape(1, -1),
-                    torch.tensor(l_mu).to(device),
-                    torch.tensor(l_sigma).to(device),
+                    l_mu_arr.to(device),
+                    l_sigma_arr.to(device),
                     q_shape=qs,
                     k_fb=k_fb_apply,
                     c_safety=conf.cem_beta_safety,
