@@ -182,7 +182,7 @@ class CarKinematicsModel(object):
         return state_kp1
 
     def unknown_dyn_Bd_fun(self, xu):
-        B_d = xu[:, 3] * torch.eye(self.nx, self.g_ny).to(device=self.torch_device, dtype=xu.dtype)
+        B_d = xu[:, [3]] * torch.eye(self.nx, self.g_ny).to(device=self.torch_device, dtype=xu.dtype)
         return B_d
 
     def discrete_dyn(self, xu):
