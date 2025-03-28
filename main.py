@@ -28,7 +28,9 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_car_residual")  # params
 
 parser.add_argument("-env", type=int, default=0)
+parser.add_argument("-env_model", type=str, default="car")
 parser.add_argument("-i", type=int, default=42)  # initialized at origin
+parser.add_argument("-plot_koller", type=bool, default=False)
 args = parser.parse_args()
 
 # 1) Load the config file

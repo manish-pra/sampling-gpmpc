@@ -24,6 +24,7 @@ class CarKinematicsModel(object):
             torch.set_default_device(self.torch_device)
 
         self.B_d = torch.eye(self.nx, self.g_ny, device=self.torch_device)
+        self.has_nominal_model = True
 
     def initial_training_data(self):
         # need more training data for decent result
@@ -159,6 +160,10 @@ class CarKinematicsModel(object):
         state_kp1 = torch.cat([X_kp1, Y_kp1, Phi_kp1, V_kp1], 1)
         return state_kp1
 
+    def known_dyn_xu(self, xu):
+        f_xu = self.known_dyn(xu.tile((1, self.nx, 1, 1)))[0, :, :]
+        return f_xu
+
     def unknown_dyn(self, xu):
         """_summary_"""
         # NOTE: xu already needs to be filtered to only contain modeled inputs
@@ -176,16 +181,19 @@ class CarKinematicsModel(object):
         # V_state_kp1 = torch.hstack([V_k * dX_kp1, V_k * dY_kp1, V_k * Phi_kp1])
         return state_kp1
 
+    def unknown_dyn_Bd_fun(self, xu):
+        B_d = xu[:, [3]] * torch.eye(self.nx, self.g_ny).to(device=self.torch_device, dtype=xu.dtype)
+        return B_d
+
     def discrete_dyn(self, xu):
         """_summary_"""
         # NOTE: takes only single xu
         assert xu.shape[1] == self.nx + self.nu
 
-        f_xu = self.known_dyn(xu.tile((1, self.nx, 1, 1)))[0, :, :]
-        g_xu = self.unknown_dyn(xu[:, self.g_idx_inputs])
-        v_g_xu = xu[:, 3] * g_xu  # done for only 1 sample
-        B_d = torch.eye(self.nx, self.g_ny).to(device="cpu", dtype=v_g_xu.dtype)
-        return f_xu + torch.matmul(B_d, v_g_xu.transpose(0, 1))
+        f_xu = self.known_dyn_xu(xu)
+        g_xu = self.unknown_dyn(xu[:, self.g_idx_inputs]).transpose(0, 1)
+        B_d_xu = self.unknown_dyn_Bd_fun(xu)
+        return f_xu + torch.matmul(B_d_xu, g_xu) 
 
     def propagate_true_dynamics(self, x_init, U):
         state_list = []

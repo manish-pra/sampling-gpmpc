@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import yaml
 import dill as pickle
 from src.visu import Visualizer
+import numpy as np
 
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
@@ -17,9 +18,11 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_pendulum1D_samples")  # params
 # parser.add_argument("-param", default="params_car_samples")  # params
 parser.add_argument("-param", default="params_car_residual")  # params
-
+parser.add_argument("-env_model", type=str, default="car")
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=42)  # initialized at origin
+parser.add_argument("-plot_koller", type=bool, default=False)
+
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -71,6 +74,15 @@ if "tilde_eps_list" in data_dict:
     # ci_list = data_dict["ci_list"]
 a_file.close()
 
+# Koller plot
+if args.plot_koller:
+    with open(save_path + str(traj_iter) + "/koller_ellipse_data.pkl", "rb") as pkl_file:
+        koller_ellipse_list = pickle.load(pkl_file)
+    with open(save_path + str(traj_iter) + "/koller_mean_data.pkl", "rb") as pkl_file:
+        koller_mean_arr = np.array(pickle.load(pkl_file))
+    with open(save_path + str(traj_iter) + "/koller_true_data.pkl", "rb") as pkl_file:
+        koller_true_arr = np.array(pickle.load(pkl_file))
+
 params["visu"]["show"] = True
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
 visu.tilde_eps_list = tilde_eps_list
@@ -84,18 +96,43 @@ visu.ci_list = ci_list
 # load data)
 nx = params["agent"]["dim"]["nx"]
 ax = visu.f_handle["gp"].axes[0]
-(l,) = ax.plot([], [], "tab:orange")
+# (l,) = ax.plot([], [], "tab:orange")
 for i in range(0, len(state_traj)):
-    mean_state_traj = state_traj[i][:, :nx] # This is not mean
+    if params["agent"]["true_dyn_as_sample"]:
+        idx_true_start = 0
+        if params["agent"]["mean_as_dyn_sample"]:
+            idx_mean_start = nx
+        else:
+            # set mean to true for plotting
+            idx_mean_start = 0
+    elif params["agent"]["mean_as_dyn_sample"]:
+        # set true to mean for plotting
+        idx_true_start = 0
+        idx_mean_start = 0
+
+    true_state_traj = state_traj[i][:, idx_true_start: idx_true_start+nx]
+    mean_state_traj = state_traj[i][:, idx_mean_start: idx_mean_start+nx]
+
+    # true_state_traj_prop = visu.true_state_traj[-1]
+
     visu.record_out(
         physical_state_traj[i],
         state_traj[i],
         input_traj[i],
-        true_state_traj[i],
+        true_state_traj,
         mean_state_traj, 
     )
     # print(true_state_traj[i])
     temp_obj = visu.plot_receding_traj()
+
+    if args.plot_koller:
+        for j in range(len(koller_ellipse_list)):
+            plt_obj = visu.plot_general_ellipsoid(koller_ellipse_list[j], color="tab:red", alpha=0.7)
+
+        ax.plot(koller_mean_arr[:,0,:], koller_mean_arr[:,1,:], "tab:blue", linewidth=0.5)
+        ax.plot(koller_true_arr[:,0,:], koller_true_arr[:,1,:], "tab:green", linewidth=0.5)
+        # print(np.mean(koller_ellipse_list[i]))
+        # plt_obj = visu.plot_general_ellipsoid(ax, koller_ellipse_list[i])
     # temp_obj = visu.plot_receding_pendulum_traj()
     # temp_obj = visu.plot_receding_car_traj()
     # visu.plot_car(
@@ -105,4 +142,7 @@ for i in range(0, len(state_traj)):
     #     l,
     # )
     visu.writer_gp.grab_frame()
-    visu.remove_temp_objects(temp_obj)
+    # visu.remove_temp_objects(temp_obj)
+    # visu.remove_temp_objects(plt_obj)
+
+visu.f_handle["gp"].savefig(save_path + str(traj_iter) + "/prediction.png", dpi=600)
