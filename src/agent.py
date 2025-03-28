@@ -66,7 +66,7 @@ class Agent(object):
             self.Dyn_gp_Y_train = self.Dyn_gp_Y_train[:, :, [0]]
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
-        self.epistimic_random_vector = self.random_vector_within_bounds()
+        # self.epistimic_random_vector = self.random_vector_within_bounds()
         # self.tilde_eps_list, self.ci_list = env_model.get_mpc_tightenings()
         self.tilde_eps_list, self.ci_list = env_model.get_reachable_set_ball(params, np.ones(params["optimizer"]["H"]+1))
         # quit()

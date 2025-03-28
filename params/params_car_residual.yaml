@@ -42,7 +42,7 @@ agent:
   Dyn_gp_task_noises : 
     val : [1.0, 1.48, 0.515]
     multiplier : 1.0e-7 #1.0e-8                    #1.0e-5 Low noise value make it crazy fast
-  Dyn_gp_beta : 3.0 # 1.5
+  Dyn_gp_beta : 2.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
   num_dyn_samples: 1   

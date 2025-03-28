@@ -175,8 +175,6 @@ if __name__ == "__main__":
     else:
         raise ValueError("Unknown environment model, possible values: pendulum, car")
         
-    l_mu = params["env"]["params"]["l_mu"]
-    l_sigma = params["env"]["params"]["l_sigma"]
 
     # TODO: abstract data generation from agent and just call the data generation function here
     agent = Agent(params, env_model)
@@ -189,12 +187,9 @@ if __name__ == "__main__":
     gp_model_orig = agent.model_i
     gp_model_orig.eval()
 
-    # if params["env"]["train_data_has_derivatives"]:
     gp_model_proj = GPModelWithDerivativesProjectedToFunctionValues(
         agent.model_i, batch_shape_tile=agent.model_i.batch_shape
     )
-    # else:
-    #     gp_model = gp_model_orig
 
     if env_model.has_nominal_model:
         gp_model = GPModelWithPriorMean(
@@ -204,41 +199,44 @@ if __name__ == "__main__":
             gp_model_idx_inputs=env_model.g_idx_inputs,
         )
 
-    with gpytorch.settings.observation_nan_policy(
-            "mask"
-        ), gpytorch.settings.fast_computations(
-            covar_root_decomposition=False, log_prob=False, solves=False
-        ), gpytorch.settings.cholesky_jitter(
-            float_value=params["agent"]["Dyn_gp_jitter"],
-            double_value=params["agent"]["Dyn_gp_jitter"],
-            half_value=params["agent"]["Dyn_gp_jitter"],
-        ):
-        # compute Lipschitz constant of gradient of GP model
-        u_grid = torch.tensor(input_traj[0])
-        x_grid = torch.tensor(state_traj[0][0:-1,:])
-        z_grid = torch.hstack((x_grid, u_grid))
-        # differentiate the GP model
-        gp_model_mean_fun = lambda x: gp_model(x).mean
-        gp_model_var_fun = lambda x: gp_model(x).variance
+    compute_Lipschitz_from_traj = True
+    if compute_Lipschitz_from_traj:
+        with gpytorch.settings.observation_nan_policy(
+                "mask"
+            ), gpytorch.settings.fast_computations(
+                covar_root_decomposition=False, log_prob=False, solves=False
+            ), gpytorch.settings.cholesky_jitter(
+                float_value=params["agent"]["Dyn_gp_jitter"],
+                double_value=params["agent"]["Dyn_gp_jitter"],
+                half_value=params["agent"]["Dyn_gp_jitter"],
+            ):
+            # compute Lipschitz constant of gradient of GP model
+            u_grid = torch.tensor(input_traj[0])
+            x_grid = torch.tensor(state_traj[0][0:-1,:])
+            z_grid = torch.hstack((x_grid, u_grid))
+            # differentiate the GP model
+            gp_model_mean_fun = lambda x: gp_model(x).mean
+            gp_model_var_fun = lambda x: gp_model(x).variance
 
-        f_var_grid_arr = torch.zeros((nx, z_grid.shape[0]))
-        for i in range(z_grid.shape[0]):
-            f_var_grid_arr[:,[i]] = gp_model_var_fun(z_grid[[i],:]).detach()
+            f_var_grid_arr = torch.zeros((nx, z_grid.shape[0]))
+            for i in range(z_grid.shape[0]):
+                f_var_grid_arr[:,[i]] = gp_model_var_fun(z_grid[[i],:]).detach()
 
-        f_jac_grid_arr = torch.zeros((nx,1,z_grid.shape[0],nx+nu))
-        for i in range(z_grid.shape[0]):
-            f_jac_grid_arr[:,:,[i],:] = torch.autograd.functional.jacobian(gp_model_mean_fun, z_grid[[i],:]).detach()
+            f_jac_grid_arr = torch.zeros((nx,1,z_grid.shape[0],nx+nu))
+            for i in range(z_grid.shape[0]):
+                f_jac_grid_arr[:,:,[i],:] = torch.autograd.functional.jacobian(gp_model_mean_fun, z_grid[[i],:]).detach()
 
-        l_mu_arr = torch.zeros((nx,))
-        l_sigma_arr = torch.zeros((nx,))
-        for x_dim in range(nx):
-            l_mu_arr[x_dim] = estimate_Lipschitz_constant(x_grid, f_jac_grid_arr[x_dim,0,:,:])
-            l_sigma_arr[x_dim] = estimate_Lipschitz_constant(x_grid, f_var_grid_arr[[x_dim],:].T)
+            l_mu_arr = torch.zeros((nx,))
+            l_sigma_arr = torch.zeros((nx,))
+            for x_dim in range(nx):
+                l_mu_arr[x_dim] = estimate_Lipschitz_constant(x_grid, f_jac_grid_arr[x_dim,0,:,:])
+                l_sigma_arr[x_dim] = estimate_Lipschitz_constant(x_grid, f_var_grid_arr[[x_dim],:].T)
 
-    l_mu_arr = params["agent"]["Dyn_gp_beta"] * torch.max(l_mu_arr, 1e-6 * torch.ones_like(l_mu_arr))
-    l_sigma_arr = torch.max(l_sigma_arr, 1e-6 * torch.ones_like(l_sigma_arr))
-    # if hasattr(env_model, "g_idx_inputs"):
-    #     gp_model = FeatureSelector(gp_model, env_model.g_idx_inputs)
+        l_mu_arr = params["agent"]["Dyn_gp_beta"] * torch.max(l_mu_arr, 1e-6 * torch.ones_like(l_mu_arr))
+        l_sigma_arr = torch.max(l_sigma_arr, 1e-6 * torch.ones_like(l_sigma_arr))
+    else:
+        l_mu_arr = params["env"]["params"]["l_mu"]
+        l_sigma_arr = params["env"]["params"]["l_sigma"]
 
     likelihood = agent.likelihood  # NOTE: dimensions wrong, but not used in GpCemSSM
 
@@ -278,7 +276,6 @@ if __name__ == "__main__":
     ):
         for i in range(H):
             print(i)
-            # TODO: CONTINUE NAN STUFF
             gp_input_u = input_traj[0][i].reshape(-1, 1) + k_fb_apply @ (ps - x_equi).T
             gp_input = torch.hstack((ps, gp_input_u.reshape(1, -1)))
             gp_mean = gp_model(gp_input).mean.detach().numpy()
@@ -310,7 +307,6 @@ if __name__ == "__main__":
                 )
 
                 print(ps, qs)
-                print(f"Mean prediction error: {nLa.norm(ps- gp_mean.T)/nLa.norm(gp_mean.T + 1e-6)}")
 
                 r = nLa.cholesky(qs).T
                 r = r[:, :, 0]
@@ -320,18 +316,10 @@ if __name__ == "__main__":
                 z = [np.cos(t), np.sin(t)]
                 ellipse = np.dot(r_plot, z) + ps.numpy()[0,plot_dim].reshape(-1, 1)
 
-            print(f"True dynamics error: {nLa.norm(gp_mean_with_prior.T- true_dyn.T)/nLa.norm(true_dyn.T + 1e-6)}")
-            print(f"Mean prediction error manual prior: {nLa.norm(gp_mean_with_prior.T- gp_mean.T)/nLa.norm(gp_mean.T + 1e-6)}")
-            # x_tile = torch.tile(torch.hstack((ps, input_traj[0][i].reshape(-1, 1))),(1,2,1,1))
-            # pred_orig = gp_model_orig(x_tile)
-
             ellipse_list.append(ellipse)
             ellipse_center_list.append(ps.numpy().T)
             mean_pred_list.append(gp_mean)
             true_dyn_list.append(true_dyn)
-            # ax.plot(ellipse[0, :], ellipse[1, :])
-
-        # plt.show()
 
     with open(os.path.join(save_path_iter, "koller_ellipse_data.pkl"), "wb") as a_file:
         pickle.dump(ellipse_list, a_file)
@@ -343,6 +331,3 @@ if __name__ == "__main__":
         pickle.dump(mean_pred_list, a_file)
     with open(os.path.join(save_path_iter, "koller_true_data.pkl"), "wb") as a_file:
         pickle.dump(true_dyn_list, a_file)
-    # plt.xlim(-0.1, 1.45)
-    # plt.ylim(-0.1, 2.7)
-    # plt.show()
