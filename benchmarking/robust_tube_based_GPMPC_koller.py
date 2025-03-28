@@ -153,11 +153,16 @@ if __name__ == "__main__":
     if args.env_model == "pendulum":
         env_model = Pendulum(params)
         plot_dim = [0, 1]
+        k_fb_apply = torch.zeros((nu, nx))
     elif args.env_model == "car":
         env_model = CarKinematicsModel(params)
         plot_dim = [0, 1]
+        k_fb_apply = torch.tensor(params["optimizer"]["terminal_tightening"]["K"])
     else:
         raise ValueError("Unknown environment model, possible values: pendulum, car")
+        
+    l_mu = params["env"]["params"]["l_mu"]
+    l_sigma = params["env"]["params"]["l_sigma"]
 
     # TODO: abstract data generation from agent and just call the data generation function here
     agent = Agent(params, env_model)
@@ -204,9 +209,7 @@ if __name__ == "__main__":
 
     a = torch.zeros((nx, nx), device=device)
     b = torch.zeros((nx, nu), device=device)
-    k_fb_apply = torch.zeros((nu, nx))
-    l_mu = params["env"]["params"]["l_mu"]
-    l_sigma = params["env"]["params"]["l_sigma"]
+
 
     ps = torch.tensor([x0]).to(device)
     qs = None
