@@ -15,10 +15,10 @@ import torch
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
 
-workspace_plotting_utils = "extra/plotting_utilities"
+workspace_plotting_utils = "plotting_utilities"
 sys.path.append(workspace_plotting_utils)
 
-from plotting_utilities.plotting_utilities import *
+from plotting_utilities import utilities as plt_utils
 
 plot_GT = False
 plot_GT_sampling = True
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     color = "powderblue"  # "lightblue"
 
     TEXTWIDTH = 16
-    set_figure_params(serif=True, fontsize=14)
+    plt_utils.set_figure_params(serif=True, fontsize=14)
 
     create_plots = []
     if plot_cautious_MPC:
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     for plot_name in create_plots:
 
         # f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
-        f = plt.figure(figsize=(cm2inches(12.0), cm2inches(8.0)))
+        f = plt.figure(figsize=(plt_utils.cm2inches(12.0), plt_utils.cm2inches(8.0)))
         ax = f.axes
         plt.xlabel(r"$\theta$")
         plt.ylabel(r"$\omega$")

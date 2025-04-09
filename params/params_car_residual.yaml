@@ -5,6 +5,8 @@ env:
   params: 
     lf: 1.105 #0.55 #1.105, 0.275
     lr: 1.738 #0.85 #1.738, 0.425
+    l_mu: [0.05, 0.05, 0.05, 0.05]
+    l_sigma: [0.05, 0.05, 0.05, 0.05]
   prior_dyn_meas: True 
   train_data_has_derivatives: False
   use_model_without_derivatives: False
@@ -43,7 +45,7 @@ agent:
   Dyn_gp_beta : 3.0 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 1     
+  num_dyn_samples: 1
   mean_as_dyn_sample: False
   true_dyn_as_sample: True        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-20
