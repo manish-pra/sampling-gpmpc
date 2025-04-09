@@ -63,10 +63,10 @@ for gp_idx in range(params["agent"]["g_dim"]["ny"]):
     print("Mean norm and kernel diff", mean_norm, kernel_norm_diff)
     y = Dyn_gp_Y_train[gp_idx, :, 0].reshape(-1, 1)
     Cd = (
-        true_function_norm
+        (true_function_norm
         + mean_norm
         - 2 * torch.matmul(y.t(), alpha)
-        + torch.sum(torch.abs(alpha)) * params["agent"]["tight"]["w_bound"]
+        + 2*torch.sum(torch.abs(alpha)) * params["agent"]["tight"]["w_bound"])/2
         + kernel_norm_diff / 2
     )
     Cd_list.append(Cd)

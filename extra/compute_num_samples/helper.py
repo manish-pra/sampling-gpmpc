@@ -557,7 +557,7 @@ def compute_multi_dim_small_ball_probability_fixed_eps(Dyn_gp_X_train, Dyn_gp_Y_
 
     # X = torch.linspace(-np.pi, np.pi, 100)
 
-    total_samples = 15000000
+    total_samples = 10000000
     with torch.no_grad(), gpytorch.settings.observation_nan_policy(
         "mask"
     ), gpytorch.settings.fast_computations(
