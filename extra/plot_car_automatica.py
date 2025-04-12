@@ -16,10 +16,10 @@ sys.path.append(workspace)
 
 from src.environments.car_model_residual import CarKinematicsModel as bicycle_Bdx
 
-workspace_plotting_utils = "extra/plotting_utilities"
+workspace_plotting_utils = "extra/plotting_tools"
 sys.path.append(workspace_plotting_utils)
 
-from plotting_utilities.plotting_utilities import *
+from plotting_tools.plotting_utilities import *
 
 
 parser = argparse.ArgumentParser(description="A foo that bars")
@@ -69,9 +69,7 @@ set_figure_params(serif=True, fontsize=14)
 # f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
 f = plt.figure(figsize=(cm2inches(12.0), cm2inches(6.0)))
 ax = f.axes
-plt.ylabel(r"$y$")
-plt.xlabel(r"$x$")
-plt.tight_layout(pad=0.0)
+
 
 def plot_ellipses(ax, x, y, eps_list):
     P = np.array(params["optimizer"]["terminal_tightening"]["P"])[:2,:2]
@@ -273,6 +271,9 @@ plt.tick_params(axis="x", direction="in")
 plt.tick_params(axis="y", direction="in")
 plt.xlim(-2, 44)
 plt.ylim(-3, 15)
+plt.ylabel(r"$y$")
+plt.xlabel(r"$x$")
+plt.tight_layout(pad=0.0)
 plt.savefig(
     # f"eps{eps:.0e}.pdf",
     "overlapping_N2e2_2e4_2e7_true.pdf",

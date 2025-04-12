@@ -110,11 +110,11 @@ if __name__ == "__main__":
     plt.rcParams["figure.figsize"] = [12, 6]
 
     parser = argparse.ArgumentParser(description="A foo that bars")
-    parser.add_argument("-param", default="params_pendulum")  # params
-    parser.add_argument("-env_model", type=str, default="pendulum")
+    parser.add_argument("-param", default="params_car_residual")  # params
+    parser.add_argument("-env_model", type=str, default="car")
     parser.add_argument("-env", type=int, default=0)
-    parser.add_argument("-i", type=int, default=999)  # initialized at origin
-    parser.add_argument("-plot_koller", type=bool, default=False)
+    parser.add_argument("-i", type=int, default=10)  # initialized at origin
+    parser.add_argument("-plot_koller", type=bool, default=True)
 
     args = parser.parse_args()
 
@@ -232,7 +232,7 @@ if __name__ == "__main__":
                 l_mu_arr[x_dim] = estimate_Lipschitz_constant(x_grid, f_jac_grid_arr[x_dim,0,:,:])
                 l_sigma_arr[x_dim] = estimate_Lipschitz_constant(x_grid, f_var_grid_arr[[x_dim],:].T)
 
-        l_mu_arr = params["agent"]["Dyn_gp_beta"] * torch.max(l_mu_arr, 1e-6 * torch.ones_like(l_mu_arr))
+        l_mu_arr = torch.max(l_mu_arr, 1e-6 * torch.ones_like(l_mu_arr))
         l_sigma_arr = torch.max(l_sigma_arr, 1e-6 * torch.ones_like(l_sigma_arr))
     else:
         l_mu_arr = params["env"]["params"]["l_mu"]
@@ -319,7 +319,7 @@ if __name__ == "__main__":
             ellipse_list.append(ellipse)
             ellipse_center_list.append(ps.numpy().T)
             mean_pred_list.append(gp_mean)
-            true_dyn_list.append(true_dyn)
+            true_dyn_list.append(true_dyn.numpy())
 
     with open(os.path.join(save_path_iter, "koller_ellipse_data.pkl"), "wb") as a_file:
         pickle.dump(ellipse_list, a_file)

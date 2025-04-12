@@ -61,7 +61,7 @@ agent:
     w_bound: 0.000001
   shift_soln: False
   feedback: 
-    use: False
+    use: True
     v_min : [-1000, -1000] # Minimum control input
     v_max : [1000, 1000] 
   input_generation: True
@@ -70,7 +70,7 @@ visu:
   show: False
 
 common:
-  use_cuda : True
+  use_cuda : False
   num_MPC_itrs : 1
   dynamics_rejection: False
 
