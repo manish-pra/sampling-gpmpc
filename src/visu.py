@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 import dill as pickle
@@ -26,13 +28,31 @@ class Visualizer:
         self.agent = agent
         self.nx = self.params["agent"]["dim"]["nx"]
         if self.params["visu"]["show"]:
-            self.initialize_plot_handles(path)
+            fig_gp, ax, fig_dyn, ax2 = self.create_plot_handle(path)
+            self.initialize_plot_handles(fig_gp)
 
-    def initialize_plot_handles(self, path):
+    def create_plot_handle(self, path):
         if "bicycle" in self.params["env"]["dynamics"]:
             fig_gp, ax = plt.subplots(figsize=(30 / 2.4, 3.375 / 2.4))
         elif "endulum" in self.params["env"]["dynamics"]:
             fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
+        fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
+
+        # ax2.set_aspect('equal', 'box')
+        self.f_handle = {}
+        self.f_handle["gp"] = fig_gp
+        self.f_handle["dyn"] = fig_dyn
+        # self.plot_contour_env("dyn")
+
+        # Move it to visu
+        self.writer_gp = self.get_frame_writer()
+        self.writer_dyn = self.get_frame_writer()
+        self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200) 
+        self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=300)  
+        return fig_gp, ax, fig_dyn, ax2
+
+    def initialize_plot_handles(self, fig_gp, fig_dyn=None):
+        ax = fig_gp.axes[0]
         # fig_gp.tight_layout(pad=0)
         ax.grid(which="both", axis="both")
         ax.minorticks_on()
@@ -121,39 +141,28 @@ class Visualizer:
                 ax.plot(
                     ell[0, :] + xf[0],
                     ell[1, :] + xf[1],
-                    color="green",
+                    # "--",
+                    color="tab:green",
                     label="Terminal set",
                 )
-                L = np.linalg.cholesky(P)
-                t = np.linspace(0, 2 * np.pi, 200)
-                z = np.vstack([np.cos(t), np.sin(t)])
-                ell = np.linalg.inv(L.T) @ z
+                # L = np.linalg.cholesky(P)
+                # t = np.linspace(0, 2 * np.pi, 200)
+                # z = np.vstack([np.cos(t), np.sin(t)])
+                # ell = np.linalg.inv(L.T) @ z
 
-                ax.plot(
-                    ell[0, :] + xf[0],
-                    ell[1, :] + xf[1],
-                    color="red",
-                    label="Terminal set",
-                )
+                # ax.plot(
+                #     ell[0, :] + xf[0],
+                #     ell[1, :] + xf[1],
+                #     color="red",
+                #     label="Terminal set",
+                # )
 
         # ax.set_yticklabels([])
         # ax.set_xticklabels([])
         # ax.set_xticks([])
         # ax.set_yticks([])
 
-        fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
 
-        # ax2.set_aspect('equal', 'box')
-        self.f_handle = {}
-        self.f_handle["gp"] = fig_gp
-        self.f_handle["dyn"] = fig_dyn
-        # self.plot_contour_env("dyn")
-
-        # Move it to visu
-        self.writer_gp = self.get_frame_writer()
-        self.writer_dyn = self.get_frame_writer()
-        self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200)
-        self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=300)
 
     def get_frame_writer(self):
         # FFMpegWriter = manimation.writers['ffmpeg']
@@ -375,12 +384,10 @@ class Visualizer:
             print("Inf/nan detected in ellispoids")
             return None
 
-    
-    def plot_ellipses(self, ax, x, y, eps_list):
+    def get_ellipses_pts(self, x, y, eps_list, n_pts=50):
         P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])[:2,:2]
         # P*=10
         nH = len(eps_list)-1 # not required on terminal state
-        n_pts = 50
         ns_sub = x.shape[1] #int(x.shape[1]/4) + 1
         P_scaled = np.tile(P, (nH,1,1))/(eps_list[:nH,None, None]**2+1e-8)
         L = np.linalg.cholesky(P_scaled)
@@ -391,6 +398,10 @@ class Visualizer:
         all_ell = np.tile(ell, (ns_sub, 1, 1, 1))
         x_plt = all_ell[:,:,0,:] + x.T[:ns_sub,:nH,None]
         y_plt = all_ell[:,:,1,:] + y.T[:ns_sub,:nH,None]
+        return x_plt, y_plt
+
+    def plot_ellipses(self, ax, x, y, eps_list, n_pts=50):
+        x_plt, y_plt = self.get_ellipses_pts(x, y, eps_list,n_pts)
         return ax.plot(x_plt.reshape(-1,n_pts).T, y_plt.reshape(-1,n_pts).T, color="blue", label="Terminal set", linewidth=0.5)
 
         # x_plt = ell[:,0,:] + x[:,[0]]

@@ -16,12 +16,12 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-# parser.add_argument("-param", default="params_pendulum1D_samples")  # params
+parser.add_argument("-param", default="params_pendulum1D_samples")  # params
 # parser.add_argument("-param", default="params_car_samples")  # params
-parser.add_argument("-param", default="params_car_residual")  # params
-parser.add_argument("-env_model", type=str, default="car")
+# parser.add_argument("-param", default="params_car_residual")  # params
+parser.add_argument("-env_model", type=str, default="pendulum")
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=10)  # initialized at origin
+parser.add_argument("-i", type=int, default=42)  # initialized at origin
 parser.add_argument("-plot_koller", type=bool, default=True)
 parser.add_argument("-plot_automatica", type=bool, default=True)
 
@@ -111,7 +111,8 @@ if args.plot_automatica:
 # plt.show()
 # load data)
 
-
+idx_true_start = 0
+idx_mean_start = 0
 # (l,) = ax.plot([], [], "tab:orange")
 for i in range(0, len(state_traj)):
     if params["agent"]["true_dyn_as_sample"]:
@@ -145,8 +146,8 @@ for i in range(0, len(state_traj)):
     if args.plot_koller:
         for j in range(len(koller_ellipse_list)):
             plt_obj = visu.plot_general_ellipsoid(koller_ellipse_list[j], color="tab:red", alpha=0.7)
-
-        ax.plot(koller_mean_arr[:,0,:], koller_mean_arr[:,1,:], "tab:blue", linewidth=1)
+        H_explode = 14
+        ax.plot(koller_mean_arr[:H_explode,0,:H_explode], koller_mean_arr[:H_explode,1,:H_explode], "tab:blue", linewidth=1)
         # ax.plot(koller_true_arr[:,0,:], koller_true_arr[:,1,:], "tab:green", linewidth=0.5)
         plt.plot(true_state_traj[:,0], true_state_traj[:,1], ls='--',color="black", label="Trajectory", linewidth=0.8)
         if args.plot_automatica:
@@ -209,7 +210,7 @@ for i in range(0, len(state_traj)):
     #     l,
     # )
     visu.writer_gp.grab_frame()
-    # visu.remove_temp_objects(temp_obj)
+    visu.remove_temp_objects(temp_obj)
     # visu.remove_temp_objects(plt_obj)
 
-visu.f_handle["gp"].savefig(save_path + str(traj_iter) + "/prediction.png", dpi=600)
+# visu.f_handle["gp"].savefig(save_path + str(traj_iter) + "/prediction.png", dpi=600)

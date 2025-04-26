@@ -10,7 +10,7 @@ src/__pycache__/
 experiments/
 meeting/
 openweathermap/
-extra/plotting_utilities/
+extra/plotting_tools/
 
 # Distribution / packaging
 .Python
