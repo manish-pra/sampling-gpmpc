@@ -190,8 +190,10 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
             lh = np.hstack([lbx, lbx])
             uh = np.hstack([ubx, ubx])
         if params["agent"]["feedback"]["use"]:
-            lh = np.hstack([lh, params["optimizer"]["u_min"]*2*ns])
-            uh = np.hstack([uh, params["optimizer"]["u_max"]*2*ns])
+            min_const = [params["optimizer"]["u_min"][0], -1e3]
+            max_const = [1e3, params["optimizer"]["u_max"][0]]
+            lh = np.hstack([lh, min_const*ns])
+            uh = np.hstack([uh, max_const*ns])
         ocp.constraints.lh = lh
         ocp.constraints.uh = uh
         # ocp.constraints.lh = np.hstack([lbx, lbx])
@@ -206,10 +208,10 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
         # ocp.cost.zu = 1e5 * np.array([1] * size)
         # ocp.constraints.idxsh = np.arange(size_e)
         size_e = len(ocp.constraints.lh_e)
-        ocp.cost.Zl_e = 1e6 * np.array([1] * size_e)
-        ocp.cost.Zu_e = 1e5 * np.array([1] * size_e)
-        ocp.cost.zl_e = 1e6 * np.array([1] * size_e)
-        ocp.cost.zu_e = 1e5 * np.array([1] * size_e)
+        ocp.cost.Zl_e = 1e7 * np.array([1] * size_e)
+        ocp.cost.Zu_e = 1e6 * np.array([1] * size_e)
+        ocp.cost.zl_e = 1e7 * np.array([1] * size_e)
+        ocp.cost.zu_e = 1e6 * np.array([1] * size_e)
         ocp.constraints.idxsh_e = np.arange(size_e)
     # ocp.constraints.idxsh = np.arange(2 * lbx.shape[0])
 

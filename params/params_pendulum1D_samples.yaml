@@ -1,10 +1,12 @@
 env:
-  # start: [2.35, 2.2] # x,y,theta,v # 2.2, 2.3
-  start: [2.35, 1.86] # x,y,theta,v # 2.2, 2.3
+  start: [2.15, 2.3] # x,y,theta,v # 2.2, 2.3
+  # start: [2.35, 1.86] # x,y,theta,v # 2.2, 2.3
+  # start: [2.35, 1.05] # x,y,theta,v # 2.2, 2.3
   goal_state: [3.1416, 0.0]
   dynamics: 'Pendulum1D' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: False
+  use_model_without_derivatives: False
   n_data_x: 4 #5 #5 #18 #3
   n_data_u: 9 #9 #9 #30 #5
   params:
@@ -32,11 +34,11 @@ agent:
     both : [0.03] #0.02
   Dyn_gp_task_noises : 
     val : [3.8, 1.27, 3.8]
-    multiplier : 1.0e-5                     #1.0e-5 Low noise value make it crazy fast
+    multiplier : 1.0e-6                     #1.0e-5 Low noise value make it crazy fast
   Dyn_gp_beta : 2.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 10
+  num_dyn_samples: 70
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -59,16 +61,16 @@ visu:
 
 common:
   use_cuda : True
-  num_MPC_itrs : 50
+  num_MPC_itrs : 55
   dynamics_rejection: False
 
 optimizer:
-  H : 15 # horizon
-  u_min : [-7.0] # Minimum control input
-  u_max : [7.0] 
+  H : 17 # horizon
+  u_min : [-5.0] # Minimum control input
+  u_max : [5.0] 
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [2.3, -2.5] # Minimum state value
+  x_min : [2.1, -2.5] # Minimum state value
   x_max : [ 3.6, 2.5] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:

@@ -16,10 +16,10 @@ sys.path.append(workspace)
 
 from src.environments.car_model_residual import CarKinematicsModel as bicycle_Bdx
 
-workspace_plotting_utils = "extra/plotting_utilities"
+workspace_plotting_utils = "extra/plotting_tools"
 sys.path.append(workspace_plotting_utils)
 
-from plotting_utilities.plotting_utilities import *
+from plotting_tools.plotting_utilities import *
 
 
 parser = argparse.ArgumentParser(description="A foo that bars")
@@ -69,9 +69,32 @@ set_figure_params(serif=True, fontsize=14)
 # f = plt.figure(figsize=(TEXTWIDTH * 0.5 + 2.75, TEXTWIDTH * 0.5 * 1 / 2))
 f = plt.figure(figsize=(cm2inches(12.0), cm2inches(6.0)))
 ax = f.axes
-plt.ylabel(r"$y$")
-plt.xlabel(r"$x$")
-plt.tight_layout(pad=0.0)
+
+env_model = globals()[params["env"]["dynamics"]](params)
+def propagate_true_dynamics(x_init, U, sqp_true_traj=None):
+    state_list = []
+    state_list.append(x_init)
+    K = np.array(params["optimizer"]["terminal_tightening"]["K"])
+    x_equi = np.array(params["env"]["goal_state"])
+    U_act = []
+    for ele in range(U.shape[0]):
+        curr_state = state_list[-1] + (np.random.randn(state_list[-1].shape[0])) * params["agent"]["tight"]["w_bound"]
+        if params["agent"]["feedback"]["use"]:
+            if sqp_true_traj is not None:
+                curr_state = sqp_true_traj[ele]
+            U_i = -(x_equi-curr_state)@K.T + U[ele]
+        else:
+            U_i = U[ele]
+        state_input = (
+            torch.from_numpy(np.hstack([curr_state, U_i]))
+            .reshape(1, -1)
+            .float()
+        )
+        state_kp1 = env_model.discrete_dyn(state_input).numpy()
+        state_list.append(state_kp1.reshape(-1))
+        U_act.append(U_i)
+    print("U_act", U_act)
+    return np.stack(state_list)
 
 def plot_ellipses(ax, x, y, eps_list):
     P = np.array(params["optimizer"]["terminal_tightening"]["P"])[:2,:2]
@@ -92,7 +115,7 @@ def plot_ellipses(ax, x, y, eps_list):
     return x_plt, y_plt
 
 
-def plot_reachable_eps(ax, filepath, tilde_eps_list, color):
+def plot_reachable_eps(ax, filepath, ci_list, color):
     with open(filepath, "rb") as input_data_file:
         reachable_hull_points = pickle.load(input_data_file)
     # color = "lightcoral" 
@@ -113,7 +136,7 @@ def plot_reachable_eps(ax, filepath, tilde_eps_list, color):
         np.pad(A, ((0, max_rows - A.shape[0]), (0, 0)), mode='constant', constant_values=np.nan)
         for A in reachable_hull_points
     ])
-    ell_x, ell_y = plot_ellipses(ax, padded_arrays[:,:,0], padded_arrays[:,:,1], np.stack(tilde_eps_list)[:,-1])
+    ell_x, ell_y = plot_ellipses(ax, padded_arrays[:,:,0], padded_arrays[:,:,1], ci_list)
 
     for i in range(0,49):
         ell_pts_i = np.stack([ell_x[:,i,:].reshape(-1), ell_y[:,i,:].reshape(-1)]).T
@@ -187,7 +210,8 @@ for N, color in zip(N_list, color_list):
     # params["agent"]["tight"]["dyn_eps"] = get_eps_vec(N)
     params["optimizer"]["H"] = 50
     tilde_eps_list, ci_list = bicycle_Bdx.get_reachable_set_ball(params, state_traj[0][:,3], get_eps_vec(N))
-    plot_reachable_eps(ax, eps_data_path, tilde_eps_list, color)
+    ci_list = np.stack(tilde_eps_list)[:,-1]
+    plot_reachable_eps(ax, eps_data_path, ci_list, color)
 
 
 # Prepare the true reachable set
@@ -219,8 +243,9 @@ for N, color in zip(N_list, color_list):
 # agent.update_current_state(np.array(params["env"]["start"]))
 # x_curr = agent.current_state[: agent.nx].reshape(agent.nx)
 # propagated_state = visu.propagate_true_dynamics(x_curr, input_gpmpc_input_traj)
-# plt.plot(propagated_state[:,0], propagated_state[:,1], ls='--',color="black", label="propagated Trajectory", linewidth=0.5)
-plt.plot(true_state_traj[0][:,0], true_state_traj[0][:,1], ls='--',color="black", label="Trajectory", linewidth=0.8)
+propagated_state = propagate_true_dynamics(np.array(params["env"]["start"]), input_gpmpc_input_traj)
+plt.plot(propagated_state[:,0], propagated_state[:,1], ls='--',color="black", label="propagated Trajectory", linewidth=0.8)
+# plt.plot(true_state_traj[0][:,0], true_state_traj[0][:,1], ls='--',color="blue", label="Trajectory", linewidth=0.8)
 
 # plot lines of tracks with fixed start and end locations
 w = 4.8
@@ -273,6 +298,9 @@ plt.tick_params(axis="x", direction="in")
 plt.tick_params(axis="y", direction="in")
 plt.xlim(-2, 44)
 plt.ylim(-3, 15)
+plt.ylabel(r"$y$")
+plt.xlabel(r"$x$")
+plt.tight_layout(pad=0.0)
 plt.savefig(
     # f"eps{eps:.0e}.pdf",
     "overlapping_N2e2_2e4_2e7_true.pdf",

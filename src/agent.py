@@ -13,7 +13,7 @@ from src.GP_model import BatchMultitaskGPModelWithDerivatives_fromParams
 import matplotlib.pyplot as plt
 
 torch.set_default_dtype(torch.float64)
-
+from src.utils.reachable_set import get_reachable_set_ball
 
 class Agent(object):
     def __init__(self, params, env_model) -> None:
@@ -68,7 +68,8 @@ class Agent(object):
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
         # self.tilde_eps_list, self.ci_list = env_model.get_mpc_tightenings()
-        self.tilde_eps_list, self.ci_list = env_model.get_reachable_set_ball(params, np.ones(params["optimizer"]["H"]+1))
+        if "terminal_tightening" in self.params["optimizer"]:
+            self.tilde_eps_list, self.ci_list = get_reachable_set_ball(params, np.ones(params["optimizer"]["H"]+1))
         # quit()
 
     def random_vector_within_bounds(self):
@@ -330,7 +331,7 @@ class Agent(object):
 
         # TODO: update the dynamic model_i with the converged dynamics (perhaps not required?)
         n_sample = self.ns
-        L = self.params["agent"]["tight"]["Lipschitz"]
+        # L = self.params["agent"]["tight"]["Lipschitz"]
         dyn_eps = self.params["agent"]["tight"]["dyn_eps"]
         w_bound = self.params["agent"]["tight"]["w_bound"]
         B_d_norm = np.sqrt(self.params["optimizer"]["terminal_tightening"]["P"][1][1])
@@ -383,9 +384,10 @@ class Agent(object):
                 f_val = self.env_model.known_dyn(xu_hat).squeeze()
                 x_next = f_val + torch.matmul(self.env_model.B_d, g_val.t()).t()
                 diff = X_soln[i + 1, :, :] - x_next
-                c_i = np.power(L, i) * var_eps + 2 * dyn_eps * B_d_norm * np.sum(
-                    np.power(L, np.arange(0, i))
-                )  # arange has inbuild -1 in [start, end-1]
+                # c_i = np.power(L, i) * var_eps + 2 * dyn_eps * B_d_norm * np.sum(
+                #     np.power(L, np.arange(0, i))
+                # )  # arange has inbuild -1 in [start, end-1]
+                c_i = self.ci_list[i]
                 N_kp1 = torch.prod(torch.abs(diff) - c_i < 0, dim=1)
                 samples_left = samples_left * N_kp1
                 print("Samples remaininng in N{k+1} are ", torch.sum(samples_left))

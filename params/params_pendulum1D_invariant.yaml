@@ -4,6 +4,7 @@ env:
   dynamics: 'Pendulum1D' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: False
+  use_model_without_derivatives: False
   n_data_x: 5 #5 #18 #3
   n_data_u: 9 #9 #30 #5
   params:
