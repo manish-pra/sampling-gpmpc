@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 import gpytorch
 import numpy as np
+import scipy
 
 import torch
 from gpytorch.kernels import (
@@ -706,6 +707,113 @@ class Agent(object):
 
             return y_sample
 
+    def train_BLR_model_cholesky(self, X, y, lambda_reg=1e-3, noise_var=1.0):
+        n_features = X.shape[1]
+        I = np.eye(n_features)
+        A = (X.T @ X) + lambda_reg * I  # Precision matrix
+        L = scipy.linalg.cholesky(A, lower=True)  # Cholesky decomposition: A = L L^T
+        tmp = scipy.linalg.solve_triangular(L, X.T @ y, lower=True)
+        mu = scipy.linalg.solve_triangular(L.T, tmp, lower=False)
+        # Sigma = noise_var * (L @ L.T)
+        # Sigma = noise_var * np.linalg.inv(A)
+        return mu, L*np.sqrt(noise_var)
+        # return mu, Sigma
+    
+    def sample_Weights_cholesky(self, mu, L):
+        # Sample from the posterior
+        n_samples = self.ns
+        n_features = mu.shape[0]
+        z = np.random.normal(size=(n_features, n_samples))
+        # y = scipy.linalg.solve_triangular(L, z*1e-4, lower=True)
+        # weights = (mu[:,None] + y).T
+        weights = (mu[:,None] + L @ z).T
+        return weights
+
+    def train_BLR_model(self, X, y, lambda_reg=1e-3, noise_var=1.0):
+        n_features = X.shape[1]
+        I = np.eye(n_features)
+        A = X.T @ X + lambda_reg * I
+        A_inv = np.linalg.inv(A)
+        mu = A_inv @ X.T @ y
+        Sigma = noise_var * A_inv
+        return mu, Sigma
+
+    def dyn_fg_jacobians_via_BLR(self):
+        X = self.Dyn_gp_X_train 
+        y = self.Dyn_gp_Y_train
+        phi_X1, phi_X2 = self.env_model.BLR_features(X)
+        
+        # Train model
+        self.mu_theta, self.Sigma_theta = self.train_BLR_model(phi_X1, y[0,:,0].numpy(), lambda_reg=1.0e-6, noise_var=5e-4)
+        self.mu_omega, self.Sigma_omega = self.train_BLR_model(phi_X2, y[1,:,0].numpy(), lambda_reg=1.0e-6, noise_var=5e-4)
+        # self.mu_theta, self.Sigma_theta = self.train_BLR_model_cholesky(phi_X1, y[0,:,0].numpy(), lambda_reg=1.0e-6, noise_var=5e-4)
+        # self.mu_omega, self.Sigma_omega = self.train_BLR_model_cholesky(phi_X2, y[1,:,0].numpy(), lambda_reg=1.0e-6, noise_var=5e-4)
+
+    def sample_weights(self):
+        feature_size = max(self.mu_theta.shape[0], self.mu_omega.shape[0])
+        # Sample from the posterior
+        # dt = self.params["optimizer"]["dt"]
+        # g = self.params["env"]["params"]["g"]
+        # l = self.params["env"]["params"]["l"]
+        # gt_weight = np.array([[1.0, dt, 0.0],[1.0,-g*dt/l, dt]])
+        # self.weights = np.tile(gt_weight, (self.ns, 1, 1))
+        self.weights = np.zeros((self.ns, self.g_ny, feature_size))
+        self.weights[:,0,:self.mu_theta.shape[0]] = np.random.multivariate_normal(self.mu_theta, self.Sigma_theta, size=(self.ns))
+        self.weights[:,1,:self.mu_omega.shape[0]] = np.random.multivariate_normal(self.mu_omega, self.Sigma_omega, size=(self.ns))
+        # self.weights[:,0,:self.mu_theta.shape[0]] = self.sample_Weights_cholesky(self.mu_theta, self.Sigma_theta)
+        # self.weights[:,1,:self.mu_omega.shape[0]] = self.sample_Weights_cholesky(self.mu_omega, self.Sigma_omega)
+
+    def get_dynamics_grad(self, X_test):
+        # Compute gradients
+        Phi = self.env_model.BLR_features_test(X_test) #phi_theta, phi_omega
+        weights_expanded = self.weights[:, :, np.newaxis, :]  # (50,2,1,3)
+        model_val = np.sum(Phi * weights_expanded, axis=-1, keepdims=True)  # (50,2,30,1)
+        Phi_grad = self.env_model.BLR_features_grad(X_test) #phi_theta_grad, phi_omega_grad
+        # weights_x = self.weights[:, :, np.newaxis, :self.g_nx]  # (50,2,1,2)
+        feature_grad = Phi_grad * weights_expanded  # (50,2,30,2)
+        y_grad_mapped = self.apply_feature_mapping(feature_grad , [[[0],[1]], [[1],[0]]])
+        u_grad_mapped = self.apply_feature_mapping(feature_grad , [[[2]], [[2]]])
+
+        return model_val, y_grad_mapped, u_grad_mapped
+
+    def get_blr_x_hat(self, x_h, u_h):
+        return np.hstack((x_h, u_h))
+
+    def apply_feature_mapping(self, Phi, mapping):
+        """
+        Apply feature mappings on Phi for each n dimension.
+        
+        Args:
+            Phi: np.ndarray, shape (batch_size, n, num_agents, feature_dim)
+            mapping: List[List[List[int]]], mapping rules per n
+                    (mapping[n][i] = list of indices to sum for new feature i)
+
+        Returns:
+            Phi_mapped: np.ndarray, shape (batch_size, n, num_agents, new_feature_dim)
+        """
+        batch_size, n_dim, num_agents, feature_dim = Phi.shape
+        new_feature_dims = [len(m) for m in mapping]
+
+        # Ensure all mappings have the same output feature dimension
+        if len(set(new_feature_dims)) != 1:
+            raise ValueError("All n mappings must produce the same number of new features.")
+        
+        new_f_dim = new_feature_dims[0]
+
+        # Preallocate output
+        Phi_mapped = np.zeros((batch_size, n_dim, num_agents, new_f_dim), dtype=Phi.dtype)
+
+        # Process each n separately
+        for n in range(n_dim):
+            for new_idx, idxs in enumerate(mapping[n]):
+                idxs = np.array(idxs, dtype=int)  # Force integer indexing
+                selected = np.take(Phi[:, n, :, :], idxs, axis=-1)  # (batch_size, num_agents, len(idxs))
+                
+                # Always sum, even if single element (safe behavior)
+                selected_sum = np.sum(selected, axis=-1)  # (batch_size, num_agents)
+                Phi_mapped[:, n, :, new_idx] = selected_sum
+
+        return Phi_mapped
 
 if __name__ == "__main__":
     agent = Agent()

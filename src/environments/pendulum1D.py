@@ -239,3 +239,27 @@ class Pendulum(object):
 
     def transform_sensitivity(self, dg_dxu_grad, xu_hat):
         return dg_dxu_grad
+    
+    def BLR_features(self, X):
+        
+        theta = X[:, [0]]
+        vel = X[:, [1]]
+        alpha = X[:, [2]]
+        # theta, vel, alpha
+
+        return np.hstack([
+            np.ones((X.shape[0], 1)),
+            np.sin(theta),
+            alpha
+        ])
+
+    def BLR_features_grad(self, X):
+        theta = X[:, [0]]
+        vel = X[:, [1]]
+        alpha = X[:, [2]]
+
+        return np.hstack([
+            np.zeros((X.shape[0], 1)),
+            np.cos(theta),
+            np.ones((alpha.shape[0], 1))
+        ])

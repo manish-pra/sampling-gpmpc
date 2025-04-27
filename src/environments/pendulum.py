@@ -199,3 +199,57 @@ class Pendulum(object):
             state_kp1 = self.discrete_dyn(state_input)
             state_list.append(state_kp1.reshape(-1))
         return np.stack(state_list)
+
+    def BLR_features(self, X):    
+        theta = X[:, [0]]
+        omega = X[:, [1]]
+        alpha = X[:, [2]]
+        # theta, vel, alpha
+
+        f1 = np.hstack([theta,omega])
+        f2 = np.hstack([omega, np.sin(theta),alpha])
+        return f1, f2
+        # return np.vstack([f1, f2])
+
+
+    def BLR_features_test(self, X):    
+        theta = X[:,0:1,:, 0:1]
+        omega = X[:,0:1,:, 1:2]
+        alpha = X[:,0:1,:, 2:3]
+        # theta, vel, alpha
+
+        # Compute f1 and f2
+        f1 = np.concatenate([theta, omega], axis=-1)                 # (50,2,30,2)
+        f2 = np.concatenate([omega, np.sin(theta), alpha], axis=-1)   # (50,2,30,3)
+
+
+        # Determine max feature size
+        max_dim = max(f1.shape[-1], f2.shape[-1])
+        Phi = np.zeros((X.shape[0], self.g_ny, X.shape[2], max_dim))
+        Phi[:,[0],:,:f1.shape[-1]] = f1
+        Phi[:,[1],:,:f2.shape[-1]] = f2
+        return Phi
+
+    def BLR_features_grad(self, X):
+        theta = X[:,0:1,:, 0:1]
+        omega = X[:,0:1,:, 1:2]
+        alpha = X[:,0:1,:, 2:3]
+        # theta, vel, alpha
+
+        f1_grad = np.concatenate([
+            np.ones_like(theta),
+            np.ones_like(omega)
+        ], axis=-1)
+        f2_grad = np.concatenate([
+            np.ones_like(omega),
+            np.cos(theta),
+            np.ones_like(alpha)
+        ], axis=-1)
+
+        # Determine max feature size
+        max_dim = max(f1_grad.shape[-1], f2_grad.shape[-1])
+        Phi_grad = np.zeros((X.shape[0], self.g_ny, X.shape[2], max_dim))
+        Phi_grad[:,[0],:,:f1_grad.shape[-1]] = f1_grad
+        Phi_grad[:,[1],:,:f2_grad.shape[-1]] = f2_grad
+
+        return Phi_grad

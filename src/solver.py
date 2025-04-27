@@ -61,7 +61,11 @@ class DEMPC_solver(object):
     def solve(self, player, plot_pendulum=False):
         w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
-
+        if self.params["common"]["use_BLR"]:
+            # train the model with prio data
+            player.dyn_fg_jacobians_via_BLR()
+            # sample weights
+            player.sample_weights()
         for sqp_iter in range(self.max_sqp_iter):
             x_h_old = self.x_h.copy()
             u_h_old = self.u_h.copy()
@@ -94,13 +98,17 @@ class DEMPC_solver(object):
             # Alternatively when you have the true x, u; filter data based on uncertainity and add it to true data.
             # write an initializer
             # Plot cross points on new data collected points, and X and U
-
-            # create model with updated data
-            player.train_hallucinated_dynGP(sqp_iter)
-            batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)
-            # sample the gradients
-            gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
-            del batch_x_hat
+            if self.params["common"]["use_BLR"]:
+                # batch_x_hat = player.get_blr_x_hat(self.x_h, self.u_h)
+                batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)
+                gp_val, y_grad, u_grad = player.get_dynamics_grad(batch_x_hat.numpy())
+            else:
+                # create model with updated data
+                player.train_hallucinated_dynGP(sqp_iter)
+                batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)
+                # sample the gradients
+                gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
+                del batch_x_hat
 
             for stage in range(self.H):
                 p_lin = np.empty(0)

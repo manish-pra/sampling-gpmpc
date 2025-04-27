@@ -59,15 +59,19 @@ class DEMPC:
             # Initialize the next state at the point nearest to the goal
             # propagate the trajectory
             X_true_traj = self.agent.env_model.propagate_true_dynamics(X[0, 0:nx], U)
-            self.agent.get_posterior_uncertainity(X_true_traj, U)
+            # self.agent.get_posterior_uncertainity(X_true_traj, U)
             # let's jump twice
             jump_idx = 0
             state_input = torch.hstack(
                 [torch.from_numpy(X_true_traj[jump_idx][: self.nx]), U[jump_idx]]
             ).reshape(1, -1)
+
             if i % 2 == 0:
                 Y_data = self.agent.env_model.get_prior_data(state_input)
-                self.agent.online_learnt_datapoints(state_input.cuda(), Y_data)
+                if self.params["common"]["use_cuda"]:
+                    self.agent.online_learnt_datapoints(state_input.cuda(), Y_data)
+                else:
+                    self.agent.online_learnt_datapoints(state_input, Y_data)
 
             state_kp1 = self.agent.env_model.discrete_dyn(state_input)
             self.agent.update_current_state(state_kp1)
@@ -108,7 +112,7 @@ class DEMPC:
         else:
             X, U, Sl = self.dempc_solver.get_solution()
         #
-        self.visu.record(st_curr, X, U, dt)
+        self.visu.record(st_curr, X, U, dt,record_gp_model=False)
         print("X", X)
         print("U", U)
 
