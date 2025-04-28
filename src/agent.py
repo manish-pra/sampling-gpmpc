@@ -738,7 +738,7 @@ class Agent(object):
         Sigma = noise_var * A_inv
         return mu, Sigma
 
-    def dyn_fg_jacobians_via_BLR(self):
+    def dyn_fg_jacobians_via_BLR_pend(self):
         X = self.Dyn_gp_X_train 
         y = self.Dyn_gp_Y_train
         phi_X1, phi_X2 = self.env_model.BLR_features(X)
@@ -749,7 +749,67 @@ class Agent(object):
         # self.mu_theta, self.Sigma_theta = self.train_BLR_model_cholesky(phi_X1, y[0,:,0].numpy(), lambda_reg=1.0e-6, noise_var=5e-4)
         # self.mu_omega, self.Sigma_omega = self.train_BLR_model_cholesky(phi_X2, y[1,:,0].numpy(), lambda_reg=1.0e-6, noise_var=5e-4)
 
+    def dyn_fg_jacobians_via_BLR(self):
+        X = self.Dyn_gp_X_train
+        y = self.Dyn_gp_Y_train
+
+        _, phi_X_list = self.env_model.BLR_features_test(X)  # returns list: [phi_X1, phi_X2, ..., phi_X6]
+
+        y_list = [
+            y[i, :, 0].numpy()[:, None] for i in range(len(phi_X_list))  # list of (N_i, 1)
+        ]
+
+        self.mu_list, self.Sigma_list = self.train_BLR_multioutput(
+            phi_X_list, y_list, lambda_reg=1e-6, noise_var=5e-4
+        )
+
+    def train_BLR_multioutput(self, Phi_list, y_list, lambda_reg=1e-3, noise_var=1.0):
+        """
+        Trains multiple independent BLR models, one per output.
+        Phi_list: list of (N_i, D_i) feature matrices
+        y_list: list of (N_i, 1) target vectors
+        """
+        mu_list = []
+        Sigma_list = []
+
+        for Phi, y in zip(Phi_list, y_list):
+            n_features = Phi.shape[1]
+            I = np.eye(n_features)
+
+            A = Phi.T @ Phi + lambda_reg * I   # (D, D)
+            rhs = Phi.T @ y                    # (D, 1)
+
+            mu = np.linalg.solve(A, rhs)        # solve A mu = rhs
+            A_inv = np.linalg.inv(A)             # (optional if you want Sigma)
+
+            Sigma = noise_var * A_inv            # (D, D)
+
+            mu_list.append(mu)
+            Sigma_list.append(Sigma)
+
+        return mu_list, Sigma_list
+
     def sample_weights(self):
+        """
+        Samples random BLR weights for each output dimension.
+
+        self.mu_list: list of (D_i, 1) mean vectors
+        self.Sigma_list: list of (D_i, D_i) covariance matrices
+        self.g_ny: number of outputs (e.g., 6 for drone)
+        self.ns: number of samples
+        """
+        # Find max feature dimension across all outputs
+        feature_size = max(mu.shape[0] for mu in self.mu_list)
+
+        # Preallocate weight samples
+        self.weights = np.zeros((self.ns, self.g_ny, feature_size))
+
+        for i, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
+            mu_flat = mu.squeeze()   # (D_i,)
+            samples = np.random.multivariate_normal(mu_flat, Sigma, size=self.ns)  # (ns, D_i)
+            self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
+
+    def sample_weights_pend(self):
         feature_size = max(self.mu_theta.shape[0], self.mu_omega.shape[0])
         # Sample from the posterior
         # dt = self.params["optimizer"]["dt"]
@@ -765,7 +825,7 @@ class Agent(object):
 
     def get_dynamics_grad(self, X_test):
         # Compute gradients
-        Phi = self.env_model.BLR_features_test(X_test) #phi_theta, phi_omega
+        Phi, _ = self.env_model.BLR_features_test(X_test) #phi_theta, phi_omega
         weights_expanded = self.weights[:, :, np.newaxis, :]  # (50,2,1,3)
         model_val = np.sum(Phi * weights_expanded, axis=-1, keepdims=True)  # (50,2,30,1)
         Phi_grad = self.env_model.BLR_features_grad(X_test) #phi_theta_grad, phi_omega_grad

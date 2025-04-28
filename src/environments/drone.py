@@ -76,7 +76,7 @@ class Pendulum(object):
         # y2_ret[:, 2] = torch.ones(x_hat.shape[0])
         # y2_ret[:, 3] = torch.ones(x_hat.shape[0]) * dt / (l * l)
         # return y1_ret, y2_ret
-        ny = 2
+        ny = 6
         y_ret = torch.zeros((ny, x_hat.shape[0], 4))
         # y2_ret = torch.zeros((x_hat.shape[0], 4))
         y_ret[0, :, 0] = y1_fx
@@ -124,11 +124,18 @@ class Pendulum(object):
         m = self.params["env"]["params"]["m"]
         l = self.params["env"]["params"]["l"]
         g = self.params["env"]["params"]["g"]
-        X1_k, X2_k, U_k = xu[:, [0]], xu[:, [1]], xu[:, [2]]
+        d = self.params["env"]["params"]["d"]
+        J = self.params["env"]["params"]["J"]
+        px_k, py_k, phi_k, vx_k, vy_k, phidot_k = xu[:, [0]], xu[:, [1]], xu[:, [2]], xu[:, [3]], xu[:, [4]], xu[:, [5]] 
+        u1_k, u2_k = xu[:, [6]], xu[:, [7]]
         dt = self.params["optimizer"]["dt"]
-        X1_kp1 = X1_k + X2_k * dt
-        X2_kp1 = X2_k - g * torch.sin(X1_k) * dt / l + U_k * dt / (l * l)
-        state_kp1 = torch.hstack([X1_kp1, X2_kp1])
+        px_kp1 = px_k + (vx_k * torch.cos(phi_k) - vy_k*torch.sin(phi_k))* dt
+        py_kp1 = py_k + (vx_k * torch.sin(phi_k) + vy_k*torch.cos(phi_k))* dt
+        phi_kp1 = phi_k + phidot_k * dt
+        vx_kp1 = vx_k + (vy_k*phidot_k - g * torch.sin(phi_k) + torch.cos(phi_k)*d)* dt
+        vy_kp1 = vy_k + (-vx_k*phidot_k - g * torch.cos(phi_k) + u1_k/m + u2_k/m + torch.sin(phi_k)*d)* dt
+        phidot_kp1 = phidot_k + (u1_k - u2_k)*l/J*dt
+        state_kp1 = torch.hstack([px_kp1, py_kp1, phi_kp1, vx_kp1, vy_kp1, phidot_kp1])
         return state_kp1
 
     def get_f_known_jacobian(self, xu):
@@ -212,47 +219,102 @@ class Pendulum(object):
         # return np.vstack([f1, f2])
 
 
-    def BLR_features_test(self, X):   
-        if X.ndim == 2:
-            # X = X.reshape(X.shape[0], 1, X.shape[1], 1)
-            X = X[:, np.newaxis, np.newaxis,:]
-        theta = X[:,0:1,:, 0:1]
-        omega = X[:,0:1,:, 1:2]
-        alpha = X[:,0:1,:, 2:3]
-        # theta, vel, alpha
+    def BLR_features_test(self, X):
+        # X shape: (batch_size, 2, horizon, 8)
+        px = X[:, 0:1, :, 0:1]
+        py = X[:, 0:1, :, 1:2]
+        phi = X[:, 0:1, :, 2:3]
+        vx = X[:, 0:1, :, 3:4]
+        vy = X[:, 0:1, :, 4:5]
+        phidot = X[:, 0:1, :, 5:6]
+        u1 = X[:, 0:1, :, 6:7]
+        u2 = X[:, 0:1, :, 7:8]
 
-        # Compute f1 and f2
-        f1 = np.concatenate([theta, omega], axis=-1)                 # (50,2,30,2)
-        f2 = np.concatenate([omega, np.sin(theta), alpha], axis=-1)   # (50,2,30,3)
+        f_px = np.concatenate([px, vx*np.cos(phi), vy*np.sin(phi)], axis=-1)
+        f_py = np.concatenate([py, vx*np.sin(phi), vy*np.cos(phi)], axis=-1)
+        f_phi = np.concatenate([phi, phidot], axis=-1)
+        f_vx = np.concatenate([vx, vy*phidot, np.sin(phi), np.cos(phi)], axis=-1)
+        f_vy = np.concatenate([vy, vx*phidot, np.sin(phi), np.cos(phi), u1, u2], axis=-1)
+        f_phidot = np.concatenate([phidot, u1, u2], axis=-1)
 
+        feature_list = [f_px, f_py, f_phi, f_vx, f_vy, f_phidot]
 
-        # Determine max feature size
-        max_dim = max(f1.shape[-1], f2.shape[-1])
-        Phi = np.zeros((X.shape[0], self.g_ny, X.shape[2], max_dim))
-        Phi[:,[0],:,:f1.shape[-1]] = f1
-        Phi[:,[1],:,:f2.shape[-1]] = f2
-        return Phi, [f1[:,0,0,:], f2[:,0,0,:]]
+        # Find maximum feature dimension across all outputs
+        max_dim = max([f.shape[-1] for f in feature_list])
+
+        Phi = np.zeros((X.shape[0], self.g_ny, X.shape[2], max_dim))  # (batch, 6, horizon, max_dim)
+
+        for idx, f in enumerate(feature_list):
+            Phi[:, [idx], :, :f.shape[-1]] = f
+
+        return Phi, feature_list
 
     def BLR_features_grad(self, X):
-        theta = X[:,0:1,:, 0:1]
-        omega = X[:,0:1,:, 1:2]
-        alpha = X[:,0:1,:, 2:3]
-        # theta, vel, alpha
+        # X shape: (batch_size, 2, horizon, 8)
+        px = X[:, 0:1, :, 0:1]
+        py = X[:, 0:1, :, 1:2]
+        phi = X[:, 0:1, :, 2:3]
+        vx = X[:, 0:1, :, 3:4]
+        vy = X[:, 0:1, :, 4:5]
+        phidot = X[:, 0:1, :, 5:6]
+        u1 = X[:, 0:1, :, 6:7]
+        u2 = X[:, 0:1, :, 7:8]
 
-        f1_grad = np.concatenate([
-            np.ones_like(theta),
-            np.ones_like(omega)
-        ], axis=-1)
-        f2_grad = np.concatenate([
-            np.ones_like(omega),
-            np.cos(theta),
-            np.ones_like(alpha)
+        ### Now: correct addition rule and product rule
+
+        ## f_px = [px, vx*cos(phi), vy*sin(phi)]
+        f_px_grad = np.concatenate([
+            np.ones_like(px),                                    # d(px)/d(px)
+            vx * (-np.sin(phi)) + np.cos(phi),                   # d(vx*cos(phi))/d(vx,phi)
+            vy * np.cos(phi) + np.sin(phi),                      # d(vy*sin(phi))/d(vy,phi)
         ], axis=-1)
 
-        # Determine max feature size
-        max_dim = max(f1_grad.shape[-1], f2_grad.shape[-1])
+        ## f_py = [py, vx*sin(phi), vy*cos(phi)]
+        f_py_grad = np.concatenate([
+            np.ones_like(py),                                    # d(py)/d(py)
+            vx * np.cos(phi) + np.sin(phi),                      # d(vx*sin(phi))/d(vx,phi)
+            vy * (-np.sin(phi)) + np.cos(phi),                   # d(vy*cos(phi))/d(vy,phi)
+        ], axis=-1)
+
+        ## f_phi = [phi, phidot]
+        f_phi_grad = np.concatenate([
+            np.ones_like(phi),                                   # d(phi)/d(phi)
+            np.ones_like(phidot),                                # d(phidot)/d(phidot)
+        ], axis=-1)
+
+        ## f_vx = [vx, vy*phidot, sin(phi), cos(phi)]
+        f_vx_grad = np.concatenate([
+            np.ones_like(vx),                                    # d(vx)/d(vx)
+            vy + phidot,                                                  # d(vy*phidot)/d(vy)                                    # d(vy*phidot)/d(phidot)
+            np.cos(phi),                                         # d(sin(phi))/d(phi)
+            -np.sin(phi),                                        # d(cos(phi))/d(phi)
+        ], axis=-1)
+
+        ## f_vy = [vy, vx*phidot, sin(phi), cos(phi), u1, u2]
+        f_vy_grad = np.concatenate([
+            np.ones_like(vy),                                    # d(vy)/d(vy)
+            vx + phidot,                                               # d(vx*phidot)/d(vx)                                              # d(vx*phidot)/d(phidot)
+            np.cos(phi),                                         # d(sin(phi))/d(phi)
+            -np.sin(phi),                                        # d(cos(phi))/d(phi)
+            np.ones_like(u1),                                    # d(u1)/d(u1)
+            np.ones_like(u2),                                    # d(u2)/d(u2)
+        ], axis=-1)
+
+        ## f_phidot = [phidot, u1, u2]
+        f_phidot_grad = np.concatenate([
+            np.ones_like(phidot),                                # d(phidot)/d(phidot)
+            np.ones_like(u1),                                    # d(u1)/d(u1)
+            np.ones_like(u2),                                    # d(u2)/d(u2)
+        ], axis=-1)
+
+        # Collect gradients
+        grad_list = [f_px_grad, f_py_grad, f_phi_grad, f_vx_grad, f_vy_grad, f_phidot_grad]
+
+        # Find maximum feature dimension
+        max_dim = max(f.shape[-1] for f in grad_list)
         Phi_grad = np.zeros((X.shape[0], self.g_ny, X.shape[2], max_dim))
-        Phi_grad[:,[0],:,:f1_grad.shape[-1]] = f1_grad
-        Phi_grad[:,[1],:,:f2_grad.shape[-1]] = f2_grad
+
+        for idx, f_grad in enumerate(grad_list):
+            Phi_grad[:, [idx], :, :f_grad.shape[-1]] = f_grad
 
         return Phi_grad

@@ -66,12 +66,13 @@ class DEMPC:
                 [torch.from_numpy(X_true_traj[jump_idx][: self.nx]), U[jump_idx]]
             ).reshape(1, -1)
 
-            if i % 2 == 0:
-                Y_data = self.agent.env_model.get_prior_data(state_input)
-                if self.params["common"]["use_cuda"]:
-                    self.agent.online_learnt_datapoints(state_input.cuda(), Y_data)
-                else:
-                    self.agent.online_learnt_datapoints(state_input, Y_data)
+            if self.params["common"]["active_learning"]:
+                if i % 2 == 0:
+                    Y_data = self.agent.env_model.get_prior_data(state_input)
+                    if self.params["common"]["use_cuda"]:
+                        self.agent.online_learnt_datapoints(state_input.cuda(), Y_data)
+                    else:
+                        self.agent.online_learnt_datapoints(state_input, Y_data)
 
             state_kp1 = self.agent.env_model.discrete_dyn(state_input)
             self.agent.update_current_state(state_kp1)
