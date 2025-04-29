@@ -26,12 +26,13 @@ def export_dempc_ocp(params, env_ocp_handler=None):
     _, p = dempc_const_expr(
         x_dim, n_order, params
     )  # think of a pendulum and -pi/2,pi, pi/2 region is unsafe
-    const_expr = []
+    
     model = export_linear_model(name_prefix + "dempc", p, params)  # start pendulum at 0
     nx = params["agent"]["dim"]["nx"]
     model_x = model.x
     model_u = model.u
     num_dyn = params["agent"]["num_dyn_samples"]
+
     if params["env"]["dynamics"] == "bicycle":
         const_expr = []
         if params["env"]["ellipses"]:
@@ -56,17 +57,6 @@ def export_dempc_ocp(params, env_ocp_handler=None):
             model.con_h_expr_e = ca.vertcat(
                 const_expr, model_x - tilde_eps_i, model_x + tilde_eps_i
             )
-
-    for i in range(num_dyn):
-        xf = np.array(params["env"]["start"])
-        expr = (
-            (model_x[nx * i : nx * (i + 1)] - xf).T
-            @ np.array(params["optimizer"]["terminal_tightening"]["P"])
-            @ (model_x[nx * i : nx * (i + 1)] - xf)
-        )
-        const_expr = ca.vertcat(const_expr, expr)
-    # model.con_h_expr = model_x
-    model.con_h_expr_e = const_expr
 
     if params["env"]["dynamics"] == "Pendulum1D":
         tilde_eps_i = p[2]
@@ -111,10 +101,13 @@ def export_dempc_ocp(params, env_ocp_handler=None):
         # model.con_h_expr_e = ca.vertcat(
         #     model_x - terminal_tight, model_x + terminal_tight, const_expr
         # )
+
+    const_expr = env_ocp_handler("const_expr", model_x)
+    model.con_h_expr_e = const_expr
     ocp.model = model
     ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params)
 
-    ocp = dempc_const_val(ocp, params, x_dim, n_order, p)
+    ocp = dempc_const_val(ocp, params, x_dim, n_order, p, env_ocp_handler)
     ocp = dempc_set_options(ocp, params)
 
     return ocp
@@ -136,6 +129,7 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     nu = params["agent"]["dim"]["nu"]
     Qu = np.diag(np.array(params["optimizer"]["Qu"]))
     xg = np.array(params["env"]["goal_state"])
+    xg_dim = xg.shape[0]
     w = params["optimizer"]["w"]
     Qx = np.diag(np.array(params["optimizer"]["Qx"]))
 
@@ -147,11 +141,12 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     else:
         ns = params["agent"]["num_dyn_samples"]
     expr = 0
+
     for i in range(ns):
         expr += (
-            (model_x[nx * i : nx * (i + 1)] - xg).T
+            (model_x[nx * i : nx * (i + 1)][:xg_dim] - xg).T
             @ Qx
-            @ (model_x[nx * i : nx * (i + 1)] - xg)
+            @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - xg)
         )
     ocp.model.cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u
     ocp.model.cost_expr_ext_cost_e = expr / ns
@@ -159,7 +154,7 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
     return ocp
 
 
-def dempc_const_val(ocp, params, x_dim, n_order, p):
+def dempc_const_val(ocp, params, x_dim, n_order, p, env_ocp_handler):
     tilde_eps_i = p[2]
     ns = params["agent"]["num_dyn_samples"]
     # constraints
@@ -181,11 +176,11 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     ocp.constraints.ubx_e = ubx.copy()
     ocp.constraints.idxbx_e = np.arange(lbx.shape[0])
 
-    # ocp.constraints.lh = np.hstack([lbx])
-    # ocp.constraints.uh = np.hstack([ubx])
-    delta = params["optimizer"]["terminal_tightening"]["delta"]
-    ocp.constraints.lh_e = np.hstack([[0] * ns])
-    ocp.constraints.uh_e = np.hstack([[delta] * ns])
+    lh, uh, lh_e, uh_e = env_ocp_handler("const_value")
+    ocp.constraints.lh = lh
+    ocp.constraints.uh = uh
+    ocp.constraints.lh_e = lh_e
+    ocp.constraints.uh_e = uh_e
 
     if params["env"]["dynamics"] == "Pendulum1D":
         ocp.constraints.lh = np.hstack([lbx, lbx])

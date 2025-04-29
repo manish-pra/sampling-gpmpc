@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import scipy.linalg
 import scipy.signal
-
+import casadi as ca
 
 class Pendulum(object):
     def __init__(self, params):
@@ -256,7 +256,47 @@ class Pendulum(object):
         Phi_grad[:,[1],:,:f2_grad.shape[-1]] = f2_grad
 
         return Phi_grad
+
+    def ocp_handler(self, func_name, *args, **kwargs):
+        """
+        Dynamically dispatch OCP function by name.
+        
+        Args:
+            func_name (str): Name of the function to call, e.g., 'cost', 'constraint', etc.
+            *args: Arguments to pass to the function.
+            **kwargs: Keyword arguments to pass.
+        
+        Returns:
+            Result of the called function.
+        """
+        if not hasattr(self, func_name):
+            raise ValueError(f"Unknown OCP function requested: {func_name}")
+
+        func = getattr(self, func_name)
+        return func(*args, **kwargs)
+
+    def const_expr(self, model_x):
+        const_expr = []
+        num_dyn = self.params["agent"]["num_dyn_samples"]
+        nx = self.params["agent"]["dim"]["nx"]
+        for i in range(num_dyn):
+            xf = np.array(self.params["env"]["start"])
+            expr = (
+                (model_x[nx * i : nx * (i + 1)] - xf).T
+                @ np.array(self.params["optimizer"]["terminal_tightening"]["P"])
+                @ (model_x[nx * i : nx * (i + 1)] - xf)
+            )
+            const_expr = ca.vertcat(const_expr, expr)
+        return const_expr
     
+    def const_value(self):
+        ns = self.params["agent"]["num_dyn_samples"]
+        lh = np.empty((0,), dtype=np.float64)
+        uh = np.empty((0,), dtype=np.float64)
+        delta = self.params["optimizer"]["terminal_tightening"]["delta"]
+        lh_e = np.hstack([[0] * ns])
+        uh_e = np.hstack([[delta] * ns])
+        return lh, uh, lh_e, uh_e
 
     def initialize_plot_handles(self, path):
         import matplotlib.pyplot as plt

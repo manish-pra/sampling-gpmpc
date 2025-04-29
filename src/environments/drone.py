@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import scipy.linalg
 import scipy.signal
-
+import casadi as ca
 
 class Drone(object):
     def __init__(self, params):
@@ -226,6 +226,9 @@ class Drone(object):
 
 
     def BLR_features_test(self, X):
+        if X.ndim == 2:
+            # X = X.reshape(X.shape[0], 1, X.shape[1], 1)
+            X = X[:, np.newaxis, np.newaxis,:]
         # X shape: (batch_size, 2, horizon, 8)
         px = X[:, 0:1, :, 0:1]
         py = X[:, 0:1, :, 1:2]
@@ -252,8 +255,9 @@ class Drone(object):
 
         for idx, f in enumerate(feature_list):
             Phi[:, [idx], :, :f.shape[-1]] = f
-
-        return Phi, feature_list
+        
+        return Phi, [feature[:,0,0,:] for feature in feature_list]
+        # return Phi, feature_list
 
     def BLR_features_grad(self, X):
         # X shape: (batch_size, 2, horizon, 8)
@@ -324,10 +328,48 @@ class Drone(object):
             Phi_grad[:, [idx], :, :f_grad.shape[-1]] = f_grad
 
         return Phi_grad
-    
-    def ocp_handler(self, model_x):
-        num_dyn = self.params["agent"]["num_dyn_samples"]
+
+    def ocp_handler(self, func_name, *args, **kwargs):
+        """
+        Dynamically dispatch OCP function by name.
         
+        Args:
+            func_name (str): Name of the function to call, e.g., 'cost', 'constraint', etc.
+            *args: Arguments to pass to the function.
+            **kwargs: Keyword arguments to pass.
+        
+        Returns:
+            Result of the called function.
+        """
+        if not hasattr(self, func_name):
+            raise ValueError(f"Unknown OCP function requested: {func_name}")
+
+        func = getattr(self, func_name)
+        return func(*args, **kwargs)    
+    
+    def const_expr(self, model_x):
+        const_expr = []
+        num_dyn = self.params["agent"]["num_dyn_samples"]
+        nx = self.params["agent"]["dim"]["nx"]
+        for i in range(num_dyn):
+            xf = np.array(self.params["env"]["terminate_state"])
+            xf_dim = xf.shape[0]
+            expr = (
+                (model_x[nx * i : nx * (i + 1)][:xf_dim] - xf).T
+                @ np.array(self.params["optimizer"]["terminal_tightening"]["P"])
+                @ (model_x[nx * i : nx * (i + 1)][:xf_dim] - xf)
+            )
+            const_expr = ca.vertcat(const_expr, expr)
+        return const_expr
+    
+    def const_value(self):
+        ns = self.params["agent"]["num_dyn_samples"]
+        lh = np.empty((0,), dtype=np.float64)
+        uh = np.empty((0,), dtype=np.float64)
+        delta = self.params["optimizer"]["terminal_tightening"]["delta"]
+        lh_e = np.hstack([[0] * ns])
+        uh_e = np.hstack([[delta] * ns])
+        return lh, uh, lh_e, uh_e
 
 
     def initialize_plot_handles(self,path):

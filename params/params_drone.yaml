@@ -1,6 +1,7 @@
 env:
-  start: [0.0, 0.0] # x,y,theta,v
+  start: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # px, py, phi, vx, vy, phi_dot
   goal_state: [2.5, 0.0]
+  terminate_state: [0.0, 0.0] # px, py, phi, vx, vy, phi_dot
   dynamics: 'drone' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: False
@@ -79,8 +80,8 @@ optimizer:
   x_dim: 2
   dt: 0.015 # 0.010
   w: 50
-  Qx: [5, 0] # [1.0, 1.0, 1.0, 1.0]  
-  Qu: [0.1]
+  Qx: [5, 0.1] # [1.0, 1.0, 1.0, 1.0]  
+  Qu: [0.1, 0.1]
   cost: "expected" 
   options: {
     levenberg_marquardt: 1.0
