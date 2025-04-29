@@ -32,6 +32,9 @@ class Visualizer:
                 self.initialize_plot_handles(path)
 
     def initialize_plot_handles(self, path):
+        fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
+        ax.set_xlim(-1,1)
+        ax.set_ylim(-1, 1)
         if self.params["env"]["dynamics"] == "bicycle":
             fig_gp, ax = plt.subplots(figsize=(30 / 2.4, 3.375 / 2.4))
         elif "endulum" in self.params["env"]["dynamics"]:

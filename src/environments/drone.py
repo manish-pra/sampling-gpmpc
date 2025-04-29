@@ -139,10 +139,26 @@ class Drone(object):
         py_kp1 = py_k + (vx_k * torch.sin(phi_k) + vy_k*torch.cos(phi_k))* dt
         phi_kp1 = phi_k + phidot_k * dt
         vx_kp1 = vx_k + (vy_k*phidot_k - g * torch.sin(phi_k) + torch.cos(phi_k)*d)* dt
-        vy_kp1 = vy_k + (-vx_k*phidot_k - g * torch.cos(phi_k) + u1_k/m + u2_k/m + torch.sin(phi_k)*d)* dt
+        vy_kp1 = vy_k + (-vx_k*phidot_k - g * torch.cos(phi_k) + u1_k/m + u2_k/m - torch.sin(phi_k)*d)* dt
         phidot_kp1 = phidot_k + (u1_k - u2_k)*l/J*dt
         state_kp1 = torch.hstack([px_kp1, py_kp1, phi_kp1, vx_kp1, vy_kp1, phidot_kp1])
         return state_kp1
+    
+    def get_gt_weights(self):
+        dt = self.params["optimizer"]["dt"]
+        m = self.params["env"]["params"]["m"]
+        l = self.params["env"]["params"]["l"]
+        g = self.params["env"]["params"]["g"]
+        d = self.params["env"]["params"]["d"]
+        J = self.params["env"]["params"]["J"]
+
+        tr_weight = [[1.0, dt, -dt],
+                     [1.0, dt, dt],
+                     [1.0, dt],
+                     [1.0, dt, -g*dt, d*dt],
+                     [1.0, -dt, -g*dt,  -d*dt, dt/m, dt/m],
+                     [1.0, dt*l/J, -dt*l/J]]
+        return tr_weight
 
     def get_f_known_jacobian(self, xu):
         ns = xu.shape[0]
@@ -322,7 +338,7 @@ class Drone(object):
     def feature_vy(self, state, control):
         px, py, phi, vx, vy, phidot = state[0], state[1], state[2], state[3], state[4], state[5]
         u1, u2 = control[0], control[1]
-        return ca.vertcat(vy, vx * phidot, ca.sin(phi), ca.cos(phi), u1, u2)
+        return ca.vertcat(vy, vx * phidot, ca.cos(phi), ca.sin(phi), u1, u2)
 
     def feature_phidot(self, state, control):
         px, py, phi, vx, vy, phidot = state[0], state[1], state[2], state[3], state[4], state[5]

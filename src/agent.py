@@ -842,8 +842,8 @@ class Agent(object):
             # self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
             self.weights.append(samples)  # append samples for each output
 
-
-        # self.weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
+        tr_weight = self.env_model.get_gt_weights()
+        self.weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
 
     def sample_weights_pend(self):
         feature_size = max(self.mu_theta.shape[0], self.mu_omega.shape[0])

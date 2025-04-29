@@ -9,10 +9,10 @@ env:
   n_data_u: 2
   params:
     m: 1.0
-    l: 1.0
+    l: 0.2
     g: 9.81
     J: 0.1
-    d: 0.1
+    d: 0.0
 
 agent:
   g_dim :
@@ -38,7 +38,7 @@ agent:
   Dyn_gp_beta : 3.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 50 
+  num_dyn_samples: 2 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -58,7 +58,7 @@ common:
   use_cuda : False
   use_BLR : True
   active_learning : True
-  num_MPC_itrs : 37
+  num_MPC_itrs : 60
   dynamics_rejection: False
 
 optimizer:
@@ -90,7 +90,7 @@ optimizer:
     x_tight: [0.1, 0.1]
     u_tight: [0.1]
     P:  [[4.48651083, 1.48325991],[1.48325991, 0.65037241]]
-    delta: 1.0
+    delta: 10.0
 
 experiment:
   name: "DEMPC" #
