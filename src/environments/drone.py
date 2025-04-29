@@ -213,6 +213,85 @@ class Drone(object):
             state_list.append(state_kp1.reshape(-1))
         return np.stack(state_list)
 
+    def BLR_features_casadi(self):
+        import casadi as ca
+
+        # === 1. Define CasADi symbols ===
+        px = ca.MX.sym("px")
+        py = ca.MX.sym("py")
+        phi = ca.MX.sym("phi")
+        vx = ca.MX.sym("vx")
+        vy = ca.MX.sym("vy")
+        phidot = ca.MX.sym("phidot")
+        u1 = ca.MX.sym("u1")
+        u2 = ca.MX.sym("u2")
+
+        state = ca.vertcat(px, py, phi, vx, vy, phidot)
+        control = ca.vertcat(u1, u2)
+
+        # === 2. Build CasADi feature functions ===
+        f_px = ca.Function('f_px', [state, control], [self.feature_px(state, control)])
+        f_py = ca.Function('f_py', [state, control], [self.feature_py(state, control)])
+        f_phi = ca.Function('f_phi', [state, control], [self.feature_phi(state, control)])
+        f_vx = ca.Function('f_vx', [state, control], [self.feature_vx(state, control)])
+        f_vy = ca.Function('f_vy', [state, control], [self.feature_vy(state, control)])
+        f_phidot = ca.Function('f_phidot', [state, control], [self.feature_phidot(state, control)])
+
+        # === 3. Compute Jacobians (w.r.t. state) ===
+        f_px_jac = ca.Function('f_px_jac', [state, control], [ca.jacobian(self.feature_px(state, control), state)])
+        f_py_jac = ca.Function('f_py_jac', [state, control], [ca.jacobian(self.feature_py(state, control), state)])
+        f_phi_jac = ca.Function('f_phi_jac', [state, control], [ca.jacobian(self.feature_phi(state, control), state)])
+        f_vx_jac = ca.Function('f_vx_jac', [state, control], [ca.jacobian(self.feature_vx(state, control), state)])
+        f_vy_jac = ca.Function('f_vy_jac', [state, control], [ca.jacobian(self.feature_vy(state, control), state)])
+        f_phidot_jac = ca.Function('f_phidot_jac', [state, control], [ca.jacobian(self.feature_phidot(state, control), state)])
+
+        # === 4. Compute Jacobians (w.r.t. control) ===
+        f_px_u_jac = ca.Function('f_px_ujac', [state, control], [ca.jacobian(self.feature_px(state, control), control)])
+        f_py_u_jac = ca.Function('f_py_ujac', [state, control], [ca.jacobian(self.feature_py(state, control), control)])
+        f_phi_u_jac = ca.Function('f_phi_ujac', [state, control], [ca.jacobian(self.feature_phi(state, control), control)])
+        f_vx_u_jac = ca.Function('f_vx_ujac', [state, control], [ca.jacobian(self.feature_vx(state, control), control)])
+        f_vy_u_jac = ca.Function('f_vy_ujac', [state, control], [ca.jacobian(self.feature_vy(state, control), control)])
+        f_phidot_u_jac = ca.Function('f_phidot_ujac', [state, control], [ca.jacobian(self.feature_phidot(state, control), control)])
+
+        # === 5. Setup batch mapping ===
+        batch_size = self.params["agent"]["num_dyn_samples"]
+        batch_1 = 1
+        batch_2 = self.params["optimizer"]["H"]
+        total_samples = batch_size * batch_1 * batch_2
+
+        # Map feature evaluations
+        f_px_batch = f_px.map(total_samples, 'serial')
+        f_py_batch = f_py.map(total_samples, 'serial')
+        f_phi_batch = f_phi.map(total_samples, 'serial')
+        f_vx_batch = f_vx.map(total_samples, 'serial')
+        f_vy_batch = f_vy.map(total_samples, 'serial')
+        f_phidot_batch = f_phidot.map(total_samples, 'serial')
+
+        # Map feature jacobians w.r.t. state
+        f_px_jac_batch = f_px_jac.map(total_samples, 'serial')
+        f_py_jac_batch = f_py_jac.map(total_samples, 'serial')
+        f_phi_jac_batch = f_phi_jac.map(total_samples, 'serial')
+        f_vx_jac_batch = f_vx_jac.map(total_samples, 'serial')
+        f_vy_jac_batch = f_vy_jac.map(total_samples, 'serial')
+        f_phidot_jac_batch = f_phidot_jac.map(total_samples, 'serial')
+
+        # Map feature jacobians w.r.t. control
+        f_px_u_jac_batch = f_px_u_jac.map(total_samples, 'serial')
+        f_py_u_jac_batch = f_py_u_jac.map(total_samples, 'serial')
+        f_phi_u_jac_batch = f_phi_u_jac.map(total_samples, 'serial')
+        f_vx_u_jac_batch = f_vx_u_jac.map(total_samples, 'serial')
+        f_vy_u_jac_batch = f_vy_u_jac.map(total_samples, 'serial')
+        f_phidot_u_jac_batch = f_phidot_u_jac.map(total_samples, 'serial')
+
+        # === 6. Return everything organized ===
+        f_list = [f_px, f_py, f_phi, f_vx, f_vy, f_phidot]
+        f_batch_list = [f_px_batch, f_py_batch, f_phi_batch, f_vx_batch, f_vy_batch, f_phidot_batch]
+        f_jac_batch_list = [f_px_jac_batch, f_py_jac_batch, f_phi_jac_batch, f_vx_jac_batch, f_vy_jac_batch, f_phidot_jac_batch]
+        f_ujac_batch_list = [f_px_u_jac_batch, f_py_u_jac_batch, f_phi_u_jac_batch, f_vx_u_jac_batch, f_vy_u_jac_batch, f_phidot_u_jac_batch]
+
+        return f_list, f_batch_list, f_jac_batch_list, f_ujac_batch_list
+
+
     def BLR_features(self, X):    
         theta = X[:, [0]]
         omega = X[:, [1]]
@@ -224,6 +303,31 @@ class Drone(object):
         return f1, f2
         # return np.vstack([f1, f2])
 
+    def feature_px(self, state, control):
+        px, py, phi, vx, vy, phidot = state[0], state[1], state[2], state[3], state[4], state[5]
+        return ca.vertcat(px, vx * ca.cos(phi), vy * ca.sin(phi))
+
+    def feature_py(self, state, control):
+        px, py, phi, vx, vy, phidot = state[0], state[1], state[2], state[3], state[4], state[5]
+        return ca.vertcat(py, vx * ca.sin(phi), vy * ca.cos(phi))
+
+    def feature_phi(self, state, control):
+        px, py, phi, vx, vy, phidot = state[0], state[1], state[2], state[3], state[4], state[5]
+        return ca.vertcat(phi, phidot)
+
+    def feature_vx(self, state, control):
+        px, py, phi, vx, vy, phidot = state[0], state[1], state[2], state[3], state[4], state[5]
+        return ca.vertcat(vx, vy * phidot, ca.sin(phi), ca.cos(phi))
+
+    def feature_vy(self, state, control):
+        px, py, phi, vx, vy, phidot = state[0], state[1], state[2], state[3], state[4], state[5]
+        u1, u2 = control[0], control[1]
+        return ca.vertcat(vy, vx * phidot, ca.sin(phi), ca.cos(phi), u1, u2)
+
+    def feature_phidot(self, state, control):
+        px, py, phi, vx, vy, phidot = state[0], state[1], state[2], state[3], state[4], state[5]
+        u1, u2 = control[0], control[1]
+        return ca.vertcat(phidot, u1, u2)
 
     def BLR_features_test(self, X):
         if X.ndim == 2:
