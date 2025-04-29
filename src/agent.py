@@ -61,6 +61,7 @@ class Agent(object):
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
+        self.f_list, self.f_batch_list, self.f_jac_batch_list, self.f_ujac_batch_list = self.env_model.BLR_features_casadi()
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling
@@ -753,6 +754,32 @@ class Agent(object):
         X = self.Dyn_gp_X_train
         y = self.Dyn_gp_Y_train
 
+        nx = self.g_nx
+        nu = self.g_nu
+        # Extract state and control directly
+        state = X[:,:nx].numpy()  # shape (50, 1, 30, 2)
+        control = X[:,nx:].numpy()  # shape (50, 1, 30, 1)
+
+        # Flatten only the batch dimensions for CasADi input
+        state_flat = state.reshape(X.shape[0], nx)
+        control_flat = control.reshape(X.shape[0], nu)
+
+        # Now evaluate the mapped functions
+        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_list]
+        feture_values_list = [np.array(f_values_flat).T.reshape(X.shape[0], -1) for f_values_flat in feature_value_flat_list] 
+
+        y_list = [
+            y[i, :, 0].numpy()[:, None] for i in range(len(feture_values_list))  # list of (N_i, 1)
+        ]
+
+        self.mu_list, self.Sigma_list = self.train_BLR_multioutput(
+            feture_values_list, y_list, lambda_reg=1e-6, noise_var=5e-4
+        )
+
+    def dyn_fg_jacobians_via_BLR_manual(self):
+        X = self.Dyn_gp_X_train
+        y = self.Dyn_gp_Y_train
+
         _, phi_X_list = self.env_model.BLR_features_test(X)  # returns list: [phi_X1, phi_X2, ..., phi_X6]
 
         y_list = [
@@ -802,12 +829,21 @@ class Agent(object):
         feature_size = max(mu.shape[0] for mu in self.mu_list)
 
         # Preallocate weight samples
-        self.weights = np.zeros((self.ns, self.g_ny, feature_size))
-
+        # self.weights = np.zeros((self.ns, self.g_ny, feature_size))
+        self.weights = []
+        dt = self.params["optimizer"]["dt"]
+        g = self.params["env"]["params"]["g"]
+        l = self.params["env"]["params"]["l"]
+        tr_weight = [[1.0, dt],[1.0,-g*dt/l, dt]]
         for i, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
             mu_flat = mu.squeeze()   # (D_i,)
             samples = np.random.multivariate_normal(mu_flat, Sigma, size=self.ns)  # (ns, D_i)
-            self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
+            # samples = np.tile(tr_weight[i], (self.ns,1))
+            # self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
+            self.weights.append(samples)  # append samples for each output
+
+
+        # self.weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
 
     def sample_weights_pend(self):
         feature_size = max(self.mu_theta.shape[0], self.mu_omega.shape[0])
@@ -824,6 +860,47 @@ class Agent(object):
         # self.weights[:,1,:self.mu_omega.shape[0]] = self.sample_Weights_cholesky(self.mu_omega, self.Sigma_omega)
 
     def get_dynamics_grad(self, X_test):
+        # Suppose batch size = (50, 1, 30) --> total 50*1*30 = 1500 points
+        ns = self.params["agent"]["num_dyn_samples"]
+        batch_1 = 1
+        nH = self.params["optimizer"]["H"]
+        total_samples = ns * batch_1 * nH
+        nx = self.g_nx
+        nu = self.g_nu
+        # Extract state and control directly
+        state_test = X_test[:,0,:, :nx]  # shape (50, 1, 30, 2)
+        control_test = X_test[:,0,:, nx:]  # shape (50, 1, 30, 1)
+
+        # Flatten only the batch dimensions for CasADi input
+        state_test_flat = state_test.reshape(total_samples, nx)
+        control_test_flat = control_test.reshape(total_samples, nu)
+
+        # Now evaluate the mapped functions
+        feature_value_flat_list = [feature_batch(state_test_flat.T, control_test_flat.T) for feature_batch in self.f_batch_list ]
+        f_jac_values_flat_list = [f_jac_batch(state_test_flat.T, control_test_flat.T) for f_jac_batch in self.f_jac_batch_list]
+        f_ujac_values_flat_list = [f_ujac_batch(state_test_flat.T, control_test_flat.T) for f_ujac_batch in self.f_ujac_batch_list]
+        # f_theta_values_flat = f_theta_batch(state_test_flat.T)  # CasADi expects (input_dim, batch_size)
+        # f_omega_values_flat = f_omega_batch(state_test_flat.T, control_test_flat.T)
+
+        # Reshape outputs back
+        feture_values_list = [np.array(f_values_flat).T.reshape(ns, 1, nH, -1) for f_values_flat in feature_value_flat_list]  # (50,1,30,2)
+        f_jac_values_list = [np.array(f_jac_values_flat).T.reshape(ns*nH, nx,-1).reshape(ns, 1, nH, nx, -1) for f_jac_values_flat in f_jac_values_flat_list]  # (50,1,30,2)
+        f_ujac_values_list = [np.array(f_ujac_values_flat).T.reshape(ns*nH, nu,-1).reshape(ns, 1, nH, nu, -1) for f_ujac_values_flat in f_ujac_values_flat_list]  # (50,1,30,2)
+        # f_theta_values = np.array(f_theta_values_flat).T.reshape(50, 1, 30, -1)  # (50,1,30,2)
+        # f_omega_values = np.array(f_omega_values_flat).T.reshape(50, 1, 30, -1)  # (50,1,30,3)
+        model_val = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], 1))
+        y_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nx))
+        u_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nu))
+
+        for idx in range(self.g_ny):
+            weight_feat = self.weights[idx]
+            model_val[:,[idx],:,:] = np.sum(feture_values_list[idx]*weight_feat[:,np.newaxis,np.newaxis,:], axis=-1, keepdims=True)  # (50,1,30,2)
+            y_grad_mapped[:,[idx],:,:] = np.sum(f_jac_values_list[idx]*weight_feat[:,np.newaxis,np.newaxis,np.newaxis,:], axis=-1)  # (50,1,30,2)
+            u_grad_mapped[:,[idx],:,:] = np.sum(f_ujac_values_list[idx]*weight_feat[:,np.newaxis,np.newaxis,np.newaxis,:], axis=-1)  # (50,1,30,2)
+
+        return model_val, y_grad_mapped, u_grad_mapped
+
+    def get_dynamics_grad_manual(self, X_test):
         # Compute gradients
         Phi, _ = self.env_model.BLR_features_test(X_test) #phi_theta, phi_omega
         weights_expanded = self.weights[:, :, np.newaxis, :]  # (50,2,1,3)
@@ -835,6 +912,9 @@ class Agent(object):
         u_grad_mapped = self.apply_feature_mapping(feature_grad , [[[2]], [[2]]])
 
         return model_val, y_grad_mapped, u_grad_mapped
+        # (50,2,30,1), (50,2,30,2), (50,2,30,1)
+        # drone: (50,6,30,1), (50,6,30,6), (50,6,30,2)
+
 
     def get_blr_x_hat(self, x_h, u_h):
         return np.hstack((x_h, u_h))

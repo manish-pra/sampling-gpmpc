@@ -200,14 +200,80 @@ class Pendulum(object):
             state_list.append(state_kp1.reshape(-1))
         return np.stack(state_list)
 
+    def feature_theta(self, state, control):
+        theta, omega = state[0], state[1]
+        return ca.vertcat(theta,omega)
+    
+    def feature_omega(self, state, control):
+        theta, omega = state[0], state[1]
+        alpha = control[0]  
+        return ca.vertcat(omega, ca.sin(theta), alpha)
+    
+    # General function to compute weighted gradient
+    def compute_weighted_grad(feature_func, state, weights, control=None):
+        """
+        feature_func: callable(state) or callable(state, control)
+        state: casadi MX vector of states (6,)
+        weights: list or array of weights (same size as output of feature_func)
+        control: optional, casadi MX vector (2,)
+        """
+        if control is not None:
+            features = feature_func(state, control)
+        else:
+            features = feature_func(state)
+            
+        # Weighted sum of features
+        weighted_sum = ca.dot(weights, features)  # sum_i w_i * feature_i
+        
+        # Compute gradient
+        grad = ca.gradient(weighted_sum, state)
+        return grad
+    
+    def BLR_features_casadi(self):
+        import casadi as ca
+        theta = ca.MX.sym("theta")
+        omega = ca.MX.sym("omega")
+        alpha = ca.MX.sym("alpa")
+        state = ca.vertcat(theta, omega)
+        control = ca.vertcat(alpha)
+
+        # Build CasADi functions for fast evaluation
+        f_theta = ca.Function('f_theta', [state, control], [self.feature_theta(state, control)])
+        f_omega = ca.Function('f_omega', [state, control], [self.feature_omega(state, control)])
+        
+        # compute jacobian as well for theses features
+        f_theta_jac = ca.Function('f_theta_jac', [state, control], [ca.densify(ca.jacobian(self.feature_theta(state, control), state))])
+        f_omega_jac = ca.Function('f_omega_jac', [state, control], [ca.densify(ca.jacobian(self.feature_omega(state, control), state))])
+
+        # compute jacobian as well for theses features
+        f_theta_u_jac = ca.Function('f_theta_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_theta(state, control), control))])
+        f_omega_u_jac = ca.Function('f_omega_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_omega(state, control), control))])
+
+        # Suppose batch size = (50, 1, 30) --> total 50*1*30 = 1500 points
+        batch_size = self.params["agent"]["num_dyn_samples"]
+        batch_1 = 1
+        batch_2 = self.params["optimizer"]["H"]
+        total_samples = batch_size * batch_1 * batch_2
+
+        # Map f_theta over total_samples
+        f_theta_batch = f_theta.map(total_samples, 'serial')
+        f_omega_batch = f_omega.map(total_samples, 'serial')
+
+        f_theta_jac_batch = f_theta_jac.map(total_samples , 'serial')
+        f_omega_jac_batch = f_omega_jac.map(total_samples, 'serial')
+        f_theta_u_jac_batch = f_theta_u_jac.map(total_samples, 'serial')
+        f_omega_u_jac_batch = f_omega_u_jac.map(total_samples, 'serial')
+
+        return [f_theta, f_omega], [f_theta_batch, f_omega_batch], [f_theta_jac_batch, f_omega_jac_batch], [f_theta_u_jac_batch, f_omega_u_jac_batch]
+
     def BLR_features(self, X):    
         theta = X[:, [0]]
         omega = X[:, [1]]
         alpha = X[:, [2]]
         # theta, vel, alpha
 
-        f1 = np.hstack([theta,omega])
-        f2 = np.hstack([omega, np.sin(theta),alpha])
+        f1 = np.hstack([theta, omega])
+        f2 = np.hstack([omega, np.sin(theta), alpha])
         return f1, f2
         # return np.vstack([f1, f2])
 
