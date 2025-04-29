@@ -1,18 +1,18 @@
 env:
   start: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # px, py, phi, vx, vy, phi_dot
-  goal_state: [2.5, 0.0]
+  goal_state: [4.0, 1.0]
   terminate_state: [0.0, 0.0] # px, py, phi, vx, vy, phi_dot
   dynamics: 'drone' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: False
-  n_data_x: 2
-  n_data_u: 2
+  n_data_x: 3
+  n_data_u: 3
   params:
     m: 1.0
-    l: 0.2
+    l: 0.25
     g: 9.81
-    J: 0.1
-    d: 0.0
+    J: 0.00383
+    d: 0.1
 
 agent:
   g_dim :
@@ -38,7 +38,7 @@ agent:
   Dyn_gp_beta : 3.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 2 
+  num_dyn_samples: 10 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -58,17 +58,17 @@ common:
   use_cuda : False
   use_BLR : True
   active_learning : True
-  num_MPC_itrs : 60
+  num_MPC_itrs : 140
   dynamics_rejection: False
 
 optimizer:
   H : 30 # horizon
-  u_min : [-8, -8] # Minimum control input
-  u_max : [8, 8]          
+  u_min : [-1, -1] # Minimum control input
+  u_max : [5, 5]          
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [-5, -5, -3.1417, -1, -1, -0.1] # Minimum state value
-  x_max : [ 5, 5, 3.1417, 1, 1, 0.1] # x,y,v,theta,theta_dot
+  x_min : [-5, -5, -3.1417, -1, -1, -1] # Minimum state value
+  x_max : [ 5, 5, 3.1417, 1, 1, 1] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:
     max_sqp_iter: 10
@@ -78,19 +78,19 @@ optimizer:
     tol_nlp: 1.0e-4 
   order: 2
   x_dim: 2
-  dt: 0.015 # 0.010
+  dt: 0.1 # 0.010
   w: 50
-  Qx: [5, 0.1] # [1.0, 1.0, 1.0, 1.0]  
-  Qu: [0.1, 0.1]
+  Qx: [0.5, 0.1] # [1.0, 1.0, 1.0, 1.0]  
+  Qu: [1, 1]
   cost: "expected" 
   options: {
-    levenberg_marquardt: 1.0
+    levenberg_marquardt: 10.0
   }
   terminal_tightening:
     x_tight: [0.1, 0.1]
     u_tight: [0.1]
-    P:  [[4.48651083, 1.48325991],[1.48325991, 0.65037241]]
-    delta: 10.0
+    P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
+    delta: 1
 
 experiment:
   name: "DEMPC" #

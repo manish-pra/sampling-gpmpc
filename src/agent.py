@@ -773,7 +773,7 @@ class Agent(object):
         ]
 
         self.mu_list, self.Sigma_list = self.train_BLR_multioutput(
-            feture_values_list, y_list, lambda_reg=1e-6, noise_var=5e-4
+            feture_values_list, y_list, lambda_reg=1e-6, noise_var=5e-6
         )
 
     def dyn_fg_jacobians_via_BLR_manual(self):
@@ -842,8 +842,8 @@ class Agent(object):
             # self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
             self.weights.append(samples)  # append samples for each output
 
-        tr_weight = self.env_model.get_gt_weights()
-        self.weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
+        # tr_weight = self.env_model.get_gt_weights()
+        # self.weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
 
     def sample_weights_pend(self):
         feature_size = max(self.mu_theta.shape[0], self.mu_omega.shape[0])

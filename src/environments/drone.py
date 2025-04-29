@@ -492,9 +492,12 @@ class Drone(object):
         return lh, uh, lh_e, uh_e
 
 
-    def initialize_plot_handles(self,path):
+    def initialize_plot_handles(self, fig_gp, fig_dyn=None):
         import matplotlib.pyplot as plt
-        fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
+        ax = fig_gp.axes[0]
+        ax.set_xlim(-5,5)
+        ax.set_ylim(-2, 2)
+
         ax.grid(which="both", axis="both")
         ax.minorticks_on()
         ax.set_xlabel("X")
@@ -503,6 +506,24 @@ class Drone(object):
         y_max = self.params["optimizer"]["x_max"][1]
         x_min = self.params["optimizer"]["x_min"][0]
         x_max = self.params["optimizer"]["x_max"][0]
+
+        if "P" in self.params["optimizer"]["terminal_tightening"]:
+            xf = np.array(self.params["env"]["start"])
+            P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])
+            delta = self.params["optimizer"]["terminal_tightening"]["delta"]
+            L = np.linalg.cholesky(P / delta)
+            t = np.linspace(0, 2 * np.pi, 200)
+            z = np.vstack([np.cos(t), np.sin(t)])
+            ell = np.linalg.inv(L.T) @ z
+
+            ax.plot(
+                ell[0, :] + xf[0],
+                ell[1, :] + xf[1],
+                color="red",
+                label="Terminal set",
+            )
+
+
         if self.params["env"]["dynamics"] == "bicycle":
             x_max = self.params["optimizer"]["x_max"][0]
             y_ref = self.params["env"]["goal_state"][1]

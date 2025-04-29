@@ -182,6 +182,13 @@ def dempc_const_val(ocp, params, x_dim, n_order, p, env_ocp_handler):
     ocp.constraints.lh_e = lh_e
     ocp.constraints.uh_e = uh_e
 
+    size_e = len(ocp.constraints.lh_e)
+    ocp.cost.Zl_e = 1e7 * np.array([1] * size_e)
+    ocp.cost.Zu_e = 1e6 * np.array([1] * size_e)
+    ocp.cost.zl_e = 1e7 * np.array([1] * size_e)
+    ocp.cost.zu_e = 1e6 * np.array([1] * size_e)
+    ocp.constraints.idxsh_e = np.arange(size_e)
+
     if params["env"]["dynamics"] == "Pendulum1D":
         ocp.constraints.lh = np.hstack([lbx, lbx])
         ocp.constraints.uh = np.hstack([ubx, ubx])

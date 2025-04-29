@@ -26,10 +26,34 @@ class Visualizer:
         self.agent = agent
         self.nx = self.params["agent"]["dim"]["nx"]
         if self.params["visu"]["show"]:
+            fig_gp, ax, fig_dyn, ax2 = self.create_plot_handle(path)
             if agent is not None:
                 self.initialize_plot_handles = agent.env_model.initialize_plot_handles
             else: 
                 self.initialize_plot_handles(path)
+            self.initialize_plot_handles(fig_gp)
+
+    def create_plot_handle(self, path):
+        fig_gp, ax = plt.subplots()
+        if "bicycle" in self.params["env"]["dynamics"]:
+            fig_gp, ax = plt.subplots(figsize=(30 / 2.4, 3.375 / 2.4))
+        elif "endulum" in self.params["env"]["dynamics"]:
+            fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
+        fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
+
+        # ax2.set_aspect('equal', 'box')
+        self.f_handle = {}
+        self.f_handle["gp"] = fig_gp
+        self.f_handle["dyn"] = fig_dyn
+        # self.plot_contour_env("dyn")
+
+        # Move it to visu
+        self.writer_gp = self.get_frame_writer()
+        self.writer_dyn = self.get_frame_writer()
+        self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200) 
+        self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=300)  
+        return fig_gp, ax, fig_dyn, ax2
+
 
     def initialize_plot_handles(self, path):
         fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))

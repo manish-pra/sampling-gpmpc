@@ -7,6 +7,12 @@ import matplotlib.pyplot as plt
 import yaml
 import dill as pickle
 from src.visu import Visualizer
+from src.environments.pendulum import Pendulum as pendulum
+from src.environments.car_model_residual import CarKinematicsModel as bicycle_Bdx
+from src.environments.car_model import CarKinematicsModel as bicycle
+from src.environments.pendulum1D import Pendulum as Pendulum1D
+from src.environments.drone import Drone as drone
+from src.agent import Agent
 
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
@@ -72,7 +78,10 @@ if "tilde_eps_list" in data_dict:
 a_file.close()
 
 params["visu"]["show"] = True
-visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=None)
+env_model = globals()[params["env"]["dynamics"]](params)
+
+agent = Agent(params, env_model)
+visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 visu.tilde_eps_list = tilde_eps_list
 visu.ci_list = ci_list
 # agent = Agent(params)
