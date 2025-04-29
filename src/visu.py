@@ -11,7 +11,7 @@ import matplotlib.collections as collections
 
 
 class Visualizer:
-    def __init__(self, params, path, agent):
+    def __init__(self, params, path, agent=None):
         self.params = params
         self.state_traj = []
         self.input_traj = []
@@ -26,7 +26,10 @@ class Visualizer:
         self.agent = agent
         self.nx = self.params["agent"]["dim"]["nx"]
         if self.params["visu"]["show"]:
-            self.initialize_plot_handles(path)
+            if agent is not None:
+                self.initialize_plot_handles = agent.env_model.initialize_plot_handles
+            else: 
+                self.initialize_plot_handles(path)
 
     def initialize_plot_handles(self, path):
         if self.params["env"]["dynamics"] == "bicycle":

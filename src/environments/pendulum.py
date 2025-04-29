@@ -256,3 +256,124 @@ class Pendulum(object):
         Phi_grad[:,[1],:,:f2_grad.shape[-1]] = f2_grad
 
         return Phi_grad
+    
+
+    def initialize_plot_handles(self, path):
+        import matplotlib.pyplot as plt
+        if self.params["env"]["dynamics"] == "bicycle":
+            fig_gp, ax = plt.subplots(figsize=(30 / 2.4, 3.375 / 2.4))
+        elif "endulum" in self.params["env"]["dynamics"]:
+            fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
+        # fig_gp.tight_layout(pad=0)
+        ax.grid(which="both", axis="both")
+        ax.minorticks_on()
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        y_min = self.params["optimizer"]["x_min"][1]
+        y_max = self.params["optimizer"]["x_max"][1]
+        x_min = self.params["optimizer"]["x_min"][0]
+        x_max = self.params["optimizer"]["x_max"][0]
+        if self.params["env"]["dynamics"] == "bicycle":
+            x_max = self.params["optimizer"]["x_max"][0]
+            y_ref = self.params["env"]["goal_state"][1]
+
+            ax.add_line(
+                plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
+            )
+            ax.add_line(
+                plt.Line2D([x_min, x_max], [y_min, y_min], color="red", linestyle="--")
+            )
+            ax.add_line(
+                plt.Line2D(
+                    [x_min, x_max],
+                    [y_ref, y_ref],
+                    color="cyan",
+                    linestyle=(0, (5, 5)),
+                    lw=2,
+                )
+            )
+            # ellipse = Ellipse(xy=(1, 0), width=1.414, height=1,
+            #                 edgecolor='r', fc='None', lw=2)
+            # ax.add_patch(ellipse)
+            if self.params["env"]["ellipses"]:
+                for ellipse in self.params["env"]["ellipses"]:
+                    x0 = self.params["env"]["ellipses"][ellipse][0]
+                    y0 = self.params["env"]["ellipses"][ellipse][1]
+                    a_sq = self.params["env"]["ellipses"][ellipse][2]
+                    b_sq = self.params["env"]["ellipses"][ellipse][3]
+                    f = self.params["env"]["ellipses"][ellipse][4]
+                    # u = 1.0  # x-position of the center
+                    # v = 0.1  # y-position of the center
+                    # f = 0.01
+                    a = np.sqrt(a_sq * f)  # radius on the x-axis
+                    b = np.sqrt(b_sq * f)  # radius on the y-axis
+                    t = np.linspace(0, 2 * np.pi, 100)
+                    f2 = 0.5  # plot 2 ellipses, 1 for ego, 1 for other
+                    # plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
+                    plt.plot(
+                        x0 + f2 * a * np.cos(t),
+                        y0 + f2 * b * np.sin(t),
+                        "black",
+                        alpha=0.5,
+                    )
+                    # plot constarint ellipse
+                    plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t), "gray", alpha=0.5)
+                    self.plot_car_stationary(x0, y0, 0, plt)
+            # plt.grid(color="lightgray", linestyle="--")
+            ax.set_aspect("equal", "box")
+            ax.set_xlim(x_min, x_max - 10)
+            relax = 0
+            ax.set_ylim(y_min - relax, y_max + relax)
+            ax.set_yticklabels([])
+            ax.set_xticklabels([])
+            plt.xticks([])
+            plt.yticks([])
+            plt.xlim([-2.14, 70 + relax])
+            plt.tight_layout(pad=0.3)
+
+        elif "endulum" in self.params["env"]["dynamics"]:
+            ax.add_line(
+                plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
+            )
+            ax.add_line(
+                plt.Line2D([x_max, x_max], [y_min, y_max], color="red", linestyle="--")
+            )
+            ax.set_aspect("equal", "box")
+            relax = 0.3
+            ax.set_xlim(x_min - relax, x_max + relax)
+            ax.set_ylim(y_min - relax, y_max + relax)
+
+            if "P" in self.params["optimizer"]["terminal_tightening"]:
+                xf = np.array(self.params["env"]["start"])
+                P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])
+                delta = self.params["optimizer"]["terminal_tightening"]["delta"]
+                L = np.linalg.cholesky(P / delta)
+                t = np.linspace(0, 2 * np.pi, 200)
+                z = np.vstack([np.cos(t), np.sin(t)])
+                ell = np.linalg.inv(L.T) @ z
+
+                ax.plot(
+                    ell[0, :] + xf[0],
+                    ell[1, :] + xf[1],
+                    color="red",
+                    label="Terminal set",
+                )
+
+        # ax.set_yticklabels([])
+        # ax.set_xticklabels([])
+        # ax.set_xticks([])
+        # ax.set_yticks([])
+
+        fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
+
+        # ax2.set_aspect('equal', 'box')
+        self.f_handle = {}
+        self.f_handle["gp"] = fig_gp
+        self.f_handle["dyn"] = fig_dyn
+        # self.plot_contour_env("dyn")
+
+        # Move it to visu
+        self.writer_gp = self.get_frame_writer()
+        self.writer_dyn = self.get_frame_writer()
+        self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200)
+        self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=300) 

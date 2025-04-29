@@ -14,9 +14,9 @@ from src.utils.termcolor import bcolors
 # The class below is an optimizer class,
 # it takes in GP function, x_g and rest are parameters
 class DEMPC_solver(object):
-    def __init__(self, params) -> None:
+    def __init__(self, params, agent=None) -> None:
         self.params = params
-        self.ocp = export_dempc_ocp(params)
+        self.ocp = export_dempc_ocp(params, env_ocp_handler=agent.env_model.ocp_handler)
         self.name_prefix = (
             "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
         )

@@ -4,8 +4,8 @@ env:
   dynamics: 'drone' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: False
-  n_data_x: 3
-  n_data_u: 3
+  n_data_x: 2
+  n_data_u: 2
   params:
     m: 1.0
     l: 1.0
@@ -62,18 +62,18 @@ common:
 
 optimizer:
   H : 30 # horizon
-  u_min : [-8] # Minimum control input
-  u_max : [8]          
+  u_min : [-8, -8] # Minimum control input
+  u_max : [8, 8]          
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
-  x_min : [-2.14, -2.5] # Minimum state value
-  x_max : [ 1.14, 2.5] # x,y,v,theta,theta_dot
+  x_min : [-5, -5, -3.1417, -1, -1, -0.1] # Minimum state value
+  x_max : [ 5, 5, 3.1417, 1, 1, 0.1] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 3
+    max_sqp_iter: 1
     tol_nlp: 1.0e-4 
   order: 2
   x_dim: 2

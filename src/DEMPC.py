@@ -11,7 +11,7 @@ import timeit
 
 class DEMPC:
     def __init__(self, params, visu, agent) -> None:
-        self.dempc_solver = DEMPC_solver(params)
+        self.dempc_solver = DEMPC_solver(params, agent)
         self.visu = visu
         self.params = params
         self.iter = -1

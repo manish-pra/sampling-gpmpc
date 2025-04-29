@@ -15,7 +15,7 @@ from src.utils.model import (
 )
 
 
-def export_dempc_ocp(params):
+def export_dempc_ocp(params, env_ocp_handler=None):
     ocp = AcadosOcp()
     name_prefix = (
         "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
@@ -65,7 +65,7 @@ def export_dempc_ocp(params):
             @ (model_x[nx * i : nx * (i + 1)] - xf)
         )
         const_expr = ca.vertcat(const_expr, expr)
-    model.con_h_expr = model_x
+    # model.con_h_expr = model_x
     model.con_h_expr_e = const_expr
 
     if params["env"]["dynamics"] == "Pendulum1D":
@@ -181,8 +181,8 @@ def dempc_const_val(ocp, params, x_dim, n_order, p):
     ocp.constraints.ubx_e = ubx.copy()
     ocp.constraints.idxbx_e = np.arange(lbx.shape[0])
 
-    ocp.constraints.lh = np.hstack([lbx])
-    ocp.constraints.uh = np.hstack([ubx])
+    # ocp.constraints.lh = np.hstack([lbx])
+    # ocp.constraints.uh = np.hstack([ubx])
     delta = params["optimizer"]["terminal_tightening"]["delta"]
     ocp.constraints.lh_e = np.hstack([[0] * ns])
     ocp.constraints.uh_e = np.hstack([[delta] * ns])
