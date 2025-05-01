@@ -90,7 +90,7 @@ optimizer:
     x_tight: [0.1, 0.1]
     u_tight: [0.1]
     P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
-    delta: 1
+    delta: 100
 
 experiment:
   name: "DEMPC" #

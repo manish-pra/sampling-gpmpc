@@ -496,7 +496,7 @@ class Drone(object):
         import matplotlib.pyplot as plt
         ax = fig_gp.axes[0]
         ax.set_xlim(-5,5)
-        ax.set_ylim(-2, 2)
+        ax.set_ylim(-5, 5)
 
         ax.grid(which="both", axis="both")
         ax.minorticks_on()
