@@ -16,12 +16,12 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params_pendulum1D_samples")  # params
+# parser.add_argument("-param", default="params_pendulum1D_samples")  # params
 # parser.add_argument("-param", default="params_car_samples")  # params
-# parser.add_argument("-param", default="params_car_residual")  # params
-parser.add_argument("-env_model", type=str, default="pendulum")
+parser.add_argument("-param", default="params_car_residual")  # params
+parser.add_argument("-env_model", type=str, default="car")
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=42)  # initialized at origin
+parser.add_argument("-i", type=int, default=10)  # initialized at origin
 parser.add_argument("-plot_koller", type=bool, default=True)
 parser.add_argument("-plot_automatica", type=bool, default=True)
 
@@ -189,8 +189,8 @@ for i in range(0, len(state_traj)):
             y_coord = -0.1
             plt.plot([33.25, 42],[y_coord, y_coord], color="black", linewidth=lw, zorder=-1)
             plt.plot([33.25, 42],[y_coord+w, y_coord+w], color="black", linewidth=lw, zorder=-1)
-            plt.ylabel(r"$y$")
-            plt.xlabel(r"$x$")
+            plt.ylabel(r"$y_p$")
+            plt.xlabel(r"$x_p$")
             plt.tight_layout(pad=0.0)
             plt.savefig(
                 # f"eps{eps:.0e}.pdf",

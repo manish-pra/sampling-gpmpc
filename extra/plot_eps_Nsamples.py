@@ -34,7 +34,7 @@ plt.plot(samples, eps_scaled, marker='o', linestyle='-', color='royalblue', labe
 plt.xscale('log')
 
 # Labels and title
-plt.xlabel('Number of Samples (log scale)')
+plt.xlabel(r'Number of Samples $N_\epsilon$ (log scale)')
 plt.ylabel(r'$\epsilon \ ( \times 10^{-3} )$')
 # plt.ylabel('$ϵ$')
 # plt.title(r'Convergence of $\epsilon$ with Increasing Number of Samples', fontsize=14)

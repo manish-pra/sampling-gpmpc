@@ -298,8 +298,8 @@ plt.tick_params(axis="x", direction="in")
 plt.tick_params(axis="y", direction="in")
 plt.xlim(-2, 44)
 plt.ylim(-3, 15)
-plt.ylabel(r"$y$")
-plt.xlabel(r"$x$")
+plt.ylabel(r"$y_p$")
+plt.xlabel(r"$x_p$")
 plt.tight_layout(pad=0.0)
 plt.savefig(
     # f"eps{eps:.0e}.pdf",
