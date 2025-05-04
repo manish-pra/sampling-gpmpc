@@ -23,8 +23,8 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_pendulum1D_samples")  # params
 # parser.add_argument("-param", default="params_car_samples")  # params
 # parser.add_argument("-param", default="params_car_residual")  # params
-# parser.add_argument("-param", default="params_pendulum_exploration")
-parser.add_argument("-param", default="params_drone")
+parser.add_argument("-param", default="params_pendulum_exploration")
+# parser.add_argument("-param", default="params_drone")
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=43)  # initialized at origin

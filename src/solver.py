@@ -280,7 +280,7 @@ class DEMPC_solver(object):
         X[self.H, :] = self.optimistic_ocp_solver.get(self.H, "x")
         return X, U, Sl
 
-    def get_solution(self):
+    def get_solution(self, solver):
         nx = self.ocp_solver.acados_ocp.model.x.size()[0]
         nu = self.ocp_solver.acados_ocp.model.u.size()[0]
         X = np.zeros((self.H + 1, nx))
@@ -296,7 +296,7 @@ class DEMPC_solver(object):
         X[self.H, :] = self.ocp_solver.get(self.H, "x")
         return X, U, Sl
 
-    def shift_solution(self, X, U, Sl):
+    def shift_solution(self, X, U, Sl, solver):
         for i in range(self.H - 1):
             self.ocp_solver.set(i, "x", X[i + 1, :])
             self.ocp_solver.set(i, "u", U[i + 1, :])
@@ -308,9 +308,9 @@ class DEMPC_solver(object):
             self.ocp_solver.set(i, "u", U[i, :])
         self.ocp_solver.set(self.H, "x", X[self.H, :])
 
-    def get_and_shift_solution(self):
-        X, U, Sl = self.get_solution()
-        self.shift_solution(X, U, Sl)
+    def get_and_shift_solution(self, solver):
+        X, U, Sl = self.get_solution(solver)
+        self.shift_solution(X, U, Sl, solver)
         return X, U, Sl
 
     def get_solver_status():

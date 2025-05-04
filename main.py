@@ -27,8 +27,8 @@ workspace = "sampling-gpmpc"
 parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_pendulum1D_samples")  # params
 # parser.add_argument("-param", default="params_car_residual")  # params
-parser.add_argument("-param", default="params_drone")  # params
-# parser.add_argument("-param", default="params_pendulum_exploration")  # params
+# parser.add_argument("-param", default="params_drone")  # params
+parser.add_argument("-param", default="params_pendulum_exploration")  # params
 
 
 parser.add_argument("-env", type=int, default=0)

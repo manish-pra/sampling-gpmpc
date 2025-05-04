@@ -208,7 +208,14 @@ class Pendulum(object):
         theta, omega = state[0], state[1]
         alpha = control[0]  
         return ca.vertcat(omega, ca.sin(theta), alpha)
-    
+
+    def get_gt_weights(self):
+        dt = self.params["optimizer"]["dt"]
+        g = self.params["env"]["params"]["g"]
+        l = self.params["env"]["params"]["l"]
+        tr_weight = [[1.0, dt],[1.0,-g*dt/l, dt]]
+        return tr_weight
+
     # General function to compute weighted gradient
     def compute_weighted_grad(feature_func, state, weights, control=None):
         """
@@ -264,8 +271,15 @@ class Pendulum(object):
         f_theta_u_jac_batch = f_theta_u_jac.map(total_samples, 'serial')
         f_omega_u_jac_batch = f_omega_u_jac.map(total_samples, 'serial')
 
-        return [f_theta, f_omega], [f_theta_batch, f_omega_batch], [f_theta_jac_batch, f_omega_jac_batch], [f_theta_u_jac_batch, f_omega_u_jac_batch]
+        f_list = [f_theta, f_omega]
+        f_jac_list = [f_theta_jac, f_omega_jac]
+        f_ujac_list = [f_theta_u_jac, f_omega_u_jac]
+        f_batch_list = [f_theta_batch, f_omega_batch]
+        f_jac_batch_list = [f_theta_jac_batch, f_omega_jac_batch]
+        f_ujac_batch_list = [f_theta_u_jac_batch, f_omega_u_jac_batch]
 
+        return f_list, f_jac_list, f_ujac_list, f_batch_list, f_jac_batch_list, f_ujac_batch_list
+    
     def BLR_features(self, X):    
         theta = X[:, [0]]
         omega = X[:, [1]]
@@ -341,36 +355,36 @@ class Pendulum(object):
         func = getattr(self, func_name)
         return func(*args, **kwargs)
 
-    def const_expr(self, model_x):
+    def const_expr(self, model_x, num_dyn):
         const_expr = []
-        num_dyn = self.params["agent"]["num_dyn_samples"]
         nx = self.params["agent"]["dim"]["nx"]
         for i in range(num_dyn):
-            xf = np.array(self.params["env"]["start"])
+            xf = np.array(self.params["env"]["terminate_state"])
+            xf_dim = xf.shape[0]
             expr = (
-                (model_x[nx * i : nx * (i + 1)] - xf).T
+                (model_x[nx * i : nx * (i + 1)][:xf_dim] - xf).T
                 @ np.array(self.params["optimizer"]["terminal_tightening"]["P"])
-                @ (model_x[nx * i : nx * (i + 1)] - xf)
+                @ (model_x[nx * i : nx * (i + 1)][:xf_dim] - xf)
             )
             const_expr = ca.vertcat(const_expr, expr)
         return const_expr
     
-    def const_value(self):
-        ns = self.params["agent"]["num_dyn_samples"]
+    def const_value(self, num_dyn):
         lh = np.empty((0,), dtype=np.float64)
         uh = np.empty((0,), dtype=np.float64)
         delta = self.params["optimizer"]["terminal_tightening"]["delta"]
-        lh_e = np.hstack([[0] * ns])
-        uh_e = np.hstack([[delta] * ns])
+        lh_e = np.hstack([[0] * num_dyn])
+        uh_e = np.hstack([[delta] * num_dyn])
         return lh, uh, lh_e, uh_e
 
-    def initialize_plot_handles(self, path):
+    def initialize_plot_handles(self, fig_gp, fig_dyn=None):
         import matplotlib.pyplot as plt
-        if self.params["env"]["dynamics"] == "bicycle":
-            fig_gp, ax = plt.subplots(figsize=(30 / 2.4, 3.375 / 2.4))
-        elif "endulum" in self.params["env"]["dynamics"]:
-            fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
+        # if self.params["env"]["dynamics"] == "bicycle":
+        #     fig_gp, ax = plt.subplots(figsize=(30 / 2.4, 3.375 / 2.4))
+        # elif "endulum" in self.params["env"]["dynamics"]:
+        #     fig_gp, ax = plt.subplots(figsize=(8 / 2.4, 8 / 2.4))
         # fig_gp.tight_layout(pad=0)
+        ax = fig_gp.axes[0]
         ax.grid(which="both", axis="both")
         ax.minorticks_on()
         ax.set_xlabel("X")
@@ -465,21 +479,21 @@ class Pendulum(object):
                     label="Terminal set",
                 )
 
-        # ax.set_yticklabels([])
-        # ax.set_xticklabels([])
-        # ax.set_xticks([])
-        # ax.set_yticks([])
+        # # ax.set_yticklabels([])
+        # # ax.set_xticklabels([])
+        # # ax.set_xticks([])
+        # # ax.set_yticks([])
 
-        fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
+        # fig_dyn, ax2 = plt.subplots()  # plt.subplots(2,2)
 
-        # ax2.set_aspect('equal', 'box')
-        self.f_handle = {}
-        self.f_handle["gp"] = fig_gp
-        self.f_handle["dyn"] = fig_dyn
-        # self.plot_contour_env("dyn")
+        # # ax2.set_aspect('equal', 'box')
+        # self.f_handle = {}
+        # self.f_handle["gp"] = fig_gp
+        # self.f_handle["dyn"] = fig_dyn
+        # # self.plot_contour_env("dyn")
 
-        # Move it to visu
-        self.writer_gp = self.get_frame_writer()
-        self.writer_dyn = self.get_frame_writer()
-        self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200)
-        self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=300) 
+        # # Move it to visu
+        # self.writer_gp = self.get_frame_writer()
+        # self.writer_dyn = self.get_frame_writer()
+        # self.writer_dyn.setup(fig_dyn, path + "/video_dyn.mp4", dpi=200)
+        # self.writer_gp.setup(fig_gp, path + "/video_gp.mp4", dpi=300) 

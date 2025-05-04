@@ -1,6 +1,7 @@
 env:
   start: [0.0, 0.0] # x,y,theta,v
   goal_state: [2.5, 0.0]
+  terminate_state: [2.5, 0.0]
   dynamics: 'pendulum' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: True
@@ -47,6 +48,12 @@ agent:
     Lipschitz: 1.015
     w_bound: 0.007
   shift_soln: True
+  run:
+    optimistic: False
+    pessimistic: True
+  BLR:
+    lambda_reg: 1.0e-6
+    noise_var: 5.0e-4
 
 visu:
   show: True
@@ -88,6 +95,36 @@ optimizer:
     u_tight: [0.1]
     P:  [[4.48651083, 1.48325991],[1.48325991, 0.65037241]]
     delta: 1.0
+
+optimistic_optimizer:
+  H : 30 # horizon
+  u_min : [-8, -1, -1] # Minimum control input
+  u_max : [8, 1, 1]          
+  x_min : [-2.14, -2.5] # Minimum state value
+  x_max : [ 1.14, 2.5] # x,y,v,theta,theta_dot
+  linear_solver : 'ma57' #
+  oracle:
+    max_sqp_iter: 10
+    tol_nlp: 1.0e-6
+  SEMPC:
+    max_sqp_iter: 10
+    tol_nlp: 1.0e-4 
+  order: 2
+  x_dim: 2
+  dt: 0.015 # 0.010
+  w: 50
+  Qx: [5, 0] # [1.0, 1.0, 1.0, 1.0]  
+  Qu: [0.1, 0.1, 0.1]
+  cost: "expected" 
+  options: {
+    levenberg_marquardt: 20.0
+  }
+  terminal_tightening:
+    x_tight: [0.1, 0.1]
+    u_tight: [0.1]
+    P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
+    delta: 100
+
 
 experiment:
   name: "DEMPC" #

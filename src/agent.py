@@ -773,7 +773,7 @@ class Agent(object):
         ]
 
         self.mu_list, self.Sigma_list = self.train_BLR_multioutput(
-            feture_values_list, y_list, lambda_reg=1e-6, noise_var=5e-6
+            feture_values_list, y_list, lambda_reg=self.params["agent"]["BLR"]["lambda_reg"], noise_var=self.params["agent"]["BLR"]["noise_var"]
         )
 
     def dyn_fg_jacobians_via_BLR_manual(self):
@@ -829,20 +829,17 @@ class Agent(object):
         feature_size = max(mu.shape[0] for mu in self.mu_list)
 
         # Preallocate weight samples
-        # self.weights = np.zeros((self.ns, self.g_ny, feature_size))
-        self.weights = []
-        dt = self.params["optimizer"]["dt"]
-        g = self.params["env"]["params"]["g"]
-        l = self.params["env"]["params"]["l"]
-        tr_weight = [[1.0, dt],[1.0,-g*dt/l, dt]]
+        self.weights = np.zeros((self.ns, self.g_ny, feature_size))
+        tr_weight = self.env_model.get_gt_weights()
+        # self.weights = []
         for i, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
             mu_flat = mu.squeeze()   # (D_i,)
             samples = np.random.multivariate_normal(mu_flat, Sigma, size=self.ns)  # (ns, D_i)
-            # samples = np.tile(tr_weight[i], (self.ns,1))
-            # self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
-            self.weights.append(samples)  # append samples for each output
+            samples = np.tile(tr_weight[i], (self.ns,1))
+            self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
+            # self.weights.append(samples)  # append samples for each output
 
-        # tr_weight = self.env_model.get_gt_weights()
+        
         # self.weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
 
     def sample_weights_pend(self):
@@ -908,7 +905,7 @@ class Agent(object):
         return model_val, y_grad_mapped, u_grad_mapped
     
 
-    def get_dynamics_grad(self, X_test):
+    def get_dynamics_grad1(self, X_test):
         # Suppose batch size = (50, 1, 30) --> total 50*1*30 = 1500 points
         ns = self.params["agent"]["num_dyn_samples"]
         batch_1 = 1
@@ -949,7 +946,7 @@ class Agent(object):
 
         return model_val, y_grad_mapped, u_grad_mapped
 
-    def get_dynamics_grad_manual(self, X_test):
+    def get_dynamics_grad(self, X_test):
         # Compute gradients
         Phi, _ = self.env_model.BLR_features_test(X_test) #phi_theta, phi_omega
         weights_expanded = self.weights[:, :, np.newaxis, :]  # (50,2,1,3)
