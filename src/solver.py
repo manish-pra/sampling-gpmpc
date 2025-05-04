@@ -75,7 +75,8 @@ class DEMPC_solver(object):
             print(f"tilde_eps_{stage} = {self.tilde_eps_list[-1]}")
 
     def solve_optimistic_problem(self, player, solver, plot_pendulum=False):
-        w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
+        w = player.env_model.path_generator(player.mpc_iter) #* self.params["optimizer"]["w"]
+
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         ns = 1
         if self.params["common"]["use_BLR"]:
@@ -152,7 +153,8 @@ class DEMPC_solver(object):
                 break
 
     def solve(self, player, solver,  plot_pendulum=False):
-        w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
+        # w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
+        w = player.env_model.path_generator(player.mpc_iter+20) #* self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         ns = self.params["agent"]["num_dyn_samples"]
         if self.params["common"]["use_BLR"]:

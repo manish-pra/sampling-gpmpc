@@ -23,10 +23,17 @@ def export_optimistic_ocp(params, env_ocp_handler=None):
     n_order = params["optimizer"]["order"]
     x_dim = params["agent"]["dim"]["nx"]
 
-    _, p = optimistic_const_expr(
-        x_dim, n_order, params
-    )  # think of a pendulum and -pi/2,pi, pi/2 region is unsafe
-    
+    xg = ca.SX.sym("xg", 1)
+    we = ca.SX.sym("we", 1, 1)
+    cw = ca.SX.sym("cw", 2)
+    tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
+
+    p = ca.vertcat(xg, cw, tilde_eps_i)
+
+    # _, p = optimistic_const_expr(
+    #     x_dim, n_order, params
+    # )  # think of a pendulum and -pi/2,pi, pi/2 region is unsafe
+
     optimistic_params = copy.deepcopy(params)
     optimistic_params["agent"]["num_dyn_samples"] = 1
     optimistic_params["agent"]["dim"]["nu"] += params["agent"]["dim"]["nx"]
@@ -39,7 +46,13 @@ def export_optimistic_ocp(params, env_ocp_handler=None):
     const_expr = env_ocp_handler("const_expr", model_x, 1)
     model.con_h_expr_e = const_expr
     ocp.model = model
-    ocp = optimistic_cost_expr(ocp, model_x, model_u, x_dim, p, optimistic_params)
+    ocp.cost.cost_type = "EXTERNAL"
+    ocp.cost.cost_type_e = "EXTERNAL"
+    cost_expr, cost_expr_e = env_ocp_handler("cost_expr", model_x, model_u, 1, cw)
+    ocp.model.cost_expr_ext_cost = cost_expr
+    ocp.model.cost_expr_ext_cost_e = cost_expr_e
+    # optimistic_cost_expr(ocp, model_x, model_u, x_dim, p, optimistic_params)
+    # ocp = optimistic_cost_expr(ocp, model_x, model_u, x_dim, p, optimistic_params)
 
     ocp = optimistic_const_val(ocp, optimistic_params, x_dim, n_order, p, env_ocp_handler)
     ocp = optimistic_set_options(ocp, optimistic_params)
@@ -50,7 +63,7 @@ def export_optimistic_ocp(params, env_ocp_handler=None):
 def optimistic_const_expr(x_dim, n_order, params):
     xg = ca.SX.sym("xg", 1)
     we = ca.SX.sym("we", 1, 1)
-    cw = ca.SX.sym("cw", 1, 1)
+    cw = ca.SX.sym("cw", 2)
     tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
 
     p_lin = ca.vertcat(xg, cw, tilde_eps_i)

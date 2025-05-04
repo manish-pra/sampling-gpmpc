@@ -491,12 +491,59 @@ class Drone(object):
         uh_e = np.hstack([[delta] * num_dyn])
         return lh, uh, lh_e, uh_e
 
+    def cost_expr(self, model_x, model_u, ns, p, optimizer_str):
+        pos_dim = 1
+        nx = self.params["agent"]["dim"]["nx"]
+        nu = self.params["agent"]["dim"]["nu"]
+        Qu = np.diag(np.array(self.params[optimizer_str]["Qu"]))
+        xg = np.array(self.params["env"]["goal_state"])
+        xg_dim = xg.shape[0]
+        w = self.params[optimizer_str]["w"]
+        Qx = np.diag(np.array(self.params[optimizer_str]["Qx"]))
+
+        # # cost
+        # if self.params["optimizer"]["cost"] == "mean":
+        #     ns = 1
+        # else:
+        #     ns = self.params["agent"]["num_dyn_samples"]
+        expr = 0
+        v_max = np.array([10,10])
+        for i in range(ns):
+            expr += (
+                (model_x[nx * i : nx * (i + 1)][:xg_dim] - p).T
+                @ Qx
+                @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - p)
+                + (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max).T
+                @ (Qx/50)
+                @ (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max) 
+            )
+        cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u
+        cost_expr_ext_cost_e = expr / ns
+        return cost_expr_ext_cost, cost_expr_ext_cost_e
+    
+    def path_generator(self, st, length=None):
+        # Generate values for t from 0 to 2π
+        if length is None:
+            length = self.params["optimizer"]["H"] + 1
+        s = np.linspace(0, 2 * np.pi, 500)
+        t = s[st:st+length] #np.linspace(st + 0, st + 2 * np.pi/100*length, )
+
+        # # Parametric equations for heart
+        # x = 16 * np.sin(t)**3
+        # y = 10 * np.cos(t) - 5 * np.cos(2*t) - 2 * np.cos(3*t) - np.cos(4*t)
+
+        # Parametric equations for heart
+        x = 8 * np.sin(t)**3 / 1.5 + 1
+        y = (10 * np.cos(t) - 5 * np.cos(2*t) - 2 * np.cos(3*t) - np.cos(4*t))/2 - 1 + 1
+
+        traj = np.vstack([x,y]).T
+        return traj
 
     def initialize_plot_handles(self, fig_gp, fig_dyn=None):
         import matplotlib.pyplot as plt
         ax = fig_gp.axes[0]
-        ax.set_xlim(-5,5)
-        ax.set_ylim(-5, 5)
+        ax.set_xlim(-8,8)
+        ax.set_ylim(-6, 6)
 
         ax.grid(which="both", axis="both")
         ax.minorticks_on()
@@ -506,6 +553,26 @@ class Drone(object):
         y_max = self.params["optimizer"]["x_max"][1]
         x_min = self.params["optimizer"]["x_min"][0]
         x_max = self.params["optimizer"]["x_max"][0]
+
+        tracking_path = self.path_generator(0, 500)
+        ax.plot(
+            tracking_path[:, 0],
+            tracking_path[:, 1],
+            color="blue",
+            label="Tracking path",
+        )
+
+        y_min = self.params["optimizer"]["x_min"][1]
+        y_max = self.params["optimizer"]["x_max"][1]
+        x_min = self.params["optimizer"]["x_min"][0]
+        x_max = self.params["optimizer"]["x_max"][0]
+
+        ax.add_line(
+            plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
+        )
+        ax.add_line(
+            plt.Line2D([x_max, x_max], [y_min, y_max], color="red", linestyle="--")
+        )
 
         if "P" in self.params["optimizer"]["terminal_tightening"]:
             xf = np.array(self.params["env"]["start"])

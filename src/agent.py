@@ -835,7 +835,8 @@ class Agent(object):
         for i, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
             mu_flat = mu.squeeze()   # (D_i,)
             samples = np.random.multivariate_normal(mu_flat, Sigma, size=self.ns)  # (ns, D_i)
-            # samples = np.tile(tr_weight[i], (self.ns,1))
+            if self.params["agent"]["run"]["true_param_as_sample"]:
+                samples = np.tile(tr_weight[i], (self.ns,1))
             # self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
             self.weights.append(samples)  # append samples for each output
 
@@ -889,7 +890,7 @@ class Agent(object):
         u_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nu+nx))
 
         # for idx in range(self.g_ny):
-        tr_weight = self.env_model.get_gt_weights()
+        # tr_weight = self.env_model.get_gt_weights()
         for idx, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
             # mu = np.array(tr_weight[idx])  # use the true weight
             mu_flat = mu.squeeze()   # (D_i,)
@@ -902,7 +903,7 @@ class Agent(object):
             u_grad_mapped[:,[idx],:,:nu] = np.sum(f_ujac_values_list[idx]*weight_feat[:,np.newaxis,:], axis=-1)  # (1,1,30,1)
 
             # # add gradient w.r.t eta in u_grad_mapped
-            beta_sigma = eta_i*sigma_flat 
+            beta_sigma = eta_i*sigma_flat
             u_grad_mapped[0,[idx],:,[nu+idx]] = np.sum(beta_sigma, axis=-1, keepdims=True).T  # (50,1,30,2)
         a=1
         return model_val, y_grad_mapped, u_grad_mapped
