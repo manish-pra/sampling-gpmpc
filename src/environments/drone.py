@@ -472,13 +472,14 @@ class Drone(object):
     def const_expr(self, model_x, num_dyn):
         const_expr = []
         nx = self.params["agent"]["dim"]["nx"]
+        v_dim=3
         for i in range(num_dyn):
             xf = np.array(self.params["env"]["terminate_state"])
             xf_dim = xf.shape[0]
             expr = (
-                (model_x[nx * i : nx * (i + 1)][:xf_dim] - xf).T
+                (model_x[nx * i : nx * (i + 1)][v_dim:v_dim+xf_dim] - xf).T
                 @ np.array(self.params["optimizer"]["terminal_tightening"]["P"])
-                @ (model_x[nx * i : nx * (i + 1)][:xf_dim] - xf)
+                @ (model_x[nx * i : nx * (i + 1)][v_dim:v_dim+xf_dim] - xf)
             )
             const_expr = ca.vertcat(const_expr, expr)
         return const_expr
@@ -572,6 +573,12 @@ class Drone(object):
         )
         ax.add_line(
             plt.Line2D([x_max, x_max], [y_min, y_max], color="red", linestyle="--")
+        )
+        ax.add_line(
+            plt.Line2D([x_min, x_min], [y_min, y_max], color="red", linestyle="--")
+        )
+        ax.add_line(
+            plt.Line2D([x_min, x_max], [y_min, y_min], color="red", linestyle="--")
         )
 
         if "P" in self.params["optimizer"]["terminal_tightening"]:

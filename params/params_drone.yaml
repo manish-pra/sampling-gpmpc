@@ -1,7 +1,7 @@
 env:
   start: [1.0, 1.0, 0.0, 0.0, 0.0, 0.0] # px, py, phi, vx, vy, phi_dot
   goal_state: [4.0, 1.0]
-  terminate_state: [1.0, 1.0] # px, py, phi, vx, vy, phi_dot
+  terminate_state: [0.0, 0.0] # px, py, phi, vx, vy, phi_dot
   dynamics: 'drone' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: False
@@ -97,7 +97,7 @@ optimizer:
     x_tight: [0.1, 0.1]
     u_tight: [0.1]
     P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
-    delta: 500.0
+    delta: 0.1
 
 
 optimistic_optimizer:
