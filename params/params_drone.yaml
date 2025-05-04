@@ -38,7 +38,7 @@ agent:
   Dyn_gp_beta : 3.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 10 
+  num_dyn_samples: 5 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -51,8 +51,8 @@ agent:
     w_bound: 0.007
   shift_soln: True
   run:
-    optimistic: True
-    pessimistic: False
+    optimistic: False
+    pessimistic: True
   BLR:
     lambda_reg: 1.0e-6
     noise_var: 5.0e-6
@@ -63,7 +63,7 @@ visu:
 common:
   use_cuda : False
   use_BLR : True
-  active_learning : False
+  active_learning : True
   num_MPC_itrs : 40
   dynamics_rejection: False
 
