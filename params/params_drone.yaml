@@ -49,11 +49,13 @@ agent:
     dyn_eps: 0.001
     Lipschitz: 1.015
     w_bound: 0.007
-  shift_soln: False
+  shift_soln: True
   run:
     optimistic: True
     pessimistic: False
-
+  BLR:
+    lambda_reg: 1.0e-6
+    noise_var: 5.0e-6
 
 visu:
   show: True
@@ -94,13 +96,13 @@ optimizer:
     x_tight: [0.1, 0.1]
     u_tight: [0.1]
     P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
-    delta: 100
+    delta: 1.0
 
 
 optimistic_optimizer:
   H : 30 # horizon
-  u_min : [-1, -1,-1, -1, -1,-1, -1, -1] # Minimum control input
-  u_max : [5, 5, 1, 1, 1, 1, 1, 1]          
+  u_min : [-1, -1, -0.3, -0.3, -0.3,-0.3, -0.3, -0.3] # Minimum control input
+  u_max : [5, 5, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]          
   x_min : [-5, -5, -3.1417, -1, -1, -1] # Minimum state value
   x_max : [ 5, 5, 3.1417, 1, 1, 1] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
@@ -115,7 +117,7 @@ optimistic_optimizer:
   dt: 0.1 # 0.010
   w: 50
   Qx: [0.5, 0.1] # [1.0, 1.0, 1.0, 1.0]  
-  Qu: [1, 1,1, 1,1, 1,1, 1]
+  Qu: [1, 1, 1, 1,1, 1,1, 1]
   cost: "expected" 
   options: {
     levenberg_marquardt: 20.0
@@ -124,7 +126,7 @@ optimistic_optimizer:
     x_tight: [0.1, 0.1]
     u_tight: [0.1]
     P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
-    delta: 100
+    delta: 1.0
 
 experiment:
   name: "DEMPC" #
