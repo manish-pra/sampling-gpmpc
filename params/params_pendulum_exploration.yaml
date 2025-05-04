@@ -62,7 +62,7 @@ common:
   use_cuda : False
   use_BLR : True
   active_learning : True
-  num_MPC_itrs : 2
+  num_MPC_itrs : 37
   dynamics_rejection: False
 
 optimizer:

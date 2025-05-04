@@ -28,7 +28,7 @@ class DEMPC_solver(object):
             )
             self.ocp_solver.store_iterate(self.name_prefix + "ocp_initialization.json")
         if self.params["agent"]["run"]["optimistic"]:
-            self.optimistic_ocp = export_dempc_ocp(params, env_ocp_handler=agent.env_model.ocp_handler)
+            self.optimistic_ocp = export_optimistic_ocp(params, env_ocp_handler=agent.env_model.ocp_handler)
             self.name_prefix_opti = (
                 "env_opti_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
             )
@@ -74,7 +74,7 @@ class DEMPC_solver(object):
                 self.ci_list.append(c_i)
             print(f"tilde_eps_{stage} = {self.tilde_eps_list[-1]}")
 
-    def solve_optimistic_problem(self, player, plot_pendulum=False):
+    def solve_optimistic_problem(self, player, solver, plot_pendulum=False):
         w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         ns = 1
@@ -86,10 +86,10 @@ class DEMPC_solver(object):
         for sqp_iter in range(self.max_sqp_iter_opti):
             for stage in range(self.H):
                 # current stage values
-                self.opti_x_h[stage, :] = self.optimistic_ocp_solver.get(stage, "x")
-                self.opti_u_h[stage, :] = self.optimistic_ocp_solver.get(stage, "u")
+                self.opti_x_h[stage, :] = solver.get(stage, "x")
+                self.opti_u_h[stage, :] = solver.get(stage, "u")
 
-            x_h_e = self.optimistic_ocp_solver.get(self.H, "x")
+            x_h_e = solver.get(self.H, "x")
 
             # Ideal implementation get uncertainity of z only with real data at the sampled locations
             # Create a GP model with read data and pass in the X, U
@@ -98,7 +98,7 @@ class DEMPC_solver(object):
             # Plot cross points on new data collected points, and X and U
             if self.params["common"]["use_BLR"]:
                 batch_x_hat = player.get_batch_x_hat(self.opti_x_h, self.opti_u_h, ns)
-                gp_val, y_grad, u_grad = player.get_dynamics_grad(batch_x_hat.numpy())
+                gp_val, y_grad, u_grad = player.get_optimistic_dynamics_grad(batch_x_hat.numpy())
             else:
                 # create model with updated data
                 player.train_hallucinated_dynGP(sqp_iter)
@@ -115,7 +115,7 @@ class DEMPC_solver(object):
                             p_lin,
                             y_grad[i, :, stage, :].reshape(-1),
                             u_grad[i, :, stage, :].reshape(-1),
-                            self.x_h[stage, i * self.nx : self.nx * (i + 1)],
+                            self.opti_x_h[stage, i * self.nx : self.nx * (i + 1)],
                             gp_val[i, :, stage, :].reshape(-1),
                         ]
                     )
@@ -129,19 +129,19 @@ class DEMPC_solver(object):
                         self.tilde_eps_list[stage],
                     ]
                 )
-                self.optimistic_ocp_solver.set(stage, "p", p_lin)
+                solver.set(stage, "p", p_lin)
 
-            residuals = self.optimistic_ocp_solver.get_residuals(recompute=True)
+            residuals = solver.get_residuals(recompute=True)
             print("residuals (before solve)", residuals)
 
             t_0 = timeit.default_timer()
-            status = self.optimistic_ocp_solver.solve()
+            status = solver.solve()
             t_1 = timeit.default_timer()
             print("Time taken for QP solve", t_1 - t_0)
-            # self.optimistic_ocp_solver.print_statistics()
-            # print("statistics", self.optimistic_ocp_solver.get_stats("statistics"))
-            print("cost", self.optimistic_ocp_solver.get_cost())
-            residuals = self.optimistic_ocp_solver.get_residuals(recompute=True)
+            # solver.print_statistics()
+            # print("statistics", solver.get_stats("statistics"))
+            print("cost", solver.get_cost())
+            residuals = solver.get_residuals(recompute=True)
             print("residuals (after solve)", residuals)
 
             if status != 0:
@@ -151,7 +151,7 @@ class DEMPC_solver(object):
                 )
                 break
 
-    def solve(self, player, plot_pendulum=False):
+    def solve(self, player, solver,  plot_pendulum=False):
         w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         ns = self.params["agent"]["num_dyn_samples"]
@@ -165,10 +165,10 @@ class DEMPC_solver(object):
             u_h_old = self.u_h.copy()
             for stage in range(self.H):
                 # current stage values
-                self.x_h[stage, :] = self.ocp_solver.get(stage, "x")
-                self.u_h[stage, :] = self.ocp_solver.get(stage, "u")
+                self.x_h[stage, :] = solver.get(stage, "x")
+                self.u_h[stage, :] = solver.get(stage, "u")
 
-            x_h_e = self.ocp_solver.get(self.H, "x")
+            x_h_e = solver.get(self.H, "x")
 
             x_diff = np.linalg.norm(self.x_h - x_h_old) / (
                 np.linalg.norm(x_h_old) + 1e-6
@@ -237,19 +237,19 @@ class DEMPC_solver(object):
                         self.tilde_eps_list[stage],
                     ]
                 )
-                self.ocp_solver.set(stage, "p", p_lin)
+                solver.set(stage, "p", p_lin)
 
-            residuals = self.ocp_solver.get_residuals(recompute=True)
+            residuals = solver.get_residuals(recompute=True)
             print("residuals (before solve)", residuals)
 
             t_0 = timeit.default_timer()
-            status = self.ocp_solver.solve()
+            status = solver.solve()
             t_1 = timeit.default_timer()
             print("Time taken for QP solve", t_1 - t_0)
-            # self.ocp_solver.print_statistics()
-            # print("statistics", self.ocp_solver.get_stats("statistics"))
-            print("cost", self.ocp_solver.get_cost())
-            residuals = self.ocp_solver.get_residuals(recompute=True)
+            # solver.print_statistics()
+            # print("statistics", solver.get_stats("statistics"))
+            print("cost", solver.get_cost())
+            residuals = solver.get_residuals(recompute=True)
             print("residuals (after solve)", residuals)
 
             if status != 0:
@@ -275,7 +275,7 @@ class DEMPC_solver(object):
         for i in range(self.H):
             X[i, :] = self.optimistic_ocp_solver.get(i, "x")
             U[i, :] = self.optimistic_ocp_solver.get(i, "u")
-            # Sl[i] = self.ocp_solver.get(i, "sl")
+            # Sl[i] = solver.get(i, "sl")
 
         X[self.H, :] = self.optimistic_ocp_solver.get(self.H, "x")
         return X, U, Sl
@@ -302,11 +302,11 @@ class DEMPC_solver(object):
             solver.set(i, "u", U[i + 1, :])
         solver.set(self.H - 1, "x", X[self.H, :])
 
-    def initialize_solution(self, X, U, Sl):
+    def initialize_solution(self, X, U, Sl, solver):
         for i in range(self.H - 1):
-            self.ocp_solver.set(i, "x", X[i, :])
-            self.ocp_solver.set(i, "u", U[i, :])
-        self.ocp_solver.set(self.H, "x", X[self.H, :])
+            solver.set(i, "x", X[i, :])
+            solver.set(i, "u", U[i, :])
+        solver.set(self.H, "x", X[self.H, :])
 
     def get_and_shift_solution(self, solver):
         X, U, Sl = self.get_solution(solver)

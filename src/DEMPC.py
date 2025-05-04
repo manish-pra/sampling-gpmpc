@@ -104,20 +104,21 @@ class DEMPC:
         Output: trajectory
         """
         print(bcolors.OKCYAN + "Solving Constrints" + bcolors.ENDC)
-        self.dempc_solver.optimistic_ocp_solver.set(0, "lbx", st_curr[:self.nx])
-        self.dempc_solver.optimistic_ocp_solver.set(0, "ubx", st_curr[:self.nx])
+        solver = self.dempc_solver.optimistic_ocp_solver
+        solver.set(0, "lbx", st_curr[:self.nx])
+        solver.set(0, "ubx", st_curr[:self.nx])
 
         # set objective as per desired goal
         t_0 = timeit.default_timer()
-        solver_status = self.dempc_solver.solve_optimistic_problem(self.agent)
+        solver_status = self.dempc_solver.solve_optimistic_problem(self.agent, solver)
         t_1 = timeit.default_timer()
         dt = t_1 - t_0
         print("Time to solve", dt)
 
         if self.params["agent"]["shift_soln"]:
-            X, U, Sl = self.dempc_solver.get_and_shift_solution(self.dempc_solver.optimistic_ocp_solver)
+            X, U, Sl = self.dempc_solver.get_and_shift_solution(solver)
         else:
-            X, U, Sl = self.dempc_solver.get_solution(self.dempc_solver.optimistic_ocp_solver)
+            X, U, Sl = self.dempc_solver.get_solution(solver)
         #
         self.visu.record(st_curr, X, U, dt,record_gp_model=False)
         print("X", X)
@@ -133,20 +134,21 @@ class DEMPC:
         Output: trajectory
         """
         print(bcolors.OKCYAN + "Solving Constrints" + bcolors.ENDC)
-        self.dempc_solver.ocp_solver.set(0, "lbx", st_curr)
-        self.dempc_solver.ocp_solver.set(0, "ubx", st_curr)
+        solver = self.dempc_solver.ocp_solver
+        solver.set(0, "lbx", st_curr)
+        solver.set(0, "ubx", st_curr)
 
         # set objective as per desired goal
         t_0 = timeit.default_timer()
-        solver_status = self.dempc_solver.solve(self.agent)
+        solver_status = self.dempc_solver.solve(self.agent, solver)
         t_1 = timeit.default_timer()
         dt = t_1 - t_0
         print("Time to solve", dt)
 
         if self.params["agent"]["shift_soln"]:
-            X, U, Sl = self.dempc_solver.get_and_shift_solution(self.dempc_solver.ocp_solver)
+            X, U, Sl = self.dempc_solver.get_and_shift_solution(solver)
         else:
-            X, U, Sl = self.dempc_solver.get_solution(self.dempc_solver.ocp_solver)
+            X, U, Sl = self.dempc_solver.get_solution(solver)
         #
         self.visu.record(st_curr, X, U, dt,record_gp_model=False)
         print("X", X)
