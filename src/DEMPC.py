@@ -37,6 +37,7 @@ class DEMPC:
     def receding_horizon(self):
         print("Receding Horizon")
         nx = self.params["agent"]["dim"]["nx"]
+        nu = self.params["agent"]["dim"]["nu"]
         for i in range(self.params["common"]["num_MPC_itrs"]):
             self.agent.mpc_iteration(i)
             torch.cuda.empty_cache()
@@ -53,7 +54,12 @@ class DEMPC:
             #         u_hist,
             #         0,
             #     )
-            X, U = self.one_step_planner(st_curr)
+            if self.params["agent"]["run"]["optimistic"]:
+                X_opt, U_opt = self.optimistic_planner(st_curr)
+                X = X_opt
+                U = U_opt[:,:nu]
+            if self.params["agent"]["run"]["pessimistic"]:
+                X, U = self.one_step_planner(st_curr)
 
             # check for uncertainity and online learn the data
             # Initialize the next state at the point nearest to the goal
@@ -90,6 +96,35 @@ class DEMPC:
                 bcolors.ENDC,
             )
         return False
+    
+    def optimistic_planner(self, st_curr):
+        """_summary_: Plans going and coming back all in one trajectory plan
+        Input: current location, end location, dyn, etc.
+        Process: Solve the NLP and simulate the system until the measurement collection point
+        Output: trajectory
+        """
+        print(bcolors.OKCYAN + "Solving Constrints" + bcolors.ENDC)
+        self.dempc_solver.optimistic_ocp_solver.set(0, "lbx", st_curr[:self.nx])
+        self.dempc_solver.optimistic_ocp_solver.set(0, "ubx", st_curr[:self.nx])
+
+        # set objective as per desired goal
+        t_0 = timeit.default_timer()
+        solver_status = self.dempc_solver.solve_optimistic_problem(self.agent)
+        t_1 = timeit.default_timer()
+        dt = t_1 - t_0
+        print("Time to solve", dt)
+
+        if self.params["agent"]["shift_soln"]:
+            X, U, Sl = self.dempc_solver.get_and_shift_solution()
+        else:
+            X, U, Sl = self.dempc_solver.get_optimistic_solution()
+        #
+        self.visu.record(st_curr, X, U, dt,record_gp_model=False)
+        print("X", X)
+        print("U", U)
+
+        # self.visu.plot_pendulum_traj(X,U)
+        return torch.from_numpy(X).float(), torch.from_numpy(U).float()        
 
     def one_step_planner(self, st_curr):
         """_summary_: Plans going and coming back all in one trajectory plan

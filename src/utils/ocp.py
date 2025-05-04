@@ -102,7 +102,7 @@ def export_dempc_ocp(params, env_ocp_handler=None):
         #     model_x - terminal_tight, model_x + terminal_tight, const_expr
         # )
 
-    const_expr = env_ocp_handler("const_expr", model_x)
+    const_expr = env_ocp_handler("const_expr", model_x, num_dyn)
     model.con_h_expr_e = const_expr
     ocp.model = model
     ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params)
@@ -176,7 +176,7 @@ def dempc_const_val(ocp, params, x_dim, n_order, p, env_ocp_handler):
     ocp.constraints.ubx_e = ubx.copy()
     ocp.constraints.idxbx_e = np.arange(lbx.shape[0])
 
-    lh, uh, lh_e, uh_e = env_ocp_handler("const_value")
+    lh, uh, lh_e, uh_e = env_ocp_handler("const_value", ns)
     ocp.constraints.lh = lh
     ocp.constraints.uh = uh
     ocp.constraints.lh_e = lh_e

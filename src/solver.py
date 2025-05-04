@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from acados_template import AcadosOcpSolver, AcadosSimSolver
 
 from src.utils.ocp import export_dempc_ocp
+from src.utils.optimistic_ocp import export_optimistic_ocp
 from src.utils.termcolor import bcolors
 
 
@@ -16,17 +17,29 @@ from src.utils.termcolor import bcolors
 class DEMPC_solver(object):
     def __init__(self, params, agent=None) -> None:
         self.params = params
-        self.ocp = export_dempc_ocp(params, env_ocp_handler=agent.env_model.ocp_handler)
-        self.name_prefix = (
-            "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
-        )
-        self.ocp_solver = AcadosOcpSolver(
-            self.ocp, json_file=self.name_prefix + "acados_ocp_sempc.json"
-        )
-        self.ocp_solver.store_iterate(self.name_prefix + "ocp_initialization.json")
+        if self.params["agent"]["run"]["pessimistic"]:
+            self.ocp = export_dempc_ocp(params, env_ocp_handler=agent.env_model.ocp_handler)
+
+            self.name_prefix = (
+                "env_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
+            )
+            self.ocp_solver = AcadosOcpSolver(
+                self.ocp, json_file=self.name_prefix + "acados_ocp_dempc.json"
+            )
+            self.ocp_solver.store_iterate(self.name_prefix + "ocp_initialization.json")
+        if self.params["agent"]["run"]["optimistic"]:
+            self.optimistic_ocp = export_optimistic_ocp(params, env_ocp_handler=agent.env_model.ocp_handler)
+            self.name_prefix_opti = (
+                "env_opti_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
+            )
+            self.optimistic_ocp_solver = AcadosOcpSolver(
+                self.optimistic_ocp, json_file=self.name_prefix_opti + "acados_ocp_dempc.json"
+            )
+            self.optimistic_ocp_solver.store_iterate(self.name_prefix_opti + "ocp_initialization.json")
 
         self.H = params["optimizer"]["H"]
         self.max_sqp_iter = params["optimizer"]["SEMPC"]["max_sqp_iter"]
+        self.max_sqp_iter_opti = params["optimistic_optimizer"]["SEMPC"]["max_sqp_iter"]
         self.tol_nlp = params["optimizer"]["SEMPC"]["tol_nlp"]
         self.nx = self.params["agent"]["dim"]["nx"]
         self.nu = self.params["agent"]["dim"]["nu"]
@@ -34,6 +47,9 @@ class DEMPC_solver(object):
 
         self.x_h = np.zeros((self.H, self.nx * self.params["agent"]["num_dyn_samples"]))
         self.u_h = np.zeros((self.H, self.nu))  # u_dim
+
+        self.opti_x_h = np.zeros((self.H, self.nx))
+        self.opti_u_h = np.zeros((self.H, self.nu + self.nx))  # u_dim
 
         # computation of tightenings
         L = self.params["agent"]["tight"]["Lipschitz"]
@@ -58,9 +74,87 @@ class DEMPC_solver(object):
                 self.ci_list.append(c_i)
             print(f"tilde_eps_{stage} = {self.tilde_eps_list[-1]}")
 
+    def solve_optimistic_problem(self, player, plot_pendulum=False):
+        w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
+        xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
+        ns = 1
+        if self.params["common"]["use_BLR"]:
+            # train the model with prio data
+            player.dyn_fg_jacobians_via_BLR()
+            # sample weights
+            player.sample_weights()
+        for sqp_iter in range(self.max_sqp_iter_opti):
+            for stage in range(self.H):
+                # current stage values
+                self.opti_x_h[stage, :] = self.optimistic_ocp_solver.get(stage, "x")
+                self.opti_u_h[stage, :] = self.optimistic_ocp_solver.get(stage, "u")
+
+            x_h_e = self.optimistic_ocp_solver.get(self.H, "x")
+
+            # Ideal implementation get uncertainity of z only with real data at the sampled locations
+            # Create a GP model with read data and pass in the X, U
+            # Alternatively when you have the true x, u; filter data based on uncertainity and add it to true data.
+            # write an initializer
+            # Plot cross points on new data collected points, and X and U
+            if self.params["common"]["use_BLR"]:
+                batch_x_hat = player.get_batch_x_hat(self.opti_x_h, self.opti_u_h, ns)
+                gp_val, y_grad, u_grad = player.get_optimistic_dynamics_grad(batch_x_hat.numpy())
+            else:
+                # create model with updated data
+                player.train_hallucinated_dynGP(sqp_iter)
+                batch_x_hat = player.get_batch_x_hat(self.opti_x_h, self.opti_u_h)
+                # sample the gradients
+                gp_val, y_grad, u_grad = player.dyn_fg_jacobians(batch_x_hat, sqp_iter)
+                del batch_x_hat
+
+            for stage in range(self.H):
+                p_lin = np.empty(0)
+                for i in range(ns):
+                    p_lin = np.concatenate(
+                        [
+                            p_lin,
+                            y_grad[i, :, stage, :].reshape(-1),
+                            u_grad[i, :, stage, :].reshape(-1),
+                            self.x_h[stage, i * self.nx : self.nx * (i + 1)],
+                            gp_val[i, :, stage, :].reshape(-1),
+                        ]
+                    )
+
+                p_lin = np.hstack(
+                    [
+                        p_lin,
+                        self.opti_u_h[stage],
+                        xg[stage],
+                        w[stage],
+                        self.tilde_eps_list[stage],
+                    ]
+                )
+                self.optimistic_ocp_solver.set(stage, "p", p_lin)
+
+            residuals = self.optimistic_ocp_solver.get_residuals(recompute=True)
+            print("residuals (before solve)", residuals)
+
+            t_0 = timeit.default_timer()
+            status = self.optimistic_ocp_solver.solve()
+            t_1 = timeit.default_timer()
+            print("Time taken for QP solve", t_1 - t_0)
+            # self.optimistic_ocp_solver.print_statistics()
+            # print("statistics", self.optimistic_ocp_solver.get_stats("statistics"))
+            print("cost", self.optimistic_ocp_solver.get_cost())
+            residuals = self.optimistic_ocp_solver.get_residuals(recompute=True)
+            print("residuals (after solve)", residuals)
+
+            if status != 0:
+                print(
+                    bcolors.FAIL
+                    + f"acados returned status {status} in closed loop solve"
+                )
+                break
+
     def solve(self, player, plot_pendulum=False):
         w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
+        ns = self.params["agent"]["num_dyn_samples"]
         if self.params["common"]["use_BLR"]:
             # train the model with prio data
             player.dyn_fg_jacobians_via_BLR()
@@ -100,7 +194,7 @@ class DEMPC_solver(object):
             # Plot cross points on new data collected points, and X and U
             if self.params["common"]["use_BLR"]:
                 # batch_x_hat = player.get_blr_x_hat(self.x_h, self.u_h)
-                batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h)
+                batch_x_hat = player.get_batch_x_hat(self.x_h, self.u_h, ns)
                 gp_val, y_grad, u_grad = player.get_dynamics_grad(batch_x_hat.numpy())
             else:
                 # create model with updated data
@@ -112,7 +206,7 @@ class DEMPC_solver(object):
 
             for stage in range(self.H):
                 p_lin = np.empty(0)
-                for i in range(self.params["agent"]["num_dyn_samples"]):
+                for i in range(ns):
                     p_lin = np.concatenate(
                         [
                             p_lin,
@@ -169,6 +263,22 @@ class DEMPC_solver(object):
                 self.plot_iterates_pendulum(sqp_iter, player, self.x_h, x_h_e, self.u_h)
 
         return status
+    
+    def get_optimistic_solution(self):
+        nx = self.optimistic_ocp_solver.acados_ocp.model.x.size()[0]
+        nu = self.optimistic_ocp_solver.acados_ocp.model.u.size()[0]
+        X = np.zeros((self.H + 1, nx))
+        U = np.zeros((self.H, nu))
+        Sl = np.zeros((self.H + 1))
+
+        # get data
+        for i in range(self.H):
+            X[i, :] = self.optimistic_ocp_solver.get(i, "x")
+            U[i, :] = self.optimistic_ocp_solver.get(i, "u")
+            # Sl[i] = self.ocp_solver.get(i, "sl")
+
+        X[self.H, :] = self.optimistic_ocp_solver.get(self.H, "x")
+        return X, U, Sl
 
     def get_solution(self):
         nx = self.ocp_solver.acados_ocp.model.x.size()[0]

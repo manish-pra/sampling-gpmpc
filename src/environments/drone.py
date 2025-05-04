@@ -301,11 +301,13 @@ class Drone(object):
 
         # === 6. Return everything organized ===
         f_list = [f_px, f_py, f_phi, f_vx, f_vy, f_phidot]
+        f_jac_list = [f_px_jac, f_py_jac, f_phi_jac, f_vx_jac, f_vy_jac, f_phidot_jac]
+        f_ujac_list = [f_px_u_jac, f_py_u_jac, f_phi_u_jac, f_vx_u_jac, f_vy_u_jac, f_phidot_u_jac]
         f_batch_list = [f_px_batch, f_py_batch, f_phi_batch, f_vx_batch, f_vy_batch, f_phidot_batch]
         f_jac_batch_list = [f_px_jac_batch, f_py_jac_batch, f_phi_jac_batch, f_vx_jac_batch, f_vy_jac_batch, f_phidot_jac_batch]
         f_ujac_batch_list = [f_px_u_jac_batch, f_py_u_jac_batch, f_phi_u_jac_batch, f_vx_u_jac_batch, f_vy_u_jac_batch, f_phidot_u_jac_batch]
 
-        return f_list, f_batch_list, f_jac_batch_list, f_ujac_batch_list
+        return f_list, f_jac_list, f_ujac_list, f_batch_list, f_jac_batch_list, f_ujac_batch_list
 
 
     def BLR_features(self, X):    
@@ -467,9 +469,8 @@ class Drone(object):
         func = getattr(self, func_name)
         return func(*args, **kwargs)    
     
-    def const_expr(self, model_x):
+    def const_expr(self, model_x, num_dyn):
         const_expr = []
-        num_dyn = self.params["agent"]["num_dyn_samples"]
         nx = self.params["agent"]["dim"]["nx"]
         for i in range(num_dyn):
             xf = np.array(self.params["env"]["terminate_state"])
@@ -482,13 +483,12 @@ class Drone(object):
             const_expr = ca.vertcat(const_expr, expr)
         return const_expr
     
-    def const_value(self):
-        ns = self.params["agent"]["num_dyn_samples"]
+    def const_value(self, num_dyn):
         lh = np.empty((0,), dtype=np.float64)
         uh = np.empty((0,), dtype=np.float64)
         delta = self.params["optimizer"]["terminal_tightening"]["delta"]
-        lh_e = np.hstack([[0] * ns])
-        uh_e = np.hstack([[delta] * ns])
+        lh_e = np.hstack([[0] * num_dyn])
+        uh_e = np.hstack([[delta] * num_dyn])
         return lh, uh, lh_e, uh_e
 
 
