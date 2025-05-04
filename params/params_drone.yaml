@@ -51,8 +51,8 @@ agent:
     w_bound: 0.007
   shift_soln: True
   run:
-    optimistic: False
-    pessimistic: True
+    optimistic: True
+    pessimistic: False
   BLR:
     lambda_reg: 1.0e-6
     noise_var: 5.0e-6
