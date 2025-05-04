@@ -870,8 +870,8 @@ class Agent(object):
         # Extract state and control directly
         state = X_test[:,0,:, :nx]  # shape (50, 1, 30, 2)
         control = X_test[:,0,:, nx:nx+nu]  # shape (50, 1, 30, 1)
-        # eta = X_test[:,0,:, nx+nu:]  # optimization variable to pick optimistic dynamics
-        # eta_flat = eta.reshape(total_samples, nx)
+        eta = X_test[:,0,:, nx+nu:]  # optimization variable to pick optimistic dynamics
+        eta_flat = eta.reshape(total_samples, nx)
         # Flatten only the batch dimensions for CasADi input
         state_flat = state.reshape(total_samples, nx)
         control_flat = control.reshape(total_samples, nu)
@@ -886,24 +886,24 @@ class Agent(object):
 
         model_val = np.zeros((X_test.shape[0],self.g_ny, X_test.shape[2], 1))
         y_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nx))
-        u_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nu))
+        u_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nu+nx))
 
         # for idx in range(self.g_ny):
         tr_weight = self.env_model.get_gt_weights()
         for idx, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
-            mu = np.array(tr_weight[idx])  # use the true weight
+            # mu = np.array(tr_weight[idx])  # use the true weight
             mu_flat = mu.squeeze()   # (D_i,)
-            sigma_flat = Sigma.diagonal().squeeze()*self.params["agent"]["Dyn_gp_beta"]*0   # (D_i, D_i)    
-            # eta_i = eta_flat[:,[idx]]
-            eta_i = np.zeros((nH, 1)) 
-            weight_feat = mu_flat #+ eta_i*sigma_flat  # (ns, D_i)
-            model_val[:,[idx],:,:] = np.sum(feture_values_list[idx]*weight_feat[np.newaxis,:], axis=-1, keepdims=True)[np.newaxis,np.newaxis,:,:]  # (1,1,30,2)
-            y_grad_mapped[:,[idx],:,:] = np.sum(f_jac_values_list[idx]*weight_feat[np.newaxis,np.newaxis,:], axis=-1)[np.newaxis,np.newaxis,:,:]  # (1,1,30,2)
-            u_grad_mapped[:,[idx],:,:] = np.sum(f_ujac_values_list[idx]*weight_feat[np.newaxis,np.newaxis,:], axis=-1)[np.newaxis,np.newaxis,:,:]  # (1,1,30,1)
+            sigma_flat = np.sqrt(Sigma.diagonal()).squeeze()*self.params["agent"]["Dyn_gp_beta"]   # (D_i, D_i)    
+            eta_i = eta_flat[:,[idx]]
+            # eta_i = np.zeros((nH, 1)) 
+            weight_feat = mu_flat + eta_i*sigma_flat  # (ns, D_i)
+            model_val[:,[idx],:,:] = np.sum(feture_values_list[idx]*weight_feat[:,:], axis=-1, keepdims=True)  # (1,1,30,2)
+            y_grad_mapped[:,[idx],:,:] = np.sum(f_jac_values_list[idx]*weight_feat[:,np.newaxis,:], axis=-1)  # (1,1,30,2)
+            u_grad_mapped[:,[idx],:,:nu] = np.sum(f_ujac_values_list[idx]*weight_feat[:,np.newaxis,:], axis=-1)  # (1,1,30,1)
 
             # # add gradient w.r.t eta in u_grad_mapped
-            # beta_sigma = eta_i*sigma_flat 
-            # u_grad_mapped[0,[idx],:,[nu+idx]] = np.sum(beta_sigma, axis=-1, keepdims=True).T  # (50,1,30,2)
+            beta_sigma = eta_i*sigma_flat 
+            u_grad_mapped[0,[idx],:,[nu+idx]] = np.sum(beta_sigma, axis=-1, keepdims=True).T  # (50,1,30,2)
         a=1
         return model_val, y_grad_mapped, u_grad_mapped
     

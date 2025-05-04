@@ -49,7 +49,7 @@ class DEMPC_solver(object):
         self.u_h = np.zeros((self.H, self.nu))  # u_dim
 
         self.opti_x_h = np.zeros((self.H, self.nx))
-        self.opti_u_h = np.zeros((self.H, self.nu))  # u_dim
+        self.opti_u_h = np.zeros((self.H, self.nu+self.nx))  # u_dim
 
         # computation of tightenings
         L = self.params["agent"]["tight"]["Lipschitz"]

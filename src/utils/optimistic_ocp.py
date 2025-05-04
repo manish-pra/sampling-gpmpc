@@ -29,7 +29,7 @@ def export_optimistic_ocp(params, env_ocp_handler=None):
     
     optimistic_params = copy.deepcopy(params)
     optimistic_params["agent"]["num_dyn_samples"] = 1
-    # optimistic_params["agent"]["dim"]["nu"] += params["agent"]["dim"]["nx"]
+    optimistic_params["agent"]["dim"]["nu"] += params["agent"]["dim"]["nx"]
 
     model = export_linear_model(name_prefix + "optimistic", p, optimistic_params)  # start pendulum at 0
     nx = optimistic_params["agent"]["dim"]["nx"]
