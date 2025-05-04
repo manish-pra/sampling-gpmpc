@@ -254,20 +254,20 @@ class Drone(object):
         f_phidot = ca.Function('f_phidot', [state, control], [self.feature_phidot(state, control)])
 
         # === 3. Compute Jacobians (w.r.t. state) ===
-        f_px_jac = ca.Function('f_px_jac', [state, control], [ca.jacobian(self.feature_px(state, control), state)])
-        f_py_jac = ca.Function('f_py_jac', [state, control], [ca.jacobian(self.feature_py(state, control), state)])
-        f_phi_jac = ca.Function('f_phi_jac', [state, control], [ca.jacobian(self.feature_phi(state, control), state)])
-        f_vx_jac = ca.Function('f_vx_jac', [state, control], [ca.jacobian(self.feature_vx(state, control), state)])
-        f_vy_jac = ca.Function('f_vy_jac', [state, control], [ca.jacobian(self.feature_vy(state, control), state)])
-        f_phidot_jac = ca.Function('f_phidot_jac', [state, control], [ca.jacobian(self.feature_phidot(state, control), state)])
+        f_px_jac = ca.Function('f_px_jac', [state, control], [ca.densify(ca.jacobian(self.feature_px(state, control), state))])
+        f_py_jac = ca.Function('f_py_jac', [state, control], [ca.densify(ca.jacobian(self.feature_py(state, control), state))])
+        f_phi_jac = ca.Function('f_phi_jac', [state, control], [ca.densify(ca.jacobian(self.feature_phi(state, control), state))])
+        f_vx_jac = ca.Function('f_vx_jac', [state, control], [ca.densify(ca.jacobian(self.feature_vx(state, control), state))])
+        f_vy_jac = ca.Function('f_vy_jac', [state, control], [ca.densify(ca.jacobian(self.feature_vy(state, control), state))])
+        f_phidot_jac = ca.Function('f_phidot_jac', [state, control], [ca.densify(ca.jacobian(self.feature_phidot(state, control), state))])
 
         # === 4. Compute Jacobians (w.r.t. control) ===
-        f_px_u_jac = ca.Function('f_px_ujac', [state, control], [ca.jacobian(self.feature_px(state, control), control)])
-        f_py_u_jac = ca.Function('f_py_ujac', [state, control], [ca.jacobian(self.feature_py(state, control), control)])
-        f_phi_u_jac = ca.Function('f_phi_ujac', [state, control], [ca.jacobian(self.feature_phi(state, control), control)])
-        f_vx_u_jac = ca.Function('f_vx_ujac', [state, control], [ca.jacobian(self.feature_vx(state, control), control)])
-        f_vy_u_jac = ca.Function('f_vy_ujac', [state, control], [ca.jacobian(self.feature_vy(state, control), control)])
-        f_phidot_u_jac = ca.Function('f_phidot_ujac', [state, control], [ca.jacobian(self.feature_phidot(state, control), control)])
+        f_px_u_jac = ca.Function('f_px_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_px(state, control), control))])
+        f_py_u_jac = ca.Function('f_py_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_py(state, control), control))])
+        f_phi_u_jac = ca.Function('f_phi_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_phi(state, control), control))])
+        f_vx_u_jac = ca.Function('f_vx_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_vx(state, control), control))])
+        f_vy_u_jac = ca.Function('f_vy_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_vy(state, control), control))])
+        f_phidot_u_jac = ca.Function('f_phidot_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_phidot(state, control), control))])
 
         # === 5. Setup batch mapping ===
         batch_size = self.params["agent"]["num_dyn_samples"]

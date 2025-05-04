@@ -249,12 +249,12 @@ class Pendulum(object):
         f_omega = ca.Function('f_omega', [state, control], [self.feature_omega(state, control)])
         
         # compute jacobian as well for theses features
-        f_theta_jac = ca.Function('f_theta_jac', [state, control], [ca.jacobian(self.feature_theta(state, control), state)])
-        f_omega_jac = ca.Function('f_omega_jac', [state, control], [ca.jacobian(self.feature_omega(state, control), state)])
+        f_theta_jac = ca.Function('f_theta_jac', [state, control], [ca.densify(ca.jacobian(self.feature_theta(state, control), state))])
+        f_omega_jac = ca.Function('f_omega_jac', [state, control], [ca.densify(ca.jacobian(self.feature_omega(state, control), state))])
 
         # compute jacobian as well for theses features
-        f_theta_u_jac = ca.Function('f_theta_ujac', [state, control], [ca.jacobian(self.feature_theta(state, control), control)])
-        f_omega_u_jac = ca.Function('f_omega_ujac', [state, control], [ca.jacobian(self.feature_omega(state, control), control)])
+        f_theta_u_jac = ca.Function('f_theta_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_theta(state, control), control))])
+        f_omega_u_jac = ca.Function('f_omega_ujac', [state, control], [ca.densify(ca.jacobian(self.feature_omega(state, control), control))])
 
         # Suppose batch size = (50, 1, 30) --> total 50*1*30 = 1500 points
         batch_size = self.params["agent"]["num_dyn_samples"]
@@ -359,7 +359,7 @@ class Pendulum(object):
         const_expr = []
         nx = self.params["agent"]["dim"]["nx"]
         for i in range(num_dyn):
-            xf = np.array(self.params["env"]["terminate_state"])
+            xf = np.array(self.params["env"]["start"])
             xf_dim = xf.shape[0]
             expr = (
                 (model_x[nx * i : nx * (i + 1)][:xf_dim] - xf).T

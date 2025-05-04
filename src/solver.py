@@ -28,7 +28,7 @@ class DEMPC_solver(object):
             )
             self.ocp_solver.store_iterate(self.name_prefix + "ocp_initialization.json")
         if self.params["agent"]["run"]["optimistic"]:
-            self.optimistic_ocp = export_optimistic_ocp(params, env_ocp_handler=agent.env_model.ocp_handler)
+            self.optimistic_ocp = export_dempc_ocp(params, env_ocp_handler=agent.env_model.ocp_handler)
             self.name_prefix_opti = (
                 "env_opti_" + str(params["env"]["name"]) + "_i_" + str(params["env"]["i"]) + "_"
             )
@@ -49,7 +49,7 @@ class DEMPC_solver(object):
         self.u_h = np.zeros((self.H, self.nu))  # u_dim
 
         self.opti_x_h = np.zeros((self.H, self.nx))
-        self.opti_u_h = np.zeros((self.H, self.nu + self.nx))  # u_dim
+        self.opti_u_h = np.zeros((self.H, self.nu))  # u_dim
 
         # computation of tightenings
         L = self.params["agent"]["tight"]["Lipschitz"]
@@ -98,7 +98,7 @@ class DEMPC_solver(object):
             # Plot cross points on new data collected points, and X and U
             if self.params["common"]["use_BLR"]:
                 batch_x_hat = player.get_batch_x_hat(self.opti_x_h, self.opti_u_h, ns)
-                gp_val, y_grad, u_grad = player.get_optimistic_dynamics_grad(batch_x_hat.numpy())
+                gp_val, y_grad, u_grad = player.get_dynamics_grad(batch_x_hat.numpy())
             else:
                 # create model with updated data
                 player.train_hallucinated_dynGP(sqp_iter)
@@ -281,26 +281,26 @@ class DEMPC_solver(object):
         return X, U, Sl
 
     def get_solution(self, solver):
-        nx = self.ocp_solver.acados_ocp.model.x.size()[0]
-        nu = self.ocp_solver.acados_ocp.model.u.size()[0]
+        nx = solver.acados_ocp.model.x.size()[0]
+        nu = solver.acados_ocp.model.u.size()[0]
         X = np.zeros((self.H + 1, nx))
         U = np.zeros((self.H, nu))
         Sl = np.zeros((self.H + 1))
 
         # get data
         for i in range(self.H):
-            X[i, :] = self.ocp_solver.get(i, "x")
-            U[i, :] = self.ocp_solver.get(i, "u")
-            # Sl[i] = self.ocp_solver.get(i, "sl")
+            X[i, :] = solver.get(i, "x")
+            U[i, :] = solver.get(i, "u")
+            # Sl[i] = solver.get(i, "sl")
 
-        X[self.H, :] = self.ocp_solver.get(self.H, "x")
+        X[self.H, :] = solver.get(self.H, "x")
         return X, U, Sl
 
     def shift_solution(self, X, U, Sl, solver):
         for i in range(self.H - 1):
-            self.ocp_solver.set(i, "x", X[i + 1, :])
-            self.ocp_solver.set(i, "u", U[i + 1, :])
-        self.ocp_solver.set(self.H - 1, "x", X[self.H, :])
+            solver.set(i, "x", X[i + 1, :])
+            solver.set(i, "u", U[i + 1, :])
+        solver.set(self.H - 1, "x", X[self.H, :])
 
     def initialize_solution(self, X, U, Sl):
         for i in range(self.H - 1):

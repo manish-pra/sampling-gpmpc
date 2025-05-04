@@ -117,7 +117,7 @@ class DEMPC:
         if self.params["agent"]["shift_soln"]:
             X, U, Sl = self.dempc_solver.get_and_shift_solution(self.dempc_solver.optimistic_ocp_solver)
         else:
-            X, U, Sl = self.dempc_solver.get_optimistic_solution()
+            X, U, Sl = self.dempc_solver.get_solution(self.dempc_solver.optimistic_ocp_solver)
         #
         self.visu.record(st_curr, X, U, dt,record_gp_model=False)
         print("X", X)

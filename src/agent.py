@@ -829,15 +829,15 @@ class Agent(object):
         feature_size = max(mu.shape[0] for mu in self.mu_list)
 
         # Preallocate weight samples
-        self.weights = np.zeros((self.ns, self.g_ny, feature_size))
+        # self.weights = np.zeros((self.ns, self.g_ny, feature_size))
         tr_weight = self.env_model.get_gt_weights()
-        # self.weights = []
+        self.weights = []
         for i, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
             mu_flat = mu.squeeze()   # (D_i,)
             samples = np.random.multivariate_normal(mu_flat, Sigma, size=self.ns)  # (ns, D_i)
-            samples = np.tile(tr_weight[i], (self.ns,1))
-            self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
-            # self.weights.append(samples)  # append samples for each output
+            # samples = np.tile(tr_weight[i], (self.ns,1))
+            # self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
+            self.weights.append(samples)  # append samples for each output
 
         
         # self.weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
@@ -870,8 +870,8 @@ class Agent(object):
         # Extract state and control directly
         state = X_test[:,0,:, :nx]  # shape (50, 1, 30, 2)
         control = X_test[:,0,:, nx:nx+nu]  # shape (50, 1, 30, 1)
-        eta = X_test[:,0,:, nx+nu:]  # optimization variable to pick optimistic dynamics
-        eta_flat = eta.reshape(total_samples, nx)
+        # eta = X_test[:,0,:, nx+nu:]  # optimization variable to pick optimistic dynamics
+        # eta_flat = eta.reshape(total_samples, nx)
         # Flatten only the batch dimensions for CasADi input
         state_flat = state.reshape(total_samples, nx)
         control_flat = control.reshape(total_samples, nu)
@@ -884,28 +884,31 @@ class Agent(object):
         f_jac_values_list = [np.array(f_jac_values_flat).T.reshape(total_samples, nx,-1) for f_jac_values_flat in f_jac_values_flat_list]  # (50,1,30,2)
         f_ujac_values_list = [np.array(f_ujac_values_flat).T.reshape(total_samples, nu,-1) for f_ujac_values_flat in f_ujac_values_flat_list]  # (50,1,30,2)
 
-        model_val = np.zeros((ns, self.g_ny, X_test.shape[2], 1))
+        model_val = np.zeros((X_test.shape[0],self.g_ny, X_test.shape[2], 1))
         y_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nx))
-        u_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nu +nx))
+        u_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nu))
 
         # for idx in range(self.g_ny):
+        tr_weight = self.env_model.get_gt_weights()
         for idx, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
+            mu = np.array(tr_weight[idx])  # use the true weight
             mu_flat = mu.squeeze()   # (D_i,)
-            sigma_flat = Sigma.diagonal().squeeze()*self.params["agent"]["Dyn_gp_beta"]   # (D_i, D_i)    
-            eta_i = eta_flat[:,[idx]]
-            weight_feat = mu_flat + eta_i*sigma_flat  # (ns, D_i)
-            model_val[0,[idx],:,:] = np.sum(feture_values_list[idx]*weight_feat[:,:], axis=-1, keepdims=True)  # (50,1,30,2)
-            y_grad_mapped[0,[idx],:,:] = np.sum(f_jac_values_list[idx]*weight_feat[:,np.newaxis,:], axis=-1)  # (50,1,30,2)
-            u_grad_mapped[0,[idx],:,:nu] = np.sum(f_ujac_values_list[idx]*weight_feat[:,np.newaxis,:], axis=-1)  # (50,1,30,2)
+            sigma_flat = Sigma.diagonal().squeeze()*self.params["agent"]["Dyn_gp_beta"]*0   # (D_i, D_i)    
+            # eta_i = eta_flat[:,[idx]]
+            eta_i = np.zeros((nH, 1)) 
+            weight_feat = mu_flat #+ eta_i*sigma_flat  # (ns, D_i)
+            model_val[:,[idx],:,:] = np.sum(feture_values_list[idx]*weight_feat[np.newaxis,:], axis=-1, keepdims=True)[np.newaxis,np.newaxis,:,:]  # (1,1,30,2)
+            y_grad_mapped[:,[idx],:,:] = np.sum(f_jac_values_list[idx]*weight_feat[np.newaxis,np.newaxis,:], axis=-1)[np.newaxis,np.newaxis,:,:]  # (1,1,30,2)
+            u_grad_mapped[:,[idx],:,:] = np.sum(f_ujac_values_list[idx]*weight_feat[np.newaxis,np.newaxis,:], axis=-1)[np.newaxis,np.newaxis,:,:]  # (1,1,30,1)
 
-            # add gradient w.r.t eta in u_grad_mapped
-            beta_sigma = eta_i*sigma_flat 
-            u_grad_mapped[0,[idx],:,[nu+idx]] = np.sum(beta_sigma, axis=-1, keepdims=True).T + 5  # (50,1,30,2)
+            # # add gradient w.r.t eta in u_grad_mapped
+            # beta_sigma = eta_i*sigma_flat 
+            # u_grad_mapped[0,[idx],:,[nu+idx]] = np.sum(beta_sigma, axis=-1, keepdims=True).T  # (50,1,30,2)
         a=1
         return model_val, y_grad_mapped, u_grad_mapped
     
 
-    def get_dynamics_grad1(self, X_test):
+    def get_dynamics_grad(self, X_test):
         # Suppose batch size = (50, 1, 30) --> total 50*1*30 = 1500 points
         ns = self.params["agent"]["num_dyn_samples"]
         batch_1 = 1
@@ -946,7 +949,7 @@ class Agent(object):
 
         return model_val, y_grad_mapped, u_grad_mapped
 
-    def get_dynamics_grad(self, X_test):
+    def get_dynamics_grad_manual(self, X_test):
         # Compute gradients
         Phi, _ = self.env_model.BLR_features_test(X_test) #phi_theta, phi_omega
         weights_expanded = self.weights[:, :, np.newaxis, :]  # (50,2,1,3)

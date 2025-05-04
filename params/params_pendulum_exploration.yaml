@@ -36,7 +36,7 @@ agent:
   Dyn_gp_beta : 3.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 50 
+  num_dyn_samples: 1 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -49,8 +49,8 @@ agent:
     w_bound: 0.007
   shift_soln: True
   run:
-    optimistic: False
-    pessimistic: True
+    optimistic: True
+    pessimistic: False
   BLR:
     lambda_reg: 1.0e-6
     noise_var: 5.0e-4
@@ -62,7 +62,7 @@ common:
   use_cuda : False
   use_BLR : True
   active_learning : True
-  num_MPC_itrs : 37
+  num_MPC_itrs : 2
   dynamics_rejection: False
 
 optimizer:
@@ -98,8 +98,8 @@ optimizer:
 
 optimistic_optimizer:
   H : 30 # horizon
-  u_min : [-8, -1, -1] # Minimum control input
-  u_max : [8, 1, 1]          
+  u_min : [-8] # Minimum control input
+  u_max : [8]          
   x_min : [-2.14, -2.5] # Minimum state value
   x_max : [ 1.14, 2.5] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
@@ -107,23 +107,23 @@ optimistic_optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 10
+    max_sqp_iter: 3
     tol_nlp: 1.0e-4 
   order: 2
   x_dim: 2
   dt: 0.015 # 0.010
   w: 50
   Qx: [5, 0] # [1.0, 1.0, 1.0, 1.0]  
-  Qu: [0.1, 0.1, 0.1]
+  Qu: [0.1]
   cost: "expected" 
   options: {
-    levenberg_marquardt: 20.0
+    levenberg_marquardt: 1.0
   }
   terminal_tightening:
     x_tight: [0.1, 0.1]
     u_tight: [0.1]
     P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
-    delta: 100
+    delta: 1.0
 
 
 experiment:
