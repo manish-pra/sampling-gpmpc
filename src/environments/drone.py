@@ -526,7 +526,7 @@ class Drone(object):
         # Generate values for t from 0 to 2π
         if length is None:
             length = self.params["optimizer"]["H"] + 1
-        s = np.linspace(0, 2 * np.pi, 500)
+        s = np.linspace(0, 4 * np.pi, 1000)
         t = s[st:st+length] #np.linspace(st + 0, st + 2 * np.pi/100*length, )
 
         # # Parametric equations for heart

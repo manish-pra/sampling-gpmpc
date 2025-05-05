@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 # t = np.linspace(0, 2 * np.pi, 100)
 st = 0
 length = 100
-t = np.linspace(st + 0, st + 2 * np.pi/100*length, length)
+t = np.linspace(st + 0, st + 4 * np.pi/100*length, length)
 
 # Parametric equations for heart
 x = 8 * np.sin(t)**3 / 1.5
