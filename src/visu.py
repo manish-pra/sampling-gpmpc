@@ -328,6 +328,7 @@ class Visualizer:
         X = self.state_traj[-1]
         U = self.input_traj[-1]
         rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
+        # rm.append(ax.plot(X[:, 3 :: self.nx], X[:, 4 :: self.nx], linestyle="-"))
         if self.tilde_eps_list is not None and self.params["agent"]["tight"]["use"]:
             rm.append(
                 self.plot_box(

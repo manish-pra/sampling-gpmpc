@@ -582,7 +582,7 @@ class Drone(object):
         )
 
         if "P" in self.params["optimizer"]["terminal_tightening"]:
-            xf = np.array(self.params["env"]["start"])
+            xf = np.array(self.params["env"]["terminate_state"])
             P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])
             delta = self.params["optimizer"]["terminal_tightening"]["delta"]
             L = np.linalg.cholesky(P / delta)
