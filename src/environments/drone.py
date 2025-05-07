@@ -492,7 +492,7 @@ class Drone(object):
         uh_e = np.hstack([[delta] * num_dyn])
         return lh, uh, lh_e, uh_e
 
-    def cost_expr(self, model_x, model_u, ns, p, optimizer_str):
+    def cost_expr(self, model_x, model_u, ns, p, we, optimizer_str):
         pos_dim = 1
         nx = self.params["agent"]["dim"]["nx"]
         nu = self.params["agent"]["dim"]["nu"]
@@ -508,18 +508,24 @@ class Drone(object):
         # else:
         #     ns = self.params["agent"]["num_dyn_samples"]
         expr = 0
+        expr_e=0
         v_max = np.array([10,10])
         for i in range(ns):
             expr += (
                 (model_x[nx * i : nx * (i + 1)][:xg_dim] - p).T
                 @ Qx
                 @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - p)
-                + (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max).T
-                @ (Qx/50)
-                @ (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max) 
+                # + (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max).T
+                # @ (Qx/50)
+                # @ (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max) 
+            )
+            expr_e += (
+                (model_x[nx * i : nx * (i + 1)][:xg_dim] - we).T
+                @ Qx
+                @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - we)
             )
         cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u
-        cost_expr_ext_cost_e = expr / ns
+        cost_expr_ext_cost_e = expr_e / ns
         return cost_expr_ext_cost, cost_expr_ext_cost_e
     
     def path_generator(self, st, length=None):

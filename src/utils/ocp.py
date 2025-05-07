@@ -24,11 +24,11 @@ def export_dempc_ocp(params, env_ocp_handler=None):
     x_dim = params["agent"]["dim"]["nx"]
 
     xg = ca.SX.sym("xg", 1)
-    we = ca.SX.sym("we", 1, 1)
     cw = ca.SX.sym("cw", 2)
+    we = ca.SX.sym("we", 2)
     tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
 
-    p = ca.vertcat(xg, cw, tilde_eps_i)
+    p = ca.vertcat(xg, cw, we, tilde_eps_i)
     
     model = export_linear_model(name_prefix + "dempc", p, params)  # start pendulum at 0
     nx = params["agent"]["dim"]["nx"]
@@ -111,7 +111,7 @@ def export_dempc_ocp(params, env_ocp_handler=None):
     # ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params)
     ocp.cost.cost_type = "EXTERNAL"
     ocp.cost.cost_type_e = "EXTERNAL"
-    cost_expr, cost_expr_e = env_ocp_handler("cost_expr", model_x, model_u, num_dyn, cw, "optimizer")
+    cost_expr, cost_expr_e = env_ocp_handler("cost_expr", model_x, model_u, num_dyn, cw, we, "optimizer")
     ocp.model.cost_expr_ext_cost = cost_expr
     ocp.model.cost_expr_ext_cost_e = cost_expr_e
 

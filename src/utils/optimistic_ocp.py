@@ -24,11 +24,11 @@ def export_optimistic_ocp(params, env_ocp_handler=None):
     x_dim = params["agent"]["dim"]["nx"]
 
     xg = ca.SX.sym("xg", 1)
-    we = ca.SX.sym("we", 1, 1)
+    we = ca.SX.sym("we", 2)
     cw = ca.SX.sym("cw", 2)
     tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
 
-    p = ca.vertcat(xg, cw, tilde_eps_i)
+    p = ca.vertcat(xg, cw, we, tilde_eps_i)
 
     # _, p = optimistic_const_expr(
     #     x_dim, n_order, params
@@ -48,7 +48,7 @@ def export_optimistic_ocp(params, env_ocp_handler=None):
     ocp.model = model
     ocp.cost.cost_type = "EXTERNAL"
     ocp.cost.cost_type_e = "EXTERNAL"
-    cost_expr, cost_expr_e = env_ocp_handler("cost_expr", model_x, model_u, 1, cw)
+    cost_expr, cost_expr_e = env_ocp_handler("cost_expr", model_x, model_u, 1, cw, we, 'optimistic_optimizer')
     ocp.model.cost_expr_ext_cost = cost_expr
     ocp.model.cost_expr_ext_cost_e = cost_expr_e
     # optimistic_cost_expr(ocp, model_x, model_u, x_dim, p, optimistic_params)
