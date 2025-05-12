@@ -17,6 +17,8 @@ class Visualizer:
         self.input_traj = []
         self.mean_state_traj = []
         self.true_state_traj = []
+        self.solver_cost = []
+        self.solver_status = []
         self.physical_state_traj = []
         # self.gp_model_after_solve = []
         self.gp_model_after_solve_train_X = []
@@ -413,11 +415,13 @@ class Visualizer:
         self.true_state_traj.append(pred_true_state)
         self.mean_state_traj.append(pred_mean_state)
 
-    def record(self, x_curr, X, U, time, record_gp_model=True):
+    def record(self, x_curr, X, U, time, cost, status, record_gp_model=True):
         self.physical_state_traj.append(x_curr)
         self.state_traj.append(X)
         self.input_traj.append(U)
         self.solver_time.append(time)
+        self.solver_cost.append(cost)
+        self.solver_status.append(status)
 
         if record_gp_model:
             # self.gp_model_after_solve.append(copy.deepcopy(self.agent.model_i))
@@ -446,6 +450,8 @@ class Visualizer:
         data_dict["gp_model_after_solve_train_Y"] = self.gp_model_after_solve_train_Y
         data_dict["tilde_eps_list"] = self.tilde_eps_list
         data_dict["ci_list"] = self.ci_list
+        data_dict["solver_cost"] = self.solver_cost
+        data_dict["solver_status"] = self.solver_status
         a_file = open(self.save_path + "/data.pkl", "wb")
         # data_dict["meas_traj"] = self.meas_traj
         # data_dict["player_train_pts"] = self.player_train_pts
@@ -466,4 +472,6 @@ class Visualizer:
         self.gp_model_after_solve = data_dict["gp_model_after_solve"]
         self.tilde_eps_list = data_dict["tilde_eps"]
         self.ci_list = data_dict["ci"]
+        self.solver_cost = data_dict["solver_cost"]
+        self.solver_status = data_dict["solver_status"]
         a_file.close()

@@ -51,8 +51,8 @@ agent:
     w_bound: 0.007
   shift_soln: True
   run:
-    optimistic: True
-    pessimistic: False
+    optimistic: False
+    pessimistic: True
     true_param_as_sample: False # Debug mode
   BLR:
     lambda_reg: 1.0e-6
@@ -64,7 +64,7 @@ visu:
 common:
   use_cuda : False
   use_BLR : True
-  active_learning : True
+  active_learning : False
   num_MPC_itrs : 500
   dynamics_rejection: False
 

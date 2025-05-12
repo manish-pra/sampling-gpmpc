@@ -140,7 +140,7 @@ class DEMPC:
 
         # set objective as per desired goal
         t_0 = timeit.default_timer()
-        solver_status = self.dempc_solver.solve(self.agent, solver)
+        solver_status, cost = self.dempc_solver.solve(self.agent, solver)
         t_1 = timeit.default_timer()
         dt = t_1 - t_0
         print("Time to solve", dt)
@@ -150,7 +150,7 @@ class DEMPC:
         else:
             X, U, Sl = self.dempc_solver.get_solution(solver)
         #
-        self.visu.record(st_curr, X, U, dt,record_gp_model=False)
+        self.visu.record(st_curr, X, U, dt, cost,solver_status, record_gp_model=False)
         print("X", X)
         print("U", U)
 

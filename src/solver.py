@@ -251,7 +251,8 @@ class DEMPC_solver(object):
             print("Time taken for QP solve", t_1 - t_0)
             # solver.print_statistics()
             # print("statistics", solver.get_stats("statistics"))
-            print("cost", solver.get_cost())
+            cost = solver.get_cost()
+            print("cost", cost)
             residuals = solver.get_residuals(recompute=True)
             print("residuals (after solve)", residuals)
 
@@ -265,7 +266,7 @@ class DEMPC_solver(object):
             if plot_pendulum:
                 self.plot_iterates_pendulum(sqp_iter, player, self.x_h, x_h_e, self.u_h)
 
-        return status
+        return status, cost
     
     def get_optimistic_solution(self):
         nx = self.optimistic_ocp_solver.acados_ocp.model.x.size()[0]
