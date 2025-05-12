@@ -50,11 +50,12 @@ agent:
     Lipschitz: 1.015
     w_bound: 0.007
   shift_soln: True
+  load_training_data: True
   run:
     optimistic: False
     pessimistic: True
     true_param_as_sample: False # Debug mode
-    variance_cost: True
+    variance_cost: False
   BLR:
     lambda_reg: 1.0e-6
     noise_var: 5.0e-5
@@ -65,8 +66,8 @@ visu:
 common:
   use_cuda : False
   use_BLR : True
-  active_learning : True
-  num_MPC_itrs : 100
+  active_learning : False
+  num_MPC_itrs : 500
   dynamics_rejection: False
 
 optimizer:

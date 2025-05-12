@@ -529,7 +529,7 @@ class Drone(object):
         return cost_expr_ext_cost, cost_expr_ext_cost_e
     
 
-    def cost_expr_variance(self, model_x, model_u, ns, p_var, we, optimizer_str):
+    def cost_expr_variance(self, model_x, model_u, ns, p, p_var, optimizer_str):
         pos_dim = 1
         nx = self.params["agent"]["dim"]["nx"]
         nu = self.params["agent"]["dim"]["nu"]
@@ -549,8 +549,10 @@ class Drone(object):
         # f_phidot = ca.Function('f_phidot', [state, control], [self.feature_phidot(state, control)])
         f_list = [self.feature_px, self.feature_py, self.feature_phi, self.feature_vx, self.feature_vy, self.feature_phidot]
 
+
         # f_list = [f_px, f_py, f_phi, f_vx, f_vy, f_phidot]
         expr = 0
+        expr_e=0
         cost = 0
         t_sh = 0
         f_shape = 0
@@ -559,19 +561,19 @@ class Drone(object):
             for i in range(ns):
                 f_val = feature(model_x[nx * i : nx * (i + 1)], model_u)
                 f_shape = f_val.shape[0]
-                for _ in range(f_shape):
-                    expr -= f_val.T @ ca.diag(p_var[t_sh:t_sh+f_shape]) @ f_val
-                    # expr -= ca.mtimes([f_val.T, ca.diag(p_var[t_sh:t_sh+f_shape]), f_val])
+                expr += -f_val.T @ ca.diag(p_var[t_sh:t_sh+f_shape]) @ f_val
+                # expr -= ca.mtimes([f_val.T, ca.diag(p_var[t_sh:t_sh+f_shape]), f_val])
     
 
-        # expr = 0
-        expr_e=0
+        # # expr = 0
+        
         # v_max = np.array([10,10])
+
         # for i in range(ns):
         #     expr += (
         #         (model_x[nx * i : nx * (i + 1)][:xg_dim] - p).T
         #         @ Qx
-        #         @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - p)
+        #         @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - p))
         #         # + (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max).T
         #         # @ (Qx/50)
         #         # @ (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max) 

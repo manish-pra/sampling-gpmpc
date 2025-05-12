@@ -155,6 +155,8 @@ class DEMPC_solver(object):
     def solve(self, player, solver,  plot_pendulum=False):
         # w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
         w = player.env_model.path_generator(player.mpc_iter) #* self.params["optimizer"]["w"]
+        if self.params["agent"]["run"]["variance_cost"]:
+            w = np.random.rand(2*(self.H+1)).reshape(self.H+1,2)*10 - 5
         w_e = w[-1]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         ns = self.params["agent"]["num_dyn_samples"]
@@ -168,8 +170,15 @@ class DEMPC_solver(object):
             u_h_old = self.u_h.copy()
             for stage in range(self.H):
                 # current stage values
-                self.x_h[stage, :] = solver.get(stage, "x")
-                self.u_h[stage, :] = solver.get(stage, "u")
+                if self.params["agent"]["run"]["variance_cost"] and not self.params["agent"]["load_training_data"]:
+                    c = 5.0e-1
+                    if player.mpc_iter == 0:
+                        c = 1.0e-2
+                    self.x_h[stage, :] = solver.get(stage, "x") + np.random.rand(self.x_h[0,:].shape[0])*c
+                    self.u_h[stage, :] = solver.get(stage, "u") + np.random.rand(self.u_h[0,:].shape[0])*c
+                else:
+                    self.x_h[stage, :] = solver.get(stage, "x")
+                    self.u_h[stage, :] = solver.get(stage, "u")
 
             x_h_e = solver.get(self.H, "x")
 

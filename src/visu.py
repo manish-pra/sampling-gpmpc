@@ -461,6 +461,14 @@ class Visualizer:
         pickle.dump(data_dict, a_file)
         a_file.close()
 
+        a_file = open(self.save_path + "/training_data.pkl", "wb")
+        training_data = {}
+        training_data["Dyn_gp_X_train"] = self.agent.Dyn_gp_X_train
+        training_data["Dyn_gp_Y_train"] = self.agent.Dyn_gp_Y_train
+        pickle.dump(training_data, a_file)
+        a_file.close()
+
+
     def extract_data(self):
         a_file = open(self.save_path + "/data.pkl", "rb")
         data_dict = pickle.load(a_file)

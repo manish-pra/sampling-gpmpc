@@ -84,6 +84,12 @@ env_model = globals()[params["env"]["dynamics"]](params)
 #     raise ValueError("Unknown dynamics model")
 
 agent = Agent(params, env_model)
+if params["agent"]["load_training_data"]:
+    a_file = open(save_path + str(traj_iter) + "/training_data.pkl", "rb")
+    import dill as pickle
+    data = pickle.load(a_file)
+    agent.Dyn_gp_X_train = data["Dyn_gp_X_train"]
+    agent.Dyn_gp_Y_train = data["Dyn_gp_Y_train"]
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 
 # 4) Set the initial state

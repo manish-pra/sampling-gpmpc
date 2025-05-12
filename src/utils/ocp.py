@@ -115,7 +115,7 @@ def export_dempc_ocp(params, env_ocp_handler=None):
     ocp.cost.cost_type = "EXTERNAL"
     ocp.cost.cost_type_e = "EXTERNAL"
     if params["agent"]["run"]["variance_cost"]:
-        cost_expr, cost_expr_e = env_ocp_handler("cost_expr_variance", model_x, model_u, num_dyn, p_var, we, "optimizer")
+        cost_expr, cost_expr_e = env_ocp_handler("cost_expr_variance", model_x, model_u, num_dyn, cw, p_var, "optimizer")
     else:    
         cost_expr, cost_expr_e = env_ocp_handler("cost_expr", model_x, model_u, num_dyn, cw, we, "optimizer")
     
