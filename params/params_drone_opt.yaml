@@ -54,7 +54,7 @@ agent:
   run:
     optimistic: False
     pessimistic: True
-    true_param_as_sample: False # Debug mode
+    true_param_as_sample: True # Debug mode
     variance_cost: False
   BLR:
     lambda_reg: 1.0e-6
@@ -62,13 +62,13 @@ agent:
 
 visu:
   show: True
-  traj_file_name: "data_lap1.pkl"
+  traj_file_name: "data_opt.pkl"
   training_data_file_name: "training_data_lap1.pkl"
 
 common:
   use_cuda : False
   use_BLR : True
-  active_learning : True
+  active_learning : False
   num_MPC_itrs : 500
   dynamics_rejection: False
 

@@ -24,10 +24,10 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_car_samples")  # params
 # parser.add_argument("-param", default="params_car_residual")  # params
 # parser.add_argument("-param", default="params_pendulum_exploration")
-parser.add_argument("-param", default="params_drone")
+parser.add_argument("-param", default="params_drone_two_stage")
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=43)  # initialized at origin
+parser.add_argument("-i", type=int, default=0)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -64,7 +64,7 @@ if args.i != -1:
 if not os.path.exists(save_path + str(traj_iter)):
     os.makedirs(save_path + str(traj_iter))
 
-a_file = open(save_path + str(traj_iter) + "/data.pkl", "rb")
+a_file = open(save_path + str(traj_iter) + "/data_lap2.pkl", "rb")
 data_dict = pickle.load(a_file)
 state_traj = data_dict["state_traj"]
 input_traj = data_dict["input_traj"]

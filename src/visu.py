@@ -452,16 +452,16 @@ class Visualizer:
         data_dict["ci_list"] = self.ci_list
         data_dict["solver_cost"] = self.solver_cost
         data_dict["solver_status"] = self.solver_status
-        a_file = open(self.save_path + "/data.pkl", "wb")
+        a_file = open(self.save_path + "/" + self.params["visu"]["traj_file_name"], "wb")
         # data_dict["meas_traj"] = self.meas_traj
         # data_dict["player_train_pts"] = self.player_train_pts
         # data_dict["player_model"] = self.player_model
         # data_dict["iteration_time"] = self.iteration_time
-        # a_file = open(self.save_path + "/data.pkl", "wb")
+        # a_file = open(self.save_path + "/" + self.params["visu"]["traj_file_name"], "wb")
         pickle.dump(data_dict, a_file)
         a_file.close()
 
-        a_file = open(self.save_path + "/training_data.pkl", "wb")
+        a_file = open(self.save_path + "/" + self.params["visu"]["training_data_file_name"], "wb")
         training_data = {}
         training_data["Dyn_gp_X_train"] = self.agent.Dyn_gp_X_train
         training_data["Dyn_gp_Y_train"] = self.agent.Dyn_gp_Y_train
@@ -470,7 +470,7 @@ class Visualizer:
 
 
     def extract_data(self):
-        a_file = open(self.save_path + "/data.pkl", "rb")
+        a_file = open(self.save_path + "/" + self.params["visu"]["traj_file_name"], "rb")
         data_dict = pickle.load(a_file)
         self.state_traj = data_dict["state_traj"]
         self.input_traj = data_dict["input_traj"]
