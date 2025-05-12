@@ -29,7 +29,10 @@ def export_dempc_ocp(params, env_ocp_handler=None):
     tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
 
     p = ca.vertcat(xg, cw, we, tilde_eps_i)
-    
+    if params["agent"]["run"]["variance_cost"]:
+        p_var = ca.SX.sym("p_var", 21)
+        p = ca.vertcat(p, p_var)
+
     model = export_linear_model(name_prefix + "dempc", p, params)  # start pendulum at 0
     nx = params["agent"]["dim"]["nx"]
     model_x = model.x
@@ -111,7 +114,12 @@ def export_dempc_ocp(params, env_ocp_handler=None):
     # ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params)
     ocp.cost.cost_type = "EXTERNAL"
     ocp.cost.cost_type_e = "EXTERNAL"
-    cost_expr, cost_expr_e = env_ocp_handler("cost_expr", model_x, model_u, num_dyn, cw, we, "optimizer")
+    if params["agent"]["run"]["variance_cost"]:
+        cost_expr, cost_expr_e = env_ocp_handler("cost_expr_variance", model_x, model_u, num_dyn, p_var, we, "optimizer")
+    else:    
+        cost_expr, cost_expr_e = env_ocp_handler("cost_expr", model_x, model_u, num_dyn, cw, we, "optimizer")
+    
+        
     ocp.model.cost_expr_ext_cost = cost_expr
     ocp.model.cost_expr_ext_cost_e = cost_expr_e
 

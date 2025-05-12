@@ -240,6 +240,16 @@ class DEMPC_solver(object):
                         self.tilde_eps_list[stage],
                     ]
                 )
+                # variance cost
+                
+                if self.params["agent"]["run"]["variance_cost"]:
+                    p_var = np.hstack([np.diag(sigma) for sigma in player.Sigma_list])
+                    p_lin = np.hstack(
+                        [
+                            p_lin,p_var
+    
+                        ]
+                    )
                 solver.set(stage, "p", p_lin)
 
             residuals = solver.get_residuals(recompute=True)

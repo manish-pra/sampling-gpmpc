@@ -71,24 +71,60 @@ if not os.path.exists(save_path + str(traj_iter)):
 def load_data(file_name):
     a_file = open(save_path + str(traj_iter) + "/"+file_name, "rb")
     data_dict = pickle.load(a_file)
+    solver_status = 0
     state_traj = data_dict["state_traj"]
     input_traj = data_dict["input_traj"]
     mean_state_traj = data_dict["mean_state_traj"]
     true_state_traj = data_dict["true_state_traj"]
     physical_state_traj = data_dict["physical_state_traj"]
     solver_cost = data_dict["solver_cost"]
+    if "solver_Status" in data_dict:
+        solver_status = data_dict["solver_Status"]
     tilde_eps_list, ci_list = None, None
     if "tilde_eps_list" in data_dict:
         tilde_eps_list = data_dict["tilde_eps_list"]
         ci_list = data_dict["ci_list"]
     a_file.close()
-    return solver_cost
+    return solver_cost, solver_status, np.vstack(physical_state_traj)[:,:6]
 
 
-cost_algo = load_data("data.pkl")
-cost_algo1 = load_data("data1.pkl")
-cost_opt = load_data("data_opt.pkl")
-cost_no_learning = load_data("data_no_learning.pkl")
+cost_algo, solver_status_algo, state_traj_algo = load_data("data.pkl")
+cost_algo1, solver_status_algo1, state_traj_algo1 = load_data("data1.pkl")
+cost_opt, solver_status_opt, state_traj_opt = load_data("data_opt.pkl")
+cost_no_learning, solver_status_no_learn, state_traj_no_learning = load_data("data_no_learning.pkl")
+
+# Plot closed loop cost
+close_loop_regret = np.linalg.norm(state_traj_opt - state_traj_algo, axis=1)
+close_loop_regret1 = np.linalg.norm(state_traj_opt - state_traj_algo1, axis=1)
+plt.plot(close_loop_regret, label="close_loop_regret")
+plt.plot(close_loop_regret1, label="close_loop_regret1")
+cum_regret_over_time = np.cumsum(close_loop_regret)/np.arange(1, len(close_loop_regret)+1)
+cum_regret_over_time1 = np.cumsum(close_loop_regret1)/np.arange(1, len(close_loop_regret1)+1)
+plt.plot(cum_regret_over_time, label="cummulative regret")
+plt.plot(cum_regret_over_time1, label="cummulative regret1")
+plt.plot(np.zeros(len(close_loop_regret)), label="zero")
+plt.legend()
+plt.savefig("close_loop_regret.png")
+a=1
+
+
+# FUll exploration debugging
+cost_full_expl, solver_status_full_expl = load_data("data_full_expl.pkl")
+cost_full_expl_true, solver_status_full_expl_true = load_data("data_full_expl_true.pkl")
+
+plt.plot(cost_full_expl, label="cost_full_expl")
+plt.plot(cost_full_expl_true, label="cost_full_expl_true")
+plt.ylim(-0.0008, 0.00)
+plt.legend()
+plt.savefig("cost_full_expl.png")
+plt.close()
+
+plt.plot(solver_status_full_expl, label="solver_status_full_expl")
+plt.plot(solver_status_full_expl_true, label="solver_status_full_expl_true")
+plt.ylim(-0.001, 0.001)
+plt.savefig("cost_full_expl_status.png")
+plt.legend()
+plt.close()
 
 # params["visu"]["show"] = True
 # env_model = globals()[params["env"]["dynamics"]](params)
