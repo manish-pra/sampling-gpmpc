@@ -19,6 +19,7 @@ class Visualizer:
         self.true_state_traj = []
         self.solver_cost = []
         self.solver_status = []
+        self.reference_cost = []
         self.physical_state_traj = []
         # self.gp_model_after_solve = []
         self.gp_model_after_solve_train_X = []
@@ -330,6 +331,10 @@ class Visualizer:
         X = self.state_traj[-1]
         U = self.input_traj[-1]
         rm.append(ax.plot(X[:, 0 :: self.nx], X[:, 1 :: self.nx], linestyle="-"))
+
+        # plot reference trajectory
+        ref_xk = self.reference_cost[-1]
+        rm.append(ax.plot(ref_xk[:, 0], ref_xk[:, 1], color="red", linestyle="--"))
         # rm.append(ax.plot(X[:, 3 :: self.nx], X[:, 4 :: self.nx], linestyle="-"))
         if self.tilde_eps_list is not None and self.params["agent"]["tight"]["use"]:
             rm.append(
@@ -356,7 +361,7 @@ class Visualizer:
             ax.plot(
                 pred_mean_state[:, 0],
                 pred_mean_state[:, 1],
-                color="red",
+                color="tab:blue",
                 label="mean",
                 linestyle="--",
             )
@@ -408,20 +413,22 @@ class Visualizer:
         plt.grid()
         plt.savefig("pendulum.png")
 
-    def record_out(self, x_curr, X, U, pred_true_state, pred_mean_state):
+    def record_out(self, x_curr, X, U, pred_true_state, pred_mean_state, reference):
         self.physical_state_traj.append(x_curr)
         self.state_traj.append(X)
         self.input_traj.append(U)
         self.true_state_traj.append(pred_true_state)
         self.mean_state_traj.append(pred_mean_state)
+        self.reference_cost.append(reference)
 
-    def record(self, x_curr, X, U, time, cost, status, record_gp_model=True):
+    def record(self, x_curr, X, U, time, cost, status, w, record_gp_model=True):
         self.physical_state_traj.append(x_curr)
         self.state_traj.append(X)
         self.input_traj.append(U)
         self.solver_time.append(time)
         self.solver_cost.append(cost)
         self.solver_status.append(status)
+        self.reference_cost.append(w)
 
         if record_gp_model:
             # self.gp_model_after_solve.append(copy.deepcopy(self.agent.model_i))
@@ -452,6 +459,7 @@ class Visualizer:
         data_dict["ci_list"] = self.ci_list
         data_dict["solver_cost"] = self.solver_cost
         data_dict["solver_status"] = self.solver_status
+        data_dict["reference_cost"] = self.reference_cost
         a_file = open(self.save_path + "/" + self.params["visu"]["traj_file_name"], "wb")
         # data_dict["meas_traj"] = self.meas_traj
         # data_dict["player_train_pts"] = self.player_train_pts
@@ -482,4 +490,5 @@ class Visualizer:
         self.ci_list = data_dict["ci"]
         self.solver_cost = data_dict["solver_cost"]
         self.solver_status = data_dict["solver_status"]
+        self.reference_cost = data_dict["reference_cost"]
         a_file.close()

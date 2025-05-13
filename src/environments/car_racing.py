@@ -10,8 +10,12 @@ class CarKinematicsModel(object):
         self.nx = self.params["agent"]["dim"]["nx"]
         self.nu = self.params["agent"]["dim"]["nu"]
         self.g_ny = self.params["agent"]["g_dim"]["ny"]
+        self.g_nx = self.params["agent"]["g_dim"]["nx"]
+        self.g_nu = self.params["agent"]["g_dim"]["nu"]
         self.pad_g = [0, 3, 4, 5]  # 0, self.g_nx + self.g_nu :
         self.g_idx_inputs = [2, 3, 4]
+        self.datax_idx = [0,1,2,3]
+        self.datau_idx = [0,1]
         if self.params["common"]["use_cuda"] and torch.cuda.is_available():
             self.use_cuda = True
             self.torch_device = torch.device("cuda")
@@ -31,26 +35,47 @@ class CarKinematicsModel(object):
         n_data_u = self.params["env"]["n_data_u"]
 
         if self.params["env"]["prior_dyn_meas"]:
-            phi_min = self.params["optimizer"]["x_min"][2]
-            phi_max = self.params["optimizer"]["x_max"][2]
-            v_min = self.params["optimizer"]["x_min"][3]
-            v_max = self.params["optimizer"]["x_max"][3]
-            delta_min = self.params["optimizer"]["u_min"][0]
-            delta_max = self.params["optimizer"]["u_max"][0]
-            dphi = (phi_max - phi_min) / (n_data_x)  # removed -1; we want n gaps
-            dv = (v_max - v_min) / (n_data_x)
-            ddelta = (delta_max - delta_min) / (n_data_u)
-            phi = torch.linspace(phi_min + dphi / 2, phi_max - dphi / 2, n_data_x)
-            v = torch.linspace(v_min + dv / 2, v_max - dv / 2, n_data_x)
-            delta = torch.linspace(
-                delta_min + ddelta / 2, delta_max - ddelta / 2, n_data_u
-            )
-            Phi, V, Delta = torch.meshgrid(phi, v, delta)
+            # phi_min = self.params["optimizer"]["x_min"][2]
+            # phi_max = self.params["optimizer"]["x_max"][2]
+            # v_min = self.params["optimizer"]["x_min"][3]
+            # v_max = self.params["optimizer"]["x_max"][3]
+            # delta_min = self.params["optimizer"]["u_min"][0]
+            # delta_max = self.params["optimizer"]["u_max"][0]
+            # dphi = (phi_max - phi_min) / (n_data_x)  # removed -1; we want n gaps
+            # dv = (v_max - v_min) / (n_data_x)
+            # ddelta = (delta_max - delta_min) / (n_data_u)
+            # phi = torch.linspace(phi_min + dphi / 2, phi_max - dphi / 2, n_data_x)
+            # v = torch.linspace(v_min + dv / 2, v_max - dv / 2, n_data_x)
+            # delta = torch.linspace(
+            #     delta_min + ddelta / 2, delta_max - ddelta / 2, n_data_u
+            # )
+            # Phi, V, Delta = torch.meshgrid(phi, v, delta)
+            # Dyn_gp_X_train = torch.hstack(
+            #     [Phi.reshape(-1, 1), V.reshape(-1, 1), Delta.reshape(-1, 1)]
+            # )
+            # Dyn_gp_Y_train = self.get_prior_data(Dyn_gp_X_train)
+            # # Dyn_gp_Y_train = torch.stack((y1, y2), dim=0)
+            mesh_list = []
+            for idx in self.datax_idx:
+                mesh_list.append(torch.linspace(
+                self.params["optimizer"]["data_x_min"][idx],
+                self.params["optimizer"]["data_x_max"][idx],
+                n_data_x,
+            ))
+            for idx in self.datau_idx:
+                mesh_list.append(torch.linspace(
+                self.params["optimizer"]["data_u_min"][idx],
+                self.params["optimizer"]["data_u_max"][idx],
+                n_data_u,
+            ))
+            XU_grid = torch.meshgrid(mesh_list)
+
             Dyn_gp_X_train = torch.hstack(
-                [Phi.reshape(-1, 1), V.reshape(-1, 1), Delta.reshape(-1, 1)]
+                [XU.reshape(-1,1) for XU in XU_grid]
             )
-            Dyn_gp_Y_train = self.get_prior_data(Dyn_gp_X_train)
+            # y1, y2 = self.get_prior_data(Dyn_gp_X_train)
             # Dyn_gp_Y_train = torch.stack((y1, y2), dim=0)
+            Dyn_gp_Y_train = self.get_prior_data(Dyn_gp_X_train)
         else:
             Dyn_gp_X_train = torch.rand(1, self.in_dim)
             Dyn_gp_Y_train = torch.rand(2, 1, 1 + self.in_dim)
@@ -60,7 +85,13 @@ class CarKinematicsModel(object):
 
         return Dyn_gp_X_train, Dyn_gp_Y_train
 
-    def get_prior_data(self, xu):
+    def get_prior_data(self, x_hat):
+        g_xu = self.unknown_dyn(x_hat)
+        y_ret = torch.zeros((self.g_ny, x_hat.shape[0], 1 + self.g_nx + self.g_nu))
+        y_ret[:, :, 0] = g_xu.transpose(0, 1)
+        return y_ret
+
+    def get_prior_data_withgrad(self, xu):
         # NOTE: xu already needs to be filtered to only contain modeled inputs
         assert xu.shape[1] == 3
 
@@ -162,30 +193,49 @@ class CarKinematicsModel(object):
         return state_kp1
 
     def unknown_dyn(self, xu):
-        """_summary_"""
-        # NOTE: xu already needs to be filtered to only contain modeled inputs
-        assert xu.shape[1] == len(self.g_idx_inputs)
-
-        Phi_k, V_k, delta_k = xu[:, [0]], xu[:, [1]], xu[:, [2]]
         lf = self.params["env"]["params"]["lf"]
         lr = self.params["env"]["params"]["lr"]
         dt = self.params["optimizer"]["dt"]
+        c = self.params["env"]["params"]["c"]
+
+        px_k, py_k, phi_k, vx_k = xu[:, [0]], xu[:, [1]], xu[:, [2]], xu[:, [3]]
+        delta_k, ax_k = xu[:, [4]], xu[:, [5]]
         beta = torch.atan(torch.tan(delta_k) * lr / (lr + lf))
-        dX_kp1 = V_k * torch.cos(Phi_k + beta) * dt
-        dY_kp1 = V_k * torch.sin(Phi_k + beta) * dt
-        Phi_kp1 = V_k * torch.sin(beta) * dt / lr
-        state_kp1 = torch.hstack([dX_kp1, dY_kp1, Phi_kp1])
+        px_kp1 = px_k +  vx_k * torch.cos(phi_k + beta) * dt
+        py_kp1 = py_k + vx_k * torch.sin(phi_k + beta) * dt
+        phi_kp1 = phi_k +  vx_k * torch.sin(beta) * dt / lr
+        vx_kp1 = vx_k + ax_k* dt - c*vx_k*vx_k
+        state_kp1 = torch.hstack([px_kp1, py_kp1, phi_kp1, vx_kp1])
         return state_kp1
 
-    def discrete_dyn(self, xu):
-        """_summary_"""
-        # NOTE: takes only single xu
-        assert xu.shape[1] == self.nx + self.nu
+    # def unknown_dyn(self, xu):
+    #     """_summary_"""
+    #     # NOTE: xu already needs to be filtered to only contain modeled inputs
+    #     assert xu.shape[1] == len(self.g_idx_inputs)
 
-        f_xu = self.known_dyn(xu.tile((1, self.nx, 1, 1)))[0, :, :]
-        g_xu = self.unknown_dyn(xu[:, self.g_idx_inputs]).transpose(0, 1)
-        B_d = torch.eye(self.nx, self.g_ny).to(device="cpu", dtype=g_xu.dtype)
-        return f_xu + torch.matmul(B_d, g_xu)
+    #     Phi_k, V_k, delta_k = xu[:, [0]], xu[:, [1]], xu[:, [2]]
+    #     lf = self.params["env"]["params"]["lf"]
+    #     lr = self.params["env"]["params"]["lr"]
+    #     dt = self.params["optimizer"]["dt"]
+    #     beta = torch.atan(torch.tan(delta_k) * lr / (lr + lf))
+    #     dX_kp1 = V_k * torch.cos(Phi_k + beta) * dt
+    #     dY_kp1 = V_k * torch.sin(Phi_k + beta) * dt
+    #     Phi_kp1 = V_k * torch.sin(beta) * dt / lr
+    #     state_kp1 = torch.hstack([dX_kp1, dY_kp1, Phi_kp1])
+    #     return state_kp1
+
+    def discrete_dyn(self, xu):
+        return self.unknown_dyn(xu)
+
+    # def discrete_dyn(self, xu):
+    #     """_summary_"""
+    #     # NOTE: takes only single xu
+    #     assert xu.shape[1] == self.nx + self.nu
+
+    #     f_xu = self.known_dyn(xu.tile((1, self.nx, 1, 1)))[0, :, :]
+    #     g_xu = self.unknown_dyn(xu[:, self.g_idx_inputs]).transpose(0, 1)
+    #     B_d = torch.eye(self.nx, self.g_ny).to(device="cpu", dtype=g_xu.dtype)
+    #     return f_xu + torch.matmul(B_d, g_xu)
 
     def propagate_true_dynamics(self, x_init, U):
         state_list = []
@@ -208,11 +258,12 @@ class CarKinematicsModel(object):
         dt = self.params["optimizer"]["dt"]
         lf = self.params["env"]["params"]["lf"]
         lr = self.params["env"]["params"]["lr"]
+        c = self.params["env"]["params"]["c"]
 
         tr_weight = [[1.0, dt],
                      [1.0, dt],
                      [1.0, dt/lr],
-                     [1.0, dt]]
+                     [1.0, dt, -c]]
         return tr_weight
 
     def feature_px(self, state, control):
@@ -220,7 +271,7 @@ class CarKinematicsModel(object):
         delta, ax = control[0], control[1]
         lf = self.params["env"]["params"]["lf"]
         lr = self.params["env"]["params"]["lr"]
-        beta = torch.atan(torch.tan(delta)* lr / (lr + lf))
+        beta = ca.atan(ca.tan(delta) * lr / (lr + lf))
         return ca.vertcat(px, vx * ca.cos(phi + beta))
 
     def feature_py(self, state, control):
@@ -228,21 +279,21 @@ class CarKinematicsModel(object):
         delta, ax = control[0], control[1]
         lf = self.params["env"]["params"]["lf"]
         lr = self.params["env"]["params"]["lr"]
-        beta = torch.atan(torch.tan(delta)* lr / (lr + lf))
-        return ca.vertcat(py, vx * ca.cos(phi + beta))
+        beta = ca.atan(ca.tan(delta) * lr / (lr + lf))
+        return ca.vertcat(py, vx * ca.sin(phi + beta))
 
     def feature_phi(self, state, control):
         px, py, phi, vx = state[0], state[1], state[2], state[3]
         delta, ax = control[0], control[1]
         lf = self.params["env"]["params"]["lf"]
         lr = self.params["env"]["params"]["lr"]
-        beta = torch.atan(torch.tan(delta)* lr / (lr + lf))
+        beta = ca.atan(ca.tan(delta) * lr / (lr + lf))
         return ca.vertcat(phi, vx * ca.sin(beta))
 
     def feature_vx(self, state, control):
         px, py, phi, vx = state[0], state[1], state[2], state[3]
         delta, ax = control[0], control[1]
-        return ca.vertcat(vx, ax)
+        return ca.vertcat(vx, ax, vx*vx)
     
     def BLR_features_casadi(self):
         import casadi as ca
@@ -335,24 +386,52 @@ class CarKinematicsModel(object):
     def const_expr(self, model_x, num_dyn):
         const_expr = []
         nx = self.params["agent"]["dim"]["nx"]
-        v_dim=3
+        px_cord=0
         for i in range(num_dyn):
-            xf = np.array(self.params["env"]["terminate_state"])
-            xf_dim = xf.shape[0]
+            P1_outer = np.array(self.params["env"]["track"]["P1"])
+            dim_track = P1_outer.shape[0]
             expr = (
-                (model_x[nx * i : nx * (i + 1)][v_dim:v_dim+xf_dim] - xf).T
-                @ np.array(self.params["optimizer"]["terminal_tightening"]["P"])
-                @ (model_x[nx * i : nx * (i + 1)][v_dim:v_dim+xf_dim] - xf)
+                (model_x[nx * i : nx * (i + 1)][px_cord:px_cord+dim_track]).T
+                @ np.array(self.params["env"]["track"]["P1"])
+                @ (model_x[nx * i : nx * (i + 1)][px_cord:px_cord+dim_track])
             )
             const_expr = ca.vertcat(const_expr, expr)
+
+        for i in range(num_dyn):
+            P2_inner = np.array(self.params["env"]["track"]["P2"])
+            dim_track = P2_inner.shape[0]
+            expr = (
+                (model_x[nx * i : nx * (i + 1)][px_cord:px_cord+dim_track]).T
+                @ np.array(self.params["env"]["track"]["P2"])
+                @ (model_x[nx * i : nx * (i + 1)][px_cord:px_cord+dim_track])
+            )
+            const_expr = ca.vertcat(const_expr, expr)
+
+        # add 2 ellipse constraints with P
+        # v_dim=3
+        # for i in range(num_dyn):
+        #     xf = np.array(self.params["env"]["terminate_state"])
+        #     xf_dim = xf.shape[0]
+        #     expr = (
+        #         (model_x[nx * i : nx * (i + 1)][v_dim:v_dim+xf_dim] - xf).T
+        #         @ np.array(self.params["optimizer"]["terminal_tightening"]["P"])
+        #         @ (model_x[nx * i : nx * (i + 1)][v_dim:v_dim+xf_dim] - xf)
+        #     )
+        #     const_expr = ca.vertcat(const_expr, expr)
         return const_expr
     
     def const_value(self, num_dyn):
-        lh = np.empty((0,), dtype=np.float64)
-        uh = np.empty((0,), dtype=np.float64)
-        delta = self.params["optimizer"]["terminal_tightening"]["delta"]
-        lh_e = np.hstack([[0] * num_dyn])
-        uh_e = np.hstack([[delta] * num_dyn])
+        d1_outer = np.array(self.params["env"]["track"]["d1"])
+        d2_inner = np.array(self.params["env"]["track"]["d2"])
+        lh = np.hstack([[0] * num_dyn, [d2_inner] * num_dyn])
+        uh = np.hstack([[d1_outer] * num_dyn, [1.0e4] * num_dyn])
+        # lh = np.hstack([[0] * num_dyn])
+        # uh = np.hstack([[d1_outer] * num_dyn])
+        # delta = self.params["optimizer"]["terminal_tightening"]["delta"]
+        # lh_e = np.hstack([[0] * num_dyn])
+        # uh_e = np.hstack([[delta] * num_dyn])
+        lh_e = np.empty((0,), dtype=np.float64)
+        uh_e = np.empty((0,), dtype=np.float64)
         return lh, uh, lh_e, uh_e
 
     def cost_expr(self, model_x, model_u, ns, p, we, optimizer_str):
@@ -372,21 +451,134 @@ class CarKinematicsModel(object):
         #     ns = self.params["agent"]["num_dyn_samples"]
         expr = 0
         expr_e=0
-        v_max = np.array([10,10])
+        v_max = 20.0
         for i in range(ns):
             expr += (
                 (model_x[nx * i : nx * (i + 1)][:xg_dim] - p).T
                 @ Qx
                 @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - p)
-                # + (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max).T
-                # @ (Qx/50)
-                # @ (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max) 
+                # + 0.1*(model_x[nx * i : nx * (i + 1)][3:] - v_max)**2
             )
-            expr_e += (
-                (model_x[nx * i : nx * (i + 1)][:xg_dim] - we).T
-                @ Qx
-                @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - we)
-            )
+            # expr_e += (
+            #     (model_x[nx * i : nx * (i + 1)][:xg_dim] - we).T
+            #     @ Qx
+            #     @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - we)
+            # )
         cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u
         cost_expr_ext_cost_e = expr_e / ns
         return cost_expr_ext_cost, cost_expr_ext_cost_e
+    
+    def path_generator(self, st, length=None):
+        # Generate values for t from 0 to 2π
+        if length is None:
+            length = self.params["optimizer"]["H"] + 1
+
+        s = np.linspace(0, 4 * np.pi, 1000)
+        theta = s[st:st+length] #np.linspace(st + 0, st + 2 * np.pi/100*length, )
+        unit_circle = np.stack([np.sin(theta), np.cos(theta)])  # Shape: (2, N)
+        P = np.array(self.params["env"]["track"]["Pc"]),
+        d = np.array(self.params["env"]["track"]["dc"])
+        # Transform unit circle to match ellipse shape
+        L = np.linalg.cholesky(np.linalg.inv(P / d))  # such that x = L @ u gives the ellipse
+        # if c is None:
+        # c = np.zeros((2,))
+        ellipse = (L @ unit_circle).T 
+
+        return ellipse
+
+    def initialize_plot_handles(self, fig_gp, fig_dyn=None):
+        import matplotlib.pyplot as plt
+        ax = fig_gp.axes[0]        
+        ax.set_xlim(-50,50)
+        ax.set_ylim(-20, 20)
+
+        ax.grid(which="both", axis="both")
+        ax.minorticks_on()
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        y_min = self.params["optimizer"]["x_min"][1]
+        y_max = self.params["optimizer"]["x_max"][1]
+        x_min = self.params["optimizer"]["x_min"][0]
+        x_max = self.params["optimizer"]["x_max"][0]
+
+        tracking_path = self.path_generator(0, 100)
+        ax.plot(
+            tracking_path[:, 0],
+            tracking_path[:, 1],
+            color="blue",
+            label="Tracking path",
+        )
+
+        y_min = self.params["optimizer"]["x_min"][1]
+        y_max = self.params["optimizer"]["x_max"][1]
+        x_min = self.params["optimizer"]["x_min"][0]
+        x_max = self.params["optimizer"]["x_max"][0]
+
+        ax.add_line(
+            plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
+        )
+        ax.add_line(
+            plt.Line2D([x_max, x_max], [y_min, y_max], color="red", linestyle="--")
+        )
+        ax.add_line(
+            plt.Line2D([x_min, x_min], [y_min, y_max], color="red", linestyle="--")
+        )
+        ax.add_line(
+            plt.Line2D([x_min, x_max], [y_min, y_min], color="red", linestyle="--")
+        )
+
+        def ellipse_points(P, d, c =None, num_points=300):
+            """Generate points on the ellipse defined by (x - c)^T P (x - c) = d."""
+            theta = np.linspace(0, 2 * np.pi, num_points)
+            unit_circle = np.stack([np.cos(theta), np.sin(theta)])  # Shape: (2, N)
+
+            # Transform unit circle to match ellipse shape
+            L = np.linalg.cholesky(np.linalg.inv(P/d))  # such that x = L @ u gives the ellipse
+            if c is None:
+                c = np.zeros((2,))
+            ellipse = (L @ unit_circle).T + c
+            return ellipse
+
+        ax.plot(
+            *ellipse_points(
+                np.array(self.params["env"]["track"]["P1"]),
+                np.array(self.params["env"]["track"]["d1"]),
+            ).T,
+            color="black",
+            alpha=0.5,
+        )
+        ax.plot(
+            *ellipse_points(
+                np.array(self.params["env"]["track"]["P2"]),
+                np.array(self.params["env"]["track"]["d2"]),
+            ).T,
+            color="black",
+            alpha=0.5,
+        )
+
+        if self.params["env"]["ellipses"]:
+            for ellipse in self.params["env"]["ellipses"]:
+                x0 = self.params["env"]["ellipses"][ellipse][0]
+                y0 = self.params["env"]["ellipses"][ellipse][1]
+                a_sq = self.params["env"]["ellipses"][ellipse][2]
+                b_sq = self.params["env"]["ellipses"][ellipse][3]
+                f = self.params["env"]["ellipses"][ellipse][4]
+                # u = 1.0  # x-position of the center
+                # v = 0.1  # y-position of the center
+                # f = 0.01
+                a = np.sqrt(a_sq * f)  # radius on the x-axis
+                b = np.sqrt(b_sq * f)  # radius on the y-axis
+                t = np.linspace(0, 2 * np.pi, 100)
+                f2 = 0.5  # plot 2 ellipses, 1 for ego, 1 for other
+                # plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t))
+                plt.plot(
+                    x0 + f2 * a * np.cos(t),
+                    y0 + f2 * b * np.sin(t),
+                    "black",
+                    alpha=0.5,
+                )
+                # plot constarint ellipse
+                plt.plot(x0 + a * np.cos(t), y0 + b * np.sin(t), "gray", alpha=0.5)
+                self.plot_car_stationary(x0, y0, 0, plt)
+        # fig_gp.savefig("car_racing.png")
+        # quit()

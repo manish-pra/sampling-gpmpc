@@ -72,8 +72,8 @@ class DEMPC:
                 [torch.from_numpy(X_true_traj[jump_idx][: self.nx]), U[jump_idx]]
             ).reshape(1, -1)
 
-            if self.params["common"]["active_learning"]:
-                if i % 2 == 0:
+            if self.params["common"]["active_learning"]["use"]:
+                if i % (self.params["common"]["active_learning"]["frequency"]) == 0:
                     Y_data = self.agent.env_model.get_prior_data(state_input)
                     if self.params["common"]["use_cuda"]:
                         self.agent.online_learnt_datapoints(state_input.cuda(), Y_data)
@@ -140,7 +140,7 @@ class DEMPC:
 
         # set objective as per desired goal
         t_0 = timeit.default_timer()
-        solver_status, cost = self.dempc_solver.solve(self.agent, solver)
+        solver_status, cost, w = self.dempc_solver.solve(self.agent, solver)
         t_1 = timeit.default_timer()
         dt = t_1 - t_0
         print("Time to solve", dt)
@@ -150,7 +150,7 @@ class DEMPC:
         else:
             X, U, Sl = self.dempc_solver.get_solution(solver)
         #
-        self.visu.record(st_curr, X, U, dt, cost,solver_status, record_gp_model=False)
+        self.visu.record(st_curr, X, U, dt, cost,solver_status, w, record_gp_model=False)
         print("X", X)
         print("U", U)
 

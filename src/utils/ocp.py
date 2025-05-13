@@ -109,7 +109,7 @@ def export_dempc_ocp(params, env_ocp_handler=None):
         # )
 
     const_expr = env_ocp_handler("const_expr", model_x, num_dyn)
-    model.con_h_expr_e = const_expr
+    model.con_h_expr = const_expr
     ocp.model = model
     # ocp = dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params)
     ocp.cost.cost_type = "EXTERNAL"
@@ -225,46 +225,46 @@ def dempc_const_val(ocp, params, x_dim, n_order, p, env_ocp_handler):
         # ocp.constraints.idxsh_e = np.arange(size_e)
     # ocp.constraints.idxsh = np.arange(2 * lbx.shape[0])
 
-    if params["env"]["dynamics"] == "bicycle":
-        if params["env"]["ellipses"]:
-            nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
-            f = params["env"]["ellipses"]["n1"][4]
-            if params["agent"]["tight"]["use"]:
-                ocp.constraints.lh = np.hstack(
-                    [[f] * nh, lbx, lbx]
-                )  # np.array([f] * nh)
-                ocp.constraints.uh = np.hstack(
-                    [[1e8] * nh, ubx, ubx]
-                )  # np.array([1e3] * nh)
-                ocp.constraints.lh_e = np.hstack(
-                    [[f] * nh, lbx, lbx]
-                )  # np.array([f] * nh)
-                ocp.constraints.uh_e = np.hstack(
-                    [[1e8] * nh, ubx, ubx]
-                )  # np.array([1e3] * nh)
-            else:
-                ocp.constraints.lh = np.array([f] * nh)
-                ocp.constraints.uh = np.array([1e3] * nh)
-                ocp.constraints.lh_e = np.array([f] * nh)
-                ocp.constraints.uh_e = np.array([1e3] * nh)
+    # if params["env"]["dynamics"] == "bicycle":
+    #     if params["env"]["ellipses"]:
+    #         nh = params["agent"]["num_dyn_samples"] * len(params["env"]["ellipses"])
+    #         f = params["env"]["ellipses"]["n1"][4]
+    #         if params["agent"]["tight"]["use"]:
+    #             ocp.constraints.lh = np.hstack(
+    #                 [[f] * nh, lbx, lbx]
+    #             )  # np.array([f] * nh)
+    #             ocp.constraints.uh = np.hstack(
+    #                 [[1e8] * nh, ubx, ubx]
+    #             )  # np.array([1e3] * nh)
+    #             ocp.constraints.lh_e = np.hstack(
+    #                 [[f] * nh, lbx, lbx]
+    #             )  # np.array([f] * nh)
+    #             ocp.constraints.uh_e = np.hstack(
+    #                 [[1e8] * nh, ubx, ubx]
+    #             )  # np.array([1e3] * nh)
+    #         else:
+    #             ocp.constraints.lh = np.array([f] * nh)
+    #             ocp.constraints.uh = np.array([1e3] * nh)
+    #             ocp.constraints.lh_e = np.array([f] * nh)
+    #             ocp.constraints.uh_e = np.array([1e3] * nh)
 
-            # nbx = 0
-            nbx = len(lbx)
-            ocp.constraints.idxsbx = np.arange(nbx)
-            ocp.constraints.idxsbx_e = np.arange(nbx)
-            ocp.constraints.idxsh = np.arange(nh)
-            ocp.constraints.idxsh_e = np.arange(nh)
+    #         # nbx = 0
+    #         nbx = len(lbx)
+    #         ocp.constraints.idxsbx = np.arange(nbx)
+    #         ocp.constraints.idxsbx_e = np.arange(nbx)
+    #         ocp.constraints.idxsh = np.arange(nh)
+    #         ocp.constraints.idxsh_e = np.arange(nh)
 
-            ns = nh + nbx
-            ocp.cost.zl = 1e6 * np.array([1] * ns)
-            ocp.cost.zu = 1e5 * np.array([1] * ns)
-            ocp.cost.Zl = 1e6 * np.array([1] * ns)
-            ocp.cost.Zu = 1e5 * np.array([1] * ns)
+    #         ns = nh + nbx
+    #         ocp.cost.zl = 1e6 * np.array([1] * ns)
+    #         ocp.cost.zu = 1e5 * np.array([1] * ns)
+    #         ocp.cost.Zl = 1e6 * np.array([1] * ns)
+    #         ocp.cost.Zu = 1e5 * np.array([1] * ns)
 
-            ocp.cost.zl_e = 1e6 * np.array([1] * ns)
-            ocp.cost.zu_e = 1e5 * np.array([1] * ns)
-            ocp.cost.Zl_e = 1e6 * np.array([1] * ns)
-            ocp.cost.Zu_e = 1e5 * np.array([1] * ns)
+    #         ocp.cost.zl_e = 1e6 * np.array([1] * ns)
+    #         ocp.cost.zu_e = 1e5 * np.array([1] * ns)
+    #         ocp.cost.Zl_e = 1e6 * np.array([1] * ns)
+    #         ocp.cost.Zu_e = 1e5 * np.array([1] * ns)
 
     ocp.parameter_values = np.zeros((ocp.model.p.shape[0],))
     return ocp

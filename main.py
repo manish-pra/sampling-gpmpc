@@ -12,6 +12,7 @@ from src.agent import Agent
 from src.environments.pendulum import Pendulum as pendulum
 from src.environments.car_model_residual import CarKinematicsModel as bicycle_Bdx
 from src.environments.car_model import CarKinematicsModel as bicycle
+from src.environments.car_racing import CarKinematicsModel as car_racing
 from src.environments.pendulum1D import Pendulum as Pendulum1D
 from src.environments.drone import Drone as drone
 import numpy as np
@@ -29,10 +30,10 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_car_residual")  # params
 # parser.add_argument("-param", default="params_drone")  # params
 # parser.add_argument("-param", default="params_pendulum_exploration")  # params
-parser.add_argument("-param", default="params_car_racing")  # params
+parser.add_argument("-param", default="params_car_racing_sagedynx")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=43)  # initialized at origin
+parser.add_argument("-i", type=int, default=0)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -85,11 +86,12 @@ env_model = globals()[params["env"]["dynamics"]](params)
 
 agent = Agent(params, env_model)
 if params["agent"]["load_training_data"]:
-    a_file = open(save_path + str(traj_iter) + "/training_data_lap1.pkl", "rb")
+    a_file = open(save_path + str(traj_iter) + "/training_data_lap2.pkl", "rb")
     import dill as pickle
     data = pickle.load(a_file)
     agent.Dyn_gp_X_train = data["Dyn_gp_X_train"]
     agent.Dyn_gp_Y_train = data["Dyn_gp_Y_train"]
+print(agent.Dyn_gp_X_train.shape, agent.Dyn_gp_Y_train.shape)
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 
 # 4) Set the initial state

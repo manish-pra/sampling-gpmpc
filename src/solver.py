@@ -154,9 +154,18 @@ class DEMPC_solver(object):
 
     def solve(self, player, solver,  plot_pendulum=False):
         # w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
-        w = player.env_model.path_generator(player.mpc_iter) #* self.params["optimizer"]["w"]
-        if self.params["agent"]["run"]["variance_cost"]:
-            w = np.random.rand(2*(self.H+1)).reshape(self.H+1,2)*10 - 5
+        w = player.env_model.path_generator(player.mpc_iter)[:,:,0] #* self.params["optimizer"]["w"]
+        plt.plot(
+            w[:, 0],
+            w[:, 1],
+            color="blue",
+            label="Tracking path",
+        )
+        plt.savefig("car_racing.png")
+        plt.close()
+        # w = np.vstack([[20.0,10.0]*(self.H+1)]).reshape(-1,2)
+        # if self.params["agent"]["run"]["variance_cost"]:
+        #     w = np.random.rand(2*(self.H+1)).reshape(self.H+1,2)*10 - 5
         w_e = w[-1]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         ns = self.params["agent"]["num_dyn_samples"]
@@ -285,7 +294,7 @@ class DEMPC_solver(object):
             if plot_pendulum:
                 self.plot_iterates_pendulum(sqp_iter, player, self.x_h, x_h_e, self.u_h)
 
-        return status, cost
+        return status, cost, w
     
     def get_optimistic_solution(self):
         nx = self.optimistic_ocp_solver.acados_ocp.model.x.size()[0]

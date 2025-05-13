@@ -800,6 +800,8 @@ class Agent(object):
         Sigma_list = []
 
         for Phi, y in zip(Phi_list, y_list):
+            # Phi = Phi[:64,:]
+            # y = y[:64,:]
             n_features = Phi.shape[1]
             I = np.eye(n_features)
 
@@ -813,7 +815,7 @@ class Agent(object):
 
             mu_list.append(mu)
             Sigma_list.append(Sigma)
-
+        # print([np.sum(np.diag(sig)) for sig in Sigma_list])
         return mu_list, Sigma_list
 
     def sample_weights(self):

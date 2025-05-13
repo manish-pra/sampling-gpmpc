@@ -64,7 +64,7 @@ agent:
     variance_cost: False
   BLR:
     lambda_reg: 1.0e-6
-    noise_var: 5.0e-2
+    noise_var: 1.0e-3
 
 visu:
   show: True
@@ -75,7 +75,7 @@ common:
   use_cuda : False
   use_BLR : True
   active_learning:
-    use: True
+    use: False
     frequency: 1
   num_MPC_itrs : 500
   dynamics_rejection: False
@@ -83,11 +83,17 @@ common:
 optimizer:
   H : 30 # horizon
   u_min : [-0.6, -2] # Minimum control input
-  u_max : [0.6, 10]           
+  u_max : [0.6, 20]        
+  data_u_min : [-0.01, -0.1] # Minimum control input
+  data_u_max : [0.01, 2.0]           
   # u_min : [-30, -30] # Minimum control input
   # u_max : [30, 30] 
+  # x_min : [-45.0, -15.0, -40.14, -15] # Minimum state value
+  # x_max : [ 45.0, 15.0, 40.14, 20] # x,y,v,theta,theta_dot
   x_min : [-45.0, -15.0, -40.14, -15] # Minimum state value
   x_max : [ 45.0, 15.0, 40.14, 20] # x,y,v,theta,theta_dot
+  data_x_min : [-1.0, 5.2, -0.2, -1.0] # Minimum state value
+  data_x_max : [ 1.0, 7.6, 0.2, 10.0] # x,y,v,theta,theta_dot
   linear_solver : 'ma57' #
   oracle:
     max_sqp_iter: 10

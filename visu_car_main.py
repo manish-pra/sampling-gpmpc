@@ -10,6 +10,7 @@ from src.visu import Visualizer
 from src.environments.pendulum import Pendulum as pendulum
 from src.environments.car_model_residual import CarKinematicsModel as bicycle_Bdx
 from src.environments.car_model import CarKinematicsModel as bicycle
+from src.environments.car_racing import CarKinematicsModel as car_racing
 from src.environments.pendulum1D import Pendulum as Pendulum1D
 from src.environments.drone import Drone as drone
 from src.agent import Agent
@@ -24,10 +25,11 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_car_samples")  # params
 # parser.add_argument("-param", default="params_car_residual")  # params
 # parser.add_argument("-param", default="params_pendulum_exploration")
-parser.add_argument("-param", default="params_drone_two_stage")
+# parser.add_argument("-param", default="params_drone_two_stage")
+parser.add_argument("-param", default="params_car_racing")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=0)  # initialized at origin
+parser.add_argument("-i", type=int, default=43)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -75,6 +77,8 @@ tilde_eps_list, ci_list = None, None
 if "tilde_eps_list" in data_dict:
     tilde_eps_list = data_dict["tilde_eps_list"]
     ci_list = data_dict["ci_list"]
+if "reference_cost" in data_dict:
+    reference_list = data_dict["reference_cost"]
 a_file.close()
 
 params["visu"]["show"] = True
@@ -102,6 +106,7 @@ for i in range(0, len(state_traj)):
         input_traj[i],
         true_state_traj[i],
         mean_state_traj,
+        reference_list[i],
     )
     # print(true_state_traj[i])
     temp_obj = visu.plot_receding_traj()
