@@ -54,7 +54,7 @@ visu:
 common:
   use_cuda : True
   use_BLR : False
-  num_MPC_itrs : 100
+  num_MPC_itrs : 26
   dynamics_rejection: False
 
 optimizer:
@@ -70,7 +70,7 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 1
+    max_sqp_iter: 3
     tol_nlp: 1.0e-4 
   order: 2
   x_dim: 2
