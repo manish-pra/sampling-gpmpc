@@ -48,9 +48,11 @@ agent:
     Lipschitz: 1.015
     w_bound: 0.007
   shift_soln: True
+  load_training_data: False
   run:
-    optimistic: True
-    pessimistic: False
+    optimistic: False
+    pessimistic: True
+    variance_cost: False
   BLR:
     lambda_reg: 1.0e-6
     noise_var: 5.0e-4
