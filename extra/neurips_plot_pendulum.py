@@ -54,6 +54,7 @@ def load_data(file_name):
 # read data
 param_list = ["params_pendulum_no_learning","params_pendulum_sagedynx"]#, "params_pendulum_sagedynx1", "params_pendulum_sagedynx2", "params_pendulum_sagedynx3"]
 legend_list = ["No learning", "SAGE-DynX"]#, "SAGE-DynX2", "SAGE-DynX1", "SAGE-DynX4"]
+color_list = ["tab:blue", "tab:green"]#, "green", "red", "purple"]
 
 save_path = workspace + "/experiments/pendulum/env_0/params_pendulum_opt/"
 traj_iter = 41
@@ -109,9 +110,9 @@ for idx, param in enumerate(regret_dict):
     #     alpha = 0.2
     mean_regret = np.mean(np.vstack(regret_dict[param]), axis=0)
     std_regret = np.std(np.vstack(regret_dict[param]), axis=0)/np.sqrt(len(regret_dict[param]))
-    plt.plot(mean_regret, label=legend_list[idx])
+    plt.plot(mean_regret, label=legend_list[idx], color=color_list[idx])
     plt.fill_between(
-        np.arange(0, len(mean_regret)), mean_regret - std_regret, mean_regret + std_regret, alpha = alpha
+        np.arange(0, len(mean_regret)), mean_regret - std_regret, mean_regret + std_regret, alpha = alpha, color=color_list[idx]
     )
 
 
@@ -121,20 +122,20 @@ plt.ylabel(r"Cumm. Regret / Time", labelpad=-1)
 plt.xlabel(r"Time")
 plt.tight_layout(pad=1.0)
 
-# plt.legend(fontsize='small', labelspacing=0.2, handlelength=1)
+plt.legend(fontsize='small', labelspacing=0.2, handlelength=1)
 plt.yscale("log")
 
 # plt.legend()
 # plt.xlabel("Iteration")
 # plt.yscale("log")
 # plt.ylabel("CR/T")
-# plt.ylim(0.045, 5)
-# plt.xlim(0, 1050)
+plt.ylim(0.08, 0.5)
+plt.xlim(0, 45)
 # plt.xscale("log")
 # plt.ylabel("Cummulative Regret")
 # plt.title("Cummulative Regret")
-plt.savefig("cr_t_pendulum.png")
-# plt.savefig("pendulum.pdf", dpi=600,transparent=True,format="pdf", bbox_inches="tight")
+# plt.savefig("cr_t_pendulum.png")
+plt.savefig("pendulum.pdf", dpi=600,transparent=True,format="pdf", bbox_inches="tight")
 
 quit()
 parser = argparse.ArgumentParser(description="A foo that bars")
