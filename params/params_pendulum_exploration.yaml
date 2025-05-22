@@ -93,5 +93,5 @@ experiment:
   generate_regret_plot : True
   folder: "pendulum"
   rnd_seed: 
-    use: True
+    use: False
     value: 123456
