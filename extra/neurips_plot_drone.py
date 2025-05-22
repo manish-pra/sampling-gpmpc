@@ -21,6 +21,15 @@ import numpy as np
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
+workspace_plotting_utils = "extra"
+sys.path.append(os.path.join(os.path.dirname(__file__),workspace_plotting_utils))
+print("sys.path", sys.path)
+from plotting_tools.plotting_utilities import *
+TEXTWIDTH = 16
+set_figure_params(serif=True, fontsize=14)
+f, ax = plt.subplots(figsize=(cm2inches(12.0), cm2inches(6.0)))
+
+
 
 def load_data(file_name):
     a_file = open(save_path + str(traj_iter) + "/"+file_name, "rb")
@@ -42,7 +51,8 @@ def load_data(file_name):
     return solver_cost, solver_status, np.vstack(physical_state_traj)[:,:6]
 
 # read data
-param_list = ["params_drone_sagedynx","params_drone_two_stage", "params_drone_no_learning"]
+param_list = ["params_drone_no_learning","params_drone_two_stage","params_drone_sagedynx"]
+legend_list = ["No learning",  "Two-stage", "SAGE-DynX"]
 
 save_path = workspace + "/experiments/drone/env_0/params_drone_opt/"
 traj_iter = 0
@@ -72,9 +82,14 @@ for env in range(0, 1):
             cost_l1, solver_status_l1, state_traj_l1 = load_data("data_lap1.pkl")
             # Compute regret
             close_loop_regret = np.linalg.norm(state_traj_opt - state_traj_l1, axis=1)
-            if idx!=2:
+            if idx!=0:
                 cost_l2, solver_status_l2, state_traj_l2 = load_data("data_lap2.pkl")
                 close_loop_regret_l2 = np.linalg.norm(state_traj_opt - state_traj_l2, axis=1)
+                # merge two regrets
+                close_loop_regret = np.concatenate((close_loop_regret, close_loop_regret_l2))
+            else:
+                cost_l2, solver_status_l2, state_traj_l2 = load_data("data_lap1.pkl")
+                close_loop_regret_l2 = np.linalg.norm(state_traj_opt - state_traj_l2[-1], axis=1)
                 # merge two regrets
                 close_loop_regret = np.concatenate((close_loop_regret, close_loop_regret_l2))
 
@@ -85,23 +100,36 @@ for env in range(0, 1):
 # take std dev and plot
 for idx, param in enumerate(regret_dict):
     alpha = 0.6
-    if idx==2:
-        alpha = 0.2
+    # if idx==2:
+    #     alpha = 0.2
     mean_regret = np.mean(np.vstack(regret_dict[param]), axis=0)
     std_regret = np.std(np.vstack(regret_dict[param]), axis=0)/np.sqrt(len(regret_dict[param]))
-    plt.plot(mean_regret, label=param)
+    plt.plot(mean_regret, label=legend_list[idx])
     plt.fill_between(
         np.arange(0, len(mean_regret)), mean_regret - std_regret, mean_regret + std_regret, alpha = alpha
     )
-plt.legend()
-plt.xlabel("Iteration")
+
+
+ax = f.axes
+adapt_figure_size_from_axes(ax)
+plt.ylabel(r"Cumm. Regret / Time", labelpad=-1)
+plt.xlabel(r"Time")
+plt.tight_layout(pad=1.0)
+
+plt.legend(fontsize='small', labelspacing=0.2, handlelength=1)
 plt.yscale("log")
-plt.ylabel("CR/T")
-plt.ylim(0.04, 5)
+
+# plt.legend()
+# plt.xlabel("Iteration")
+# plt.yscale("log")
+# plt.ylabel("CR/T")
+plt.ylim(0.045, 5)
+plt.xlim(0, 1050)
 # plt.xscale("log")
 # plt.ylabel("Cummulative Regret")
 # plt.title("Cummulative Regret")
-plt.savefig("cr_t_drone.png")
+# plt.savefig("cr_t_drone.png")
+plt.savefig("drone.pdf", dpi=600,transparent=True,format="pdf", bbox_inches="tight")
 
 quit()
 parser = argparse.ArgumentParser(description="A foo that bars")

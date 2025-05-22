@@ -66,7 +66,7 @@ if args.i != -1:
 if not os.path.exists(save_path + str(traj_iter)):
     os.makedirs(save_path + str(traj_iter))
 
-a_file = open(save_path + str(traj_iter) + "/data_lap2.pkl", "rb")
+a_file = open(save_path + str(traj_iter) + "/data_lap1.pkl", "rb")
 data_dict = pickle.load(a_file)
 state_traj = data_dict["state_traj"]
 input_traj = data_dict["input_traj"]

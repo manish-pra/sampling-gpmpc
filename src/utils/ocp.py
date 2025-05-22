@@ -30,7 +30,7 @@ def export_dempc_ocp(params, env_ocp_handler=None):
 
     p = ca.vertcat(xg, cw, we, tilde_eps_i)
     if params["agent"]["run"]["variance_cost"]:
-        p_var = ca.SX.sym("p_var", 21)
+        p_var = ca.SX.sym("p_var", params["agent"]["feat_len"])
         p = ca.vertcat(p, p_var)
 
     model = export_linear_model(name_prefix + "dempc", p, params)  # start pendulum at 0

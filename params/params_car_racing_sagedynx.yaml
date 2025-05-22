@@ -65,11 +65,12 @@ agent:
   BLR:
     lambda_reg: 1.0e-6
     noise_var: 1.0e-3
+  feat_len: 9
 
 visu:
   show: True
-  traj_file_name: "data_lap3.pkl"
-  training_data_file_name: "training_data_lap3.pkl"
+  traj_file_name: "data_lap1.pkl"
+  training_data_file_name: "training_data_lap1.pkl"
 
 common:
   use_cuda : False

@@ -59,7 +59,8 @@ agent:
   BLR:
     lambda_reg: 1.0e-6
     noise_var: 5.0e-5
-
+  feat_len: 21
+  
 visu:
   show: True
   traj_file_name: "data_lap2.pkl"

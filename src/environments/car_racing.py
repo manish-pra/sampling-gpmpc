@@ -468,6 +468,38 @@ class CarKinematicsModel(object):
         cost_expr_ext_cost_e = expr_e / ns
         return cost_expr_ext_cost, cost_expr_ext_cost_e
     
+
+    def cost_expr_variance(self, model_x, model_u, ns, p, p_var, optimizer_str):
+        pos_dim = 1
+        nx = self.params["agent"]["dim"]["nx"]
+        nu = self.params["agent"]["dim"]["nu"]
+        Qu = np.diag(np.array(self.params[optimizer_str]["Qu"]))
+        xg = np.array(self.params["env"]["goal_state"])
+        xg_dim = xg.shape[0]
+        w = self.params[optimizer_str]["w"]
+        Qx = np.diag(np.array(self.params[optimizer_str]["Qx"]))
+
+        f_list = [self.feature_px, self.feature_py, self.feature_phi, self.feature_vx]
+
+        expr = 0
+        expr_e=0
+        cost = 0
+        t_sh = 0
+        f_shape = 0
+        for feature in f_list:
+            t_sh += f_shape
+            for i in range(ns):
+                f_val = feature(model_x[nx * i : nx * (i + 1)], model_u)
+                f_shape = f_val.shape[0]
+                expr += -f_val.T @ ca.diag(p_var[t_sh:t_sh+f_shape]) @ f_val
+
+
+        cost_expr_ext_cost = expr / ns #+ model_u.T @ (Qu) @ model_u
+        cost_expr_ext_cost_e = expr_e / ns
+        return cost_expr_ext_cost, cost_expr_ext_cost_e
+
+
+
     def path_generator(self, st, length=None):
         # Generate values for t from 0 to 2π
         if length is None:
