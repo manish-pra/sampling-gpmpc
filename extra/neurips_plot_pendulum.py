@@ -53,8 +53,8 @@ def load_data(file_name):
     return solver_cost, solver_status, np.vstack(physical_state_traj)[:,:2]
 
 # read data
-param_list = ["params_pendulum_no_learning","params_pendulum_sagedynx", "params_pendulum_sagedynx1"]
-legend_list = ["No learning", "SAGE-DynX3", "SAGE-DynX2"]
+param_list = ["params_pendulum_no_learning","params_pendulum_sagedynx", "params_pendulum_sagedynx1", "params_pendulum_sagedynx2"]
+legend_list = ["No learning", "SAGE-DynX3", "SAGE-DynX2", "SAGE-DynX4"]
 
 save_path = workspace + "/experiments/pendulum/env_0/params_pendulum_opt/"
 traj_iter = 41
