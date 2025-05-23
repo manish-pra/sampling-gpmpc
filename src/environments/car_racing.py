@@ -521,11 +521,11 @@ class CarKinematicsModel(object):
     def initialize_plot_handles(self, fig_gp, fig_dyn=None):
         import matplotlib.pyplot as plt
         ax = fig_gp.axes[0]        
-        ax.set_xlim(-50,50)
-        ax.set_ylim(-20, 20)
+        ax.set_xlim(-42,42)
+        ax.set_ylim(-14, 14)
 
         ax.grid(which="both", axis="both")
-        ax.minorticks_on()
+        # ax.minorticks_on()
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         y_min = self.params["optimizer"]["x_min"][1]
@@ -533,12 +533,13 @@ class CarKinematicsModel(object):
         x_min = self.params["optimizer"]["x_min"][0]
         x_max = self.params["optimizer"]["x_max"][0]
 
-        tracking_path = self.path_generator(0, 100)
+        tracking_path = self.path_generator(0, 500)
         ax.plot(
             tracking_path[:, 0],
             tracking_path[:, 1],
-            color="blue",
-            label="Tracking path",
+            color="tab:blue",
+            linestyle="--",
+            # label="Tracking path",
         )
 
         y_min = self.params["optimizer"]["x_min"][1]
@@ -577,7 +578,7 @@ class CarKinematicsModel(object):
                 np.array(self.params["env"]["track"]["d1"]),
             ).T,
             color="black",
-            alpha=0.5,
+            # alpha=0.5,
         )
         ax.plot(
             *ellipse_points(
@@ -585,7 +586,7 @@ class CarKinematicsModel(object):
                 np.array(self.params["env"]["track"]["d2"]),
             ).T,
             color="black",
-            alpha=0.5,
+            # alpha=0.5,
         )
 
         if self.params["env"]["ellipses"]:
