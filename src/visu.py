@@ -233,6 +233,22 @@ class Visualizer:
     #         X2_k = X2_kp1.copy()
     #     return x1_list, x2_list
 
+    def get_ellipses_pts(self, x, y, n_pts=50):
+        P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])[:2,:2]
+        # P*=10
+        nH = x.shape[0]-1 # not required on terminal state
+        ns_sub = x.shape[1] #int(x.shape[1]/4) + 1
+        P_scaled = np.tile(P/0.1, (nH,1,1))
+        L = np.linalg.cholesky(P_scaled)
+        t = np.linspace(0, 2 * np.pi, n_pts)
+        z = np.vstack([np.cos(t), np.sin(t)])
+        ell = np.linalg.inv(np.transpose(L, (0,2,1))) @ z
+
+        all_ell = np.tile(ell, (ns_sub, 1, 1, 1))
+        x_plt = all_ell[:,:,0,:] + x.T[:ns_sub,:nH,None]
+        y_plt = all_ell[:,:,1,:] + y.T[:ns_sub,:nH,None]
+        return x_plt, y_plt
+
     def propagate_mean_dyn(self, x_init, U):
         self.agent.Dyn_gp_model["y1"].eval()
         self.agent.Dyn_gp_model["y2"].eval()

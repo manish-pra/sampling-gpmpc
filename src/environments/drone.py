@@ -613,7 +613,7 @@ class Drone(object):
         ax.set_ylim(-6, 6)
 
         ax.grid(which="both", axis="both")
-        ax.minorticks_on()
+        # ax.minorticks_on()
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         y_min = self.params["optimizer"]["x_min"][1]
@@ -622,12 +622,12 @@ class Drone(object):
         x_max = self.params["optimizer"]["x_max"][0]
 
         tracking_path = self.path_generator(0, 500)
-        ax.plot(
-            tracking_path[:, 0],
-            tracking_path[:, 1],
-            color="blue",
-            label="Tracking path",
-        )
+        # ax.plot(
+        #     tracking_path[:, 0],
+        #     tracking_path[:, 1],
+        #     color="blue",
+        #     label="Tracking path",
+        # )
 
         y_min = self.params["optimizer"]["x_min"][1]
         y_max = self.params["optimizer"]["x_max"][1]
@@ -656,12 +656,12 @@ class Drone(object):
             z = np.vstack([np.cos(t), np.sin(t)])
             ell = np.linalg.inv(L.T) @ z
 
-            ax.plot(
-                ell[0, :] + xf[0],
-                ell[1, :] + xf[1],
-                color="red",
-                label="Terminal set",
-            )
+            # ax.plot(
+            #     ell[0, :] + xf[0],
+            #     ell[1, :] + xf[1],
+            #     color="red",
+            #     label="Terminal set",
+            # )
 
 
         if self.params["env"]["dynamics"] == "bicycle":
