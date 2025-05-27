@@ -24,7 +24,7 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
 
-filename = "iterative_conditioning.pdf" 
+filename = "iterative_conditioning" 
 
 import torch
 import gpytorch
@@ -34,6 +34,11 @@ import numpy as np
 
 # torch random seed
 torch.manual_seed(0)
+
+lb_plot, ub_plot = 0.0, 4.0
+lb, ub = 0.5, 3.5
+n = 4
+n_hyper = 200
 
 class GPModelWithDerivatives(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood):
@@ -46,11 +51,6 @@ class GPModelWithDerivatives(gpytorch.models.ExactGP):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
-
-lb_plot, ub_plot = 0.0, 4.0
-lb, ub = 0.5, 3.5
-n = 4
-n_hyper = 200
 
 def train_hyperparams():
     train_x_hyper = torch.linspace(lb, ub, n_hyper).unsqueeze(-1)
@@ -116,6 +116,11 @@ def train_hyperparams():
 
     return model, likelihood, state_dict
 
+def new_model(train_x, train_y, likelihood, state_dict):
+    model = GPModelWithDerivatives(train_x, train_y, likelihood)
+    model.load_state_dict(state_dict)
+    return model
+
 model, likelihood, state_dict = train_hyperparams()
 
 train_x = torch.linspace(lb, ub, n).unsqueeze(-1)
@@ -137,159 +142,164 @@ test_y = torch.stack(
     -1,
 ).squeeze(1)
 
-# new model
-y_train_nod = train_y.clone()
-y_train_nod[:, 1] = torch.tensor(float("nan"))
-
-def new_model(train_x, train_y, likelihood, state_dict):
-    model = GPModelWithDerivatives(train_x, train_y, likelihood)
-    model.load_state_dict(state_dict)
-    return model
-
 
 TEXTWIDTH = 16
-
 set_figure_params(serif=True, fontsize=10)
-f, ax = plt.subplots(1, 3, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25 * 1 / 2))
 
-marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
+def plot_iterative_conditioning(plot_separate_figs=False):
 
-train_x_2 = torch.tensor([0.8, 1.8, 2.8]).unsqueeze(-1)
-train_x_3 = torch.tensor([0.9, 1.9, 3.0]).unsqueeze(-1)
-# train_x_arr_add = [train_x, train_x_2, train_x_3]
-train_x_arr_add = [
-    train_x.clone(),
-    train_x_2.clone(),
-    train_x_3.clone(),
-    train_x_3.clone(),
-]
-train_y_arr_add = [train_y.clone(), train_y.clone(), train_y.clone()]
-train_x_arr = train_x.clone()
-train_y_arr = train_y.clone()
-train_x_arr_all = []
-train_y_arr_all = []
+    if plot_separate_figs:
+        f_arr = []
+        ax = []
+        for i in range(3):
+            f, ax_i = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25))
+            f_arr.append(f)
+            ax.append(ax_i)
+    else:
+        f, ax = plt.subplots(1, 3, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25 * 1 / 2))
+        f_arr = [f]
 
-beta_fac = 1.5
-# loop over the axes
-data = {"test_x": test_x.numpy(), "test_y": test_y[:, 0].numpy()}
-data["marker_symbols"] = marker_symbols
+    marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
 
-for i in range(3):
-    model_nod = new_model(train_x_arr, train_y_arr, likelihood, state_dict)
-    model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[0.3]])
-    model_nod.covar_module.outputscale = torch.tensor([0.5])
-    model_nod.eval()
+    train_x_2 = torch.tensor([0.8, 1.8, 2.8]).unsqueeze(-1)
+    train_x_3 = torch.tensor([0.9, 1.9, 3.0]).unsqueeze(-1)
+    # train_x_arr_add = [train_x, train_x_2, train_x_3]
+    train_x_arr_add = [
+        train_x.clone(),
+        train_x_2.clone(),
+        train_x_3.clone(),
+        train_x_3.clone(),
+    ]
+    train_y_arr_add = [train_y.clone(), train_y.clone(), train_y.clone()]
+    train_x_arr = train_x.clone()
+    train_y_arr = train_y.clone()
+    train_x_arr_all = []
+    train_y_arr_all = []
 
-    # Make predictions
-    with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
-        predictions = model_nod(test_x)
-        mean = predictions.mean
-        lower, upper = predictions.confidence_region()
+    beta_fac = 1.5
+    # loop over the axes
+    data = {"test_x": test_x.numpy(), "test_y": test_y[:, 0].numpy()}
+    data["marker_symbols"] = marker_symbols
 
-        mean_lower = beta_fac * (mean - lower)
-        mean_upper = beta_fac * (upper - mean)
+    for i in range(3):
+        model_nod = new_model(train_x_arr, train_y_arr, likelihood, state_dict)
+        model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[0.3]])
+        model_nod.covar_module.outputscale = torch.tensor([0.5])
+        model_nod.eval()
 
-        if i == 0:
-            sample = predictions.sample()
+        # Make predictions
+        with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
+            predictions = model_nod(test_x)
+            mean = predictions.mean
+            lower, upper = predictions.confidence_region()
 
-    train_x_arr_all.append(train_x_arr.clone())
-    train_y_arr_all.append(train_y_arr.clone())
+            mean_lower = beta_fac * (mean - lower)
+            mean_upper = beta_fac * (upper - mean)
 
-    # condition model on new data
-    # get values of sample at train_x_i, if it does not exist then find the closest value
-    if i < 2:
-        train_x_arr = torch.cat([train_x_arr, train_x_arr_add[i + 1]])
-        train_y_arr_add[i + 1] = sample[
-            np.searchsorted(test_x, train_x_arr_add[i + 1])
-        ][:, 0, :]
-        train_y_arr = torch.cat(
-            [
-                train_y_arr,
-                train_y_arr_add[i + 1],
-            ]
-        )
+            if i == 0:
+                sample = predictions.sample()
 
-    # vlines at test_x_add
-    if i < 2 or True:
-        # if i < 2:
-        for x in train_x_arr_add[i + 1]:
-            ax[i].axvline(
-                x.numpy().flatten(),
-                color="k",
-                linestyle="solid",
-                alpha=0.3,
-                linewidth=3,
+        train_x_arr_all.append(train_x_arr.clone())
+        train_y_arr_all.append(train_y_arr.clone())
+
+        # condition model on new data
+        # get values of sample at train_x_i, if it does not exist then find the closest value
+        if i < 2:
+            train_x_arr = torch.cat([train_x_arr, train_x_arr_add[i + 1]])
+            train_y_arr_add[i + 1] = sample[
+                np.searchsorted(test_x, train_x_arr_add[i + 1])
+            ][:, 0, :]
+            train_y_arr = torch.cat(
+                [
+                    train_y_arr,
+                    train_y_arr_add[i + 1],
+                ]
             )
-    # Predictive mean as blue line
-    h_func = ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--")
-    h_mean = ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
-    h_samp = ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
-    data[i] = {
-        "mean": mean[:, 0].numpy(),
-        "sample": sample[:, 0].numpy(),
-        "train_x_arr_add": train_x_arr_add,
-        "train_y_arr_add": train_y_arr_add,
-        "lcb": mean[:, 0].numpy() - mean_lower[:, 0].numpy(),
-        "ucb": mean[:, 0].numpy() + mean_upper[:, 0].numpy(),
-    }
-    # Shade in confidence
-    # h_conf = ax[i].fill_between(
-    #     test_x.numpy(),
-    #     lower[:, 0].numpy(),
-    #     upper[:, 0].numpy(),
-    #     alpha=0.5,
-    #     color="tab:blue",
-    # )
-    h_conf = ax[i].fill_between(
-        test_x.numpy(),
-        mean[:, 0] - mean_lower[:, 0].numpy(),
-        mean[:, 0] + mean_upper[:, 0].numpy(),
-        alpha=0.5,
-        color="tab:blue",
-    )
 
-    if i == 2:
-        ax[i].legend(
-            [h_func[0], h_samp[0], h_conf],
-            # ["True", "Mean", "Sample"],
-            [
-                r"true function $g^{\mathrm{tr}}$",
-                r"sampled function $g^n$",
-                r"$\mathcal{GP}_{[\underline{g}, \overline{g}]}(0,k_{\mathrm{d}};\mathcal{D}^n_{0:j-1})$",
-            ],
-            # loc="lower left",
-        )
-    # ax[i].legend(["Observed Values", "Mean", "Confidence"])
-    # set title with current marker_symbols
-
-    ax[i].set_title(f"$j = {i+1}$")
-    # remove tick labels
-    ax[i].set_yticklabels([])
-    ax[i].set_xticklabels([])
-    # remove ticks
-    ax[i].set_yticks([])
-    ax[i].set_xticks([])
-
-for i in range(3):
-    # Plot training data as black stars
-    for j in range(i + 1):
-        # for j in range(2 - i, -1, -1):
-        ax[i].plot(
-            train_x_arr_add[j].detach().numpy(),
-            train_y_arr_add[j][:, 0].detach().numpy(),
-            f"k{marker_symbols[j]}",
+        # vlines at test_x_add
+        if i < 2 or True:
+            # if i < 2:
+            for x in train_x_arr_add[i + 1]:
+                ax[i].axvline(
+                    x.numpy().flatten(),
+                    color="k",
+                    linestyle="solid",
+                    alpha=0.3,
+                    linewidth=3,
+                )
+        # Predictive mean as blue line
+        h_func = ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--")
+        h_mean = ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
+        h_samp = ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
+        data[i] = {
+            "mean": mean[:, 0].numpy(),
+            "sample": sample[:, 0].numpy(),
+            "train_x_arr_add": train_x_arr_add,
+            "train_y_arr_add": train_y_arr_add,
+            "lcb": mean[:, 0].numpy() - mean_lower[:, 0].numpy(),
+            "ucb": mean[:, 0].numpy() + mean_upper[:, 0].numpy(),
+        }
+        # Shade in confidence
+        # h_conf = ax[i].fill_between(
+        #     test_x.numpy(),
+        #     lower[:, 0].numpy(),
+        #     upper[:, 0].numpy(),
+        #     alpha=0.5,
+        #     color="tab:blue",
+        # )
+        h_conf = ax[i].fill_between(
+            test_x.numpy(),
+            mean[:, 0] - mean_lower[:, 0].numpy(),
+            mean[:, 0] + mean_upper[:, 0].numpy(),
+            alpha=0.5,
+            color="tab:blue",
         )
 
-# with open("/home/manish/work/MPC_Dyn/slides_data.pickle", "wb") as handle:
-#     pickle.dump(data, handle)
+        if i == 2 or plot_separate_figs:
+            ax[i].legend(
+                [h_func[0], h_samp[0], h_conf],
+                # ["True", "Mean", "Sample"],
+                [
+                    r"true function $g^{\mathrm{tr}}$",
+                    r"sampled function $g^n$",
+                    r"$\mathcal{GP}_{[\underline{g}, \overline{g}]}(0,k_{\mathrm{d}};\mathcal{D}^n_{0:j-1})$",
+                ],
+                # loc="lower left",
+            )
+        # ax[i].legend(["Observed Values", "Mean", "Confidence"])
+        # set title with current marker_symbols
 
-f.tight_layout(pad=0.5)
-f.savefig(
-    os.path.join(workspace, "figures", filename),
-    format="pdf",
-    dpi=600,
-    transparent=True,
-)
-# plt.show()
+        ax[i].set_title(f"$j = {i+1}$")
+        # remove tick labels
+        ax[i].set_yticklabels([])
+        ax[i].set_xticklabels([])
+        # remove ticks
+        ax[i].set_yticks([])
+        ax[i].set_xticks([])
 
-exit()
+    for i in range(3):
+        # Plot training data as black stars
+        for j in range(i + 1):
+            # for j in range(2 - i, -1, -1):
+            ax[i].plot(
+                train_x_arr_add[j].detach().numpy(),
+                train_y_arr_add[j][:, 0].detach().numpy(),
+                f"k{marker_symbols[j]}",
+            )
+
+    # with open("/home/manish/work/MPC_Dyn/slides_data.pickle", "wb") as handle:
+    #     pickle.dump(data, handle)
+
+    for i_f,f in enumerate(f_arr):
+        f.tight_layout(pad=0.5)
+        f.savefig(
+            os.path.join(workspace, "figures", f"{filename}_{i_f}.pdf"),
+            format="pdf",
+            dpi=600,
+            transparent=True,
+        )
+        print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}.pdf')}")
+
+if __name__ == "__main__":
+    plot_iterative_conditioning()
+    # plt.show()  # Uncomment to display the plot interactively
