@@ -24,7 +24,6 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
 
-filename = "iterative_conditioning" 
 
 import torch
 import gpytorch
@@ -39,6 +38,18 @@ lb_plot, ub_plot = 0.0, 4.0
 lb, ub = 0.5, 3.5
 n = 4
 n_hyper = 200
+k_lengthscale = 0.3
+k_outscale = 0.5
+beta_fac = 1.5
+
+file_format = "png"
+
+# iterative conditioning plot
+filename = "iterative_conditioning" 
+
+# sampling plot
+n_samples = 1000
+filename_sampling = "gp_samples"
 
 class GPModelWithDerivatives(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood):
@@ -145,6 +156,7 @@ test_y = torch.stack(
 
 TEXTWIDTH = 16
 set_figure_params(serif=True, fontsize=10)
+marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
 
 def plot_iterative_conditioning(plot_separate_figs=False):
 
@@ -158,8 +170,6 @@ def plot_iterative_conditioning(plot_separate_figs=False):
     else:
         f, ax = plt.subplots(1, 3, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25 * 1 / 2))
         f_arr = [f]
-
-    marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
 
     train_x_2 = torch.tensor([0.8, 1.8, 2.8]).unsqueeze(-1)
     train_x_3 = torch.tensor([0.9, 1.9, 3.0]).unsqueeze(-1)
@@ -176,15 +186,14 @@ def plot_iterative_conditioning(plot_separate_figs=False):
     train_x_arr_all = []
     train_y_arr_all = []
 
-    beta_fac = 1.5
     # loop over the axes
     data = {"test_x": test_x.numpy(), "test_y": test_y[:, 0].numpy()}
     data["marker_symbols"] = marker_symbols
 
     for i in range(3):
         model_nod = new_model(train_x_arr, train_y_arr, likelihood, state_dict)
-        model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[0.3]])
-        model_nod.covar_module.outputscale = torch.tensor([0.5])
+        model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[k_lengthscale]])
+        model_nod.covar_module.outputscale = torch.tensor([k_outscale])
         model_nod.eval()
 
         # Make predictions
@@ -293,13 +302,107 @@ def plot_iterative_conditioning(plot_separate_figs=False):
     for i_f,f in enumerate(f_arr):
         f.tight_layout(pad=0.5)
         f.savefig(
-            os.path.join(workspace, "figures", f"{filename}_{i_f}.pdf"),
-            format="pdf",
+            os.path.join(workspace, "figures", f"{filename}_{i_f}.{file_format}"),
+            format=file_format,
             dpi=600,
             transparent=True,
         )
-        print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}.pdf')}")
+        print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}.{file_format}')}")
+
+def plot_GP_samples():
+    model = new_model(train_x, train_y, likelihood, state_dict)
+    model.covar_module.base_kernel.lengthscale = torch.tensor([[k_lengthscale]])
+    model.covar_module.outputscale = torch.tensor([k_outscale])
+    model.eval()
+
+    # Make predictions
+    with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
+        predictions = model(test_x)
+        mean = predictions.mean
+        lower, upper = predictions.confidence_region()
+
+        mean_lower = mean - beta_fac * (mean - lower)
+        mean_upper = mean + beta_fac * (upper - mean)
+
+        sample = predictions.sample(sample_shape=torch.Size((n_samples,)))
+
+    # find samples that are outside the confidence region
+    outside_confidence_pointwise = torch.logical_or(
+        sample < mean_lower.unsqueeze(0),
+        sample > mean_upper.unsqueeze(0),
+    )
+    outside_confidence = outside_confidence_pointwise.any(dim=1)
+
+    plot_settings = []
+    plot_settings.append({
+        "filename_suffix": "confidence",
+        "plot_samples_in": False,
+        "plot_samples_out": False,
+        "color_samples_in": "tab:blue",
+        "color_samples_out": "tab:red",
+    })
+    plot_settings.append({
+        "filename_suffix": "samples",
+        "plot_samples_in": True,
+        "plot_samples_out": True,
+        "color_samples_in": "tab:blue",
+        "color_samples_out": "tab:blue",
+    })
+    plot_settings.append({
+        "filename_suffix": "samples_outside",
+        "plot_samples_in": True,
+        "plot_samples_out": True,
+        "color_samples_in": "tab:blue",
+        "color_samples_out": "tab:red",
+    })
+
+    for ps in plot_settings:
+        f, ax = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25))
+        set_figure_params(serif=True, fontsize=10)
+        if ps["plot_samples_out"]:
+            h_samp_outside = ax.plot(test_x.numpy(), sample[outside_confidence[:, 0], :, 0].numpy().T, ps["color_samples_out"],alpha=0.5, linewidth=1)
+            h_samp_outside[0].set_label(r"$\mathrm{Samples} \notin [\underline{g}, \overline{g}]$")
+        if ps["plot_samples_in"]:
+            h_samp_inside = ax.plot(test_x.numpy(), sample[~outside_confidence[:, 0], :, 0].numpy().T, ps["color_samples_in"],alpha=0.5, linewidth=1)
+            h_samp_inside[0].set_label(r"$\mathrm{Samples} \in [\underline{g}, \overline{g}]$")
+
+        h_func = ax.plot(test_x.numpy(), test_y[:, 0].numpy(), "k--", label="True function $g^{\\mathrm{tr}}$")
+        h_mean = ax.plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue", label="Predictive mean")
+        h_conf = ax.fill_between(
+            test_x.numpy(),
+            mean_lower[:, 0].numpy(),
+            mean_upper[:, 0].numpy(),
+            alpha=0.3,
+            color="tab:blue",
+            label="Confidence region",
+        )
+        h_data = ax.plot(
+            train_x.numpy(),
+            train_y[:, 0].numpy(),
+            "k",
+            linestyle="",
+            marker=marker_symbols[0],
+            markersize=10,
+            label="Training data",
+        )
+
+        # remove xticks and yticks
+        ax.set_yticklabels([])
+        ax.set_xticklabels([])
+        ax.set_xlim([lb_plot, ub_plot])
+        ax.set_ylim([-3.2, 3.2])
+        ax.legend(loc="upper right")
+
+        f.tight_layout(pad=0.5)
+
+        f.savefig(
+            os.path.join(workspace, "figures", f"{filename_sampling}_{ps['filename_suffix']}.{file_format}"),
+            format=file_format,
+            dpi=600,
+            transparent=False,
+        )
 
 if __name__ == "__main__":
     plot_iterative_conditioning()
+    plot_GP_samples()
     # plt.show()  # Uncomment to display the plot interactively
