@@ -24,11 +24,16 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
 
+filename = "iterative_conditioning.pdf" 
+
 import torch
 import gpytorch
 import math
 from matplotlib import pyplot as plt
 import numpy as np
+
+# torch random seed
+torch.manual_seed(0)
 
 lb_plot, ub_plot = 0.0, 4.0
 lb, ub = 0.5, 3.5
@@ -153,7 +158,6 @@ plot_GT = True
 plot_sampling_MPC = False
 plot_cautious_MPC = False
 plot_safe_MPC = True
-filename = "iterative_conditioning.pdf"  # "sam_uncertainity.pdf" "cautious_uncertainity.pdf" "safe_uncertainity.pdf"
 
 TEXTWIDTH = 16
 
@@ -293,11 +297,9 @@ for i in range(3):
 
 f.tight_layout(pad=0.5)
 f.savefig(
-    # f"/home/manish/work/MPC_Dyn/figures/conditioning_{i}.pdf",
-    # f"/home/manish/work/MPC_Dyn/figures/conditioning_{i}.pdf",
-    os.path.join(workspace, "figures", "conditioning.pdf"),
+    os.path.join(workspace, "figures", filename),
     format="pdf",
-    dpi=300,
+    dpi=600,
     transparent=True,
 )
 # plt.show()
