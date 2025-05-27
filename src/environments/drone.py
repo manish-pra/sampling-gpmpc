@@ -482,7 +482,7 @@ class Drone(object):
                 @ (model_x[nx * i : nx * (i + 1)][v_dim:v_dim+xf_dim] - xf)
             )
             const_expr = ca.vertcat(const_expr, expr)
-        return const_expr
+        return None, const_expr
     
     def const_value(self, num_dyn):
         lh = np.empty((0,), dtype=np.float64)

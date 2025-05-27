@@ -1,27 +1,15 @@
-
-![iterative_gp_conditioning](https://github.com/user-attachments/assets/8c0ff769-a9e5-42f5-a49f-d1a9093c5323)
-
-# Sampling-based Gaussian Process Model Predictive Control
+# Safe Guaranteed Dynamics Exploration with Probabilistic Models
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repository contains code for the paper "[Towards safe and tractable Gaussian process-based MPC:
-Efficient sampling within a sequential quadratic programming framework](https://arxiv.org/abs/2409.08616)", accepted for publication at the 63rd IEEE Conference on Decision and Control (CDC 2024).
+This repository contains code for the paper "Safe Guaranteed Dynamics Exploration with Probabilistic Models".
 
 The code is licensed under the MIT license.
 
 ## Installation
 
 1. Create new `workspace` folder. This is used as a base directory for the following steps.
-2. Clone the main repository
-    ```bash
-        git clone https://github.com/manish-pra/sampling-gpmpc.git
-    ```
-3. Clone auxiliary repositories
-    ```bash
-        git clone https://github.com/manish-pra/safe-exploration-koller.git
-        git clone https://github.com/befelix/plotting_utilities.git
-    ```
+2. Place the main repository `sage-dynx`
 3. Install dependencies
     1. Download and install [acados](https://docs.acados.org/installation/) (does not need to be in `workspace`).
     2. Install [acados Python interface](https://docs.acados.org/python_interface/index.html).
@@ -111,26 +99,4 @@ The final result should look similar to this:
     ```
 
 #### Result
-
-The final result should look similar to this:
-
-![CDC_car_video](https://github.com/user-attachments/assets/de8b05e0-bf04-4bf4-9dbc-d51210cc9bec)
-
-## Citing us
-
-If you use results from the paper and/or code, please cite the following paper:
-
-```
-@online{prajapat_towards_2024,
-  title = {Towards Safe and Tractable {{Gaussian}} Process-Based {{MPC}}: {{Efficient}} Sampling within a Sequential Quadratic Programming Framework},
-  shorttitle = {Towards Safe and Tractable {{Gaussian}} Process-Based {{MPC}}},
-  author = {Prajapat, Manish and Lahr, Amon and Köhler, Johannes and Krause, Andreas and Zeilinger, Melanie N.},
-  date = {2024-09-13},
-  eprint = {2409.08616},
-  eprinttype = {arXiv},
-  eprintclass = {math},
-  doi = {10.48550/arXiv.2409.08616},
-  pubstate = {prepublished}
-}
-```
 
