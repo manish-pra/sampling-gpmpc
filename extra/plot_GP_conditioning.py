@@ -35,43 +35,6 @@ import numpy as np
 # torch random seed
 torch.manual_seed(0)
 
-lb_plot, ub_plot = 0.0, 4.0
-lb, ub = 0.5, 3.5
-n = 4
-n_hyper = 200
-
-train_x = torch.linspace(lb, ub, n).unsqueeze(-1)
-train_y = torch.stack(
-    [
-        torch.sin(2 * train_x) + torch.cos(train_x),
-        # torch.nan(train_x.shape),
-        -torch.sin(train_x) + 2 * torch.cos(2 * train_x),
-    ],
-    -1,
-).squeeze(1)
-
-train_x_hyper = torch.linspace(lb, ub, n_hyper).unsqueeze(-1)
-train_y_hyper = torch.stack(
-    [
-        torch.sin(2 * train_x_hyper) + torch.cos(train_x_hyper),
-        # torch.nan(train_x_hyper.shape),
-        -torch.sin(train_x_hyper) + 2 * torch.cos(2 * train_x_hyper),
-    ],
-    -1,
-).squeeze(1)
-
-train_y_hyper += 0.07 * torch.randn(n_hyper, 2)
-
-test_x = torch.linspace(lb_plot, ub_plot, 1000)
-test_y = torch.stack(
-    [
-        torch.sin(2 * test_x) + torch.cos(test_x),
-        -torch.sin(test_x) + 2 * torch.cos(2 * test_x),
-    ],
-    -1,
-).squeeze(1)
-
-
 class GPModelWithDerivatives(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood):
         super(GPModelWithDerivatives, self).__init__(train_x, train_y, likelihood)
@@ -84,80 +47,105 @@ class GPModelWithDerivatives(gpytorch.models.ExactGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
 
+lb_plot, ub_plot = 0.0, 4.0
+lb, ub = 0.5, 3.5
+n = 4
+n_hyper = 200
 
-likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-    num_tasks=2
-)  # Value + Derivative
-model = GPModelWithDerivatives(train_x_hyper, train_y_hyper, likelihood)
+def train_hyperparams():
+    train_x_hyper = torch.linspace(lb, ub, n_hyper).unsqueeze(-1)
+    train_y_hyper = torch.stack(
+        [
+            torch.sin(2 * train_x_hyper) + torch.cos(train_x_hyper),
+            # torch.nan(train_x_hyper.shape),
+            -torch.sin(train_x_hyper) + 2 * torch.cos(2 * train_x_hyper),
+        ],
+        -1,
+    ).squeeze(1)
 
-# this is for running the notebook in our testing framework
-import os
+    train_y_hyper += 0.07 * torch.randn(n_hyper, 2)
 
-smoke_test = "CI" in os.environ
-training_iter = 2 if smoke_test else 50
+    likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
+        num_tasks=2
+    )  # Value + Derivative
+    model = GPModelWithDerivatives(train_x_hyper, train_y_hyper, likelihood)
 
+    smoke_test = "CI" in os.environ
+    training_iter = 2 if smoke_test else 50
+    # Find optimal model hyperparameters
+    model.train()
+    likelihood.train()
 
-# Find optimal model hyperparameters
-model.train()
-likelihood.train()
+    # set noise to zero
+    model.likelihood.noise = torch.tensor([1e-4])
+    model.likelihood.task_noises = torch.tensor([1e-4, 1e-4])
+    # set requires_grad=False for likelihood noise
+    # model.likelihood.noise_covar.noise.requires_grad = False
+    for param in model.likelihood.parameters():
+        param.requires_grad = False
 
-# set noise to zero
-model.likelihood.noise = torch.tensor([1e-4])
-model.likelihood.task_noises = torch.tensor([1e-4, 1e-4])
-# set requires_grad=False for likelihood noise
-# model.likelihood.noise_covar.noise.requires_grad = False
-for param in model.likelihood.parameters():
-    param.requires_grad = False
+    # Use the adam optimizer
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        # model.parameters(),
+        lr=0.1,
+    )  # Includes GaussianLikelihood parameters
 
-# Use the adam optimizer
-optimizer = torch.optim.Adam(
-    filter(lambda p: p.requires_grad, model.parameters()),
-    # model.parameters(),
-    lr=0.1,
-)  # Includes GaussianLikelihood parameters
+    # "Loss" for GPs - the marginal log likelihood
+    mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
-# "Loss" for GPs - the marginal log likelihood
-mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
-
-for i in range(training_iter):
-    optimizer.zero_grad()
-    output = model(train_x_hyper)
-    loss = -mll(output, train_y_hyper)
-    loss.backward()
-    print(
-        "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
-        % (
-            i + 1,
-            training_iter,
-            loss.item(),
-            model.covar_module.base_kernel.lengthscale.item(),
-            model.likelihood.noise.item(),
+    for i in range(training_iter):
+        optimizer.zero_grad()
+        output = model(train_x_hyper)
+        loss = -mll(output, train_y_hyper)
+        loss.backward()
+        print(
+            "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
+            % (
+                i + 1,
+                training_iter,
+                loss.item(),
+                model.covar_module.base_kernel.lengthscale.item(),
+                model.likelihood.noise.item(),
+            )
         )
-    )
-    optimizer.step()
+        optimizer.step()
 
-# extract model hyperparameters in one line
-state_dict = model.state_dict()
+    # extract model hyperparameters in one line
+    state_dict = model.state_dict()
+
+    return model, likelihood, state_dict
+
+model, likelihood, state_dict = train_hyperparams()
+
+train_x = torch.linspace(lb, ub, n).unsqueeze(-1)
+train_y = torch.stack(
+    [
+        torch.sin(2 * train_x) + torch.cos(train_x),
+        # torch.nan(train_x.shape),
+        -torch.sin(train_x) + 2 * torch.cos(2 * train_x),
+    ],
+    -1,
+).squeeze(1)
+
+test_x = torch.linspace(lb_plot, ub_plot, 1000)
+test_y = torch.stack(
+    [
+        torch.sin(2 * test_x) + torch.cos(test_x),
+        -torch.sin(test_x) + 2 * torch.cos(2 * test_x),
+    ],
+    -1,
+).squeeze(1)
 
 # new model
 y_train_nod = train_y.clone()
 y_train_nod[:, 1] = torch.tensor(float("nan"))
 
-
-def new_model(train_x, train_y):
+def new_model(train_x, train_y, likelihood, state_dict):
     model = GPModelWithDerivatives(train_x, train_y, likelihood)
     model.load_state_dict(state_dict)
     return model
 
-
-# Set into eval mode
-model.eval()
-likelihood.eval()
-
-plot_GT = True
-plot_sampling_MPC = False
-plot_cautious_MPC = False
-plot_safe_MPC = True
 
 TEXTWIDTH = 16
 
@@ -187,7 +175,7 @@ data = {"test_x": test_x.numpy(), "test_y": test_y[:, 0].numpy()}
 data["marker_symbols"] = marker_symbols
 
 for i in range(3):
-    model_nod = new_model(train_x_arr, train_y_arr)
+    model_nod = new_model(train_x_arr, train_y_arr, likelihood, state_dict)
     model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[0.3]])
     model_nod.covar_module.outputscale = torch.tensor([0.5])
     model_nod.eval()
