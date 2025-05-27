@@ -46,6 +46,7 @@ file_format = "png"
 
 # iterative conditioning plot
 filename = "iterative_conditioning" 
+plot_separate_figs = True  # Set to True to plot each iteration in a separate figure
 
 # sampling plot
 n_samples = 1000
@@ -285,6 +286,8 @@ def plot_iterative_conditioning(plot_separate_figs=False):
         # remove ticks
         ax[i].set_yticks([])
         ax[i].set_xticks([])
+        ax[i].set_xlim([lb_plot, ub_plot])
+        ax[i].set_ylim([-3.2, 3.2])
 
     for i in range(3):
         # Plot training data as black stars
@@ -305,7 +308,7 @@ def plot_iterative_conditioning(plot_separate_figs=False):
             os.path.join(workspace, "figures", f"{filename}_{i_f}.{file_format}"),
             format=file_format,
             dpi=600,
-            transparent=True,
+            transparent=False,
         )
         print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}.{file_format}')}")
 
@@ -355,6 +358,13 @@ def plot_GP_samples():
         "color_samples_in": "tab:blue",
         "color_samples_out": "tab:red",
     })
+    plot_settings.append({
+        "filename_suffix": "samples_filtered",
+        "plot_samples_in": True,
+        "plot_samples_out": False,
+        "color_samples_in": "tab:blue",
+        "color_samples_out": "tab:red",
+    })
 
     for ps in plot_settings:
         f, ax = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25))
@@ -374,7 +384,7 @@ def plot_GP_samples():
             mean_upper[:, 0].numpy(),
             alpha=0.3,
             color="tab:blue",
-            label="Confidence region",
+            label=r"Confidence bounds $\underline{g}, \overline{g}$",
         )
         h_data = ax.plot(
             train_x.numpy(),
@@ -403,6 +413,6 @@ def plot_GP_samples():
         )
 
 if __name__ == "__main__":
-    plot_iterative_conditioning()
+    plot_iterative_conditioning(plot_separate_figs=plot_separate_figs)
     plot_GP_samples()
     # plt.show()  # Uncomment to display the plot interactively
