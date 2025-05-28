@@ -18,7 +18,7 @@ sys.path.append(workspace)
 workspace_plotting_utils = "plotting_utilities"
 sys.path.append(workspace_plotting_utils)
 
-from plotting_utilities import utilities as plt_utils
+from plotting_tools import utilities as plt_utils
 
 plot_GT = False
 plot_GT_sampling = True

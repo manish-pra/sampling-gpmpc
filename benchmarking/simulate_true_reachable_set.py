@@ -29,7 +29,7 @@ warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params_car")  # params
+parser.add_argument("-param", default="params_pendulum")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=40)  # initialized at origin
@@ -115,8 +115,8 @@ X_traj[:, :, :, 0 : agent.nx] = torch.tile(
 )
 Y_traj = torch.zeros((agent.batch_shape[0], agent.batch_shape[1], 1, agent.nx + 1))
 
-num_repeat = 10000
-max_repeat_per_file = 1000
+num_repeat = 5
+max_repeat_per_file = 4
 num_files = num_repeat // max_repeat_per_file
 n_random_conditionings = 0
 random_conditioning_scale = 0.1
