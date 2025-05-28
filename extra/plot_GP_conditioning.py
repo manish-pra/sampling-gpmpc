@@ -47,9 +47,10 @@ file_format = "png"
 # iterative conditioning plot
 filename = "iterative_conditioning" 
 plot_separate_figs = True  # Set to True to plot each iteration in a separate figure
+plot_without_reconditioning = True
 
 # sampling plot
-n_samples = 1000
+n_samples = 100
 filename_sampling = "gp_samples"
 
 class GPModelWithDerivatives(gpytorch.models.ExactGP):
@@ -160,157 +161,280 @@ set_figure_params(serif=True, fontsize=10)
 marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
 
 def plot_iterative_conditioning(plot_separate_figs=False):
+    plot_settings = []
+    plot_settings.append({
+        "filename_suffix": "without_reconditioning",
+        "plot_without_reconditioning": True,
+        "plot_sample": [True, True, True],
+        "plot_sample_from_data": [True, True, True],
+        "plot_mean": False,
+    })
+    plot_settings.append({
+        "filename_suffix": "with_reconditioning",
+        "plot_without_reconditioning": False,
+        "plot_sample": [True, True, True],
+        "plot_sample_from_data": [True, True, True],
+        "plot_mean": False,
+    })
 
-    if plot_separate_figs:
-        f_arr = []
-        ax = []
+    for ps in plot_settings: 
+        if plot_separate_figs:
+            f_arr = []
+            ax = []
+            for i in range(3):
+                f, ax_i = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25))
+                f_arr.append(f)
+                ax.append(ax_i)
+        else:
+            f, ax = plt.subplots(1, 3, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25 * 1 / 2))
+            f_arr = [f]
+
+        train_x_2 = torch.tensor([0.8, 1.8, 2.8]).unsqueeze(-1)
+        train_x_3 = torch.tensor([0.9, 1.9, 3.0]).unsqueeze(-1)
+        # train_x_arr_add = [train_x, train_x_2, train_x_3]
+        train_x_arr_add = [
+            train_x.clone(),
+            train_x_2.clone(),
+            train_x_3.clone(),
+            train_x_3.clone(),
+        ]
+        train_y_arr_add = [train_y.clone(), train_y.clone(), train_y.clone()]
+        train_x_arr = train_x.clone()
+        train_y_arr = train_y.clone()
+        train_x_arr_all = []
+        train_y_arr_all = []
+        train_x_arr_wo_recon = train_x.clone()
+        train_y_arr_wo_recon = train_y.clone()
+
+        # loop over the axes
+        data = {"test_x": test_x.numpy(), "test_y": test_y[:, 0].numpy()}
+        data["marker_symbols"] = marker_symbols
+
         for i in range(3):
-            f, ax_i = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25))
-            f_arr.append(f)
-            ax.append(ax_i)
-    else:
-        f, ax = plt.subplots(1, 3, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25 * 1 / 2))
-        f_arr = [f]
+            model_nod = new_model(train_x_arr, train_y_arr, likelihood, state_dict)
+            model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[k_lengthscale]])
+            model_nod.covar_module.outputscale = torch.tensor([k_outscale])
+            model_nod.eval()
 
-    train_x_2 = torch.tensor([0.8, 1.8, 2.8]).unsqueeze(-1)
-    train_x_3 = torch.tensor([0.9, 1.9, 3.0]).unsqueeze(-1)
-    # train_x_arr_add = [train_x, train_x_2, train_x_3]
-    train_x_arr_add = [
-        train_x.clone(),
-        train_x_2.clone(),
-        train_x_3.clone(),
-        train_x_3.clone(),
-    ]
-    train_y_arr_add = [train_y.clone(), train_y.clone(), train_y.clone()]
-    train_x_arr = train_x.clone()
-    train_y_arr = train_y.clone()
-    train_x_arr_all = []
-    train_y_arr_all = []
+            # Make predictions
+            with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
+                predictions = model_nod(test_x)
+                mean = predictions.mean
+                lower, upper = predictions.confidence_region()
 
-    # loop over the axes
-    data = {"test_x": test_x.numpy(), "test_y": test_y[:, 0].numpy()}
-    data["marker_symbols"] = marker_symbols
+                mean_lower = beta_fac * (mean - lower)
+                mean_upper = beta_fac * (upper - mean)
 
-    for i in range(3):
-        model_nod = new_model(train_x_arr, train_y_arr, likelihood, state_dict)
-        model_nod.covar_module.base_kernel.lengthscale = torch.tensor([[k_lengthscale]])
-        model_nod.covar_module.outputscale = torch.tensor([k_outscale])
-        model_nod.eval()
+                if (i == 0 or ps["plot_without_reconditioning"]) and i < 2:
+                    # set seed again to get the same samples here with or without reconditioning
+                    # torch.manual_seed(1234)
+                    sample = predictions.sample()
 
-        # Make predictions
-        with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
-            predictions = model_nod(test_x)
-            mean = predictions.mean
-            lower, upper = predictions.confidence_region()
+            train_x_arr_all.append(train_x_arr_wo_recon.clone())
+            train_y_arr_all.append(train_y_arr_wo_recon.clone())
 
-            mean_lower = beta_fac * (mean - lower)
-            mean_upper = beta_fac * (upper - mean)
 
-            if i == 0:
-                sample = predictions.sample()
-
-        train_x_arr_all.append(train_x_arr.clone())
-        train_y_arr_all.append(train_y_arr.clone())
-
-        # condition model on new data
-        # get values of sample at train_x_i, if it does not exist then find the closest value
-        if i < 2:
-            train_x_arr = torch.cat([train_x_arr, train_x_arr_add[i + 1]])
-            train_y_arr_add[i + 1] = sample[
-                np.searchsorted(test_x, train_x_arr_add[i + 1])
-            ][:, 0, :]
-            train_y_arr = torch.cat(
-                [
-                    train_y_arr,
-                    train_y_arr_add[i + 1],
-                ]
+            # sample from model without reconditioning
+            # if ps["plot_without_reconditioning"]:
+            model_wo_recon = new_model(
+                train_x_arr_wo_recon, train_y_arr_wo_recon, likelihood, state_dict
             )
+            model_wo_recon.covar_module.base_kernel.lengthscale = torch.tensor([[k_lengthscale]])
+            model_wo_recon.covar_module.outputscale = torch.tensor([k_outscale])
+            model_wo_recon.eval()
 
-        # vlines at test_x_add
-        if i < 2 or True:
-            # if i < 2:
-            for x in train_x_arr_add[i + 1]:
-                ax[i].axvline(
-                    x.numpy().flatten(),
-                    color="k",
-                    linestyle="solid",
-                    alpha=0.3,
-                    linewidth=3,
+            with torch.no_grad(), gpytorch.settings.observation_nan_policy("mask"):
+                predictions_wo_recon = model_wo_recon(test_x)
+
+                # TODO: save base_samples 
+                if i == 0 or True:
+                    mean_wo_recon = predictions.mean
+                    lower_wo_recon, upper_wo_recon = predictions.confidence_region()
+
+                    mean_lower_wo_recon = mean_wo_recon - beta_fac * (mean_wo_recon - lower_wo_recon)
+                    mean_upper_wo_recon = mean_wo_recon + beta_fac * (upper_wo_recon - mean_wo_recon)
+
+                    sample_shape = torch.Size((n_samples,))
+                    # base_samples = predictions.get_base_samples(sample_shape=sample_shape)
+                    # base_samples = base_samples.permute((1,0,2))
+                
+                    sample_wo_recon_all = predictions_wo_recon.rsample(
+                        sample_shape=sample_shape, 
+                        # base_samples=base_samples
+                    )
+
+                    # find samples that are outside the confidence region
+                    outside_confidence_pointwise = torch.logical_or(
+                        sample_wo_recon_all < mean_lower_wo_recon.unsqueeze(0),
+                        sample_wo_recon_all > mean_upper_wo_recon.unsqueeze(0),
+                    )
+                    outside_confidence = outside_confidence_pointwise.any(dim=1)
+
+                    sample_wo_recon = sample_wo_recon_all
+                    sample_wo_recon_outside = sample_wo_recon_all[outside_confidence[:, 0], :, :]
+                    sample_wo_recon_inside = sample_wo_recon_all[~outside_confidence[:, 0], :, :]
+                    # sample_wo_recon = sample_wo_recon_all[~outside_confidence[:, 0], :, :]
+                    # base_samples = base_samples[~outside_confidence[:, 0], :, :]
+                else:
+                    sample_wo_recon = predictions_wo_recon.rsample(
+                        sample_shape=torch.Size((n_samples,)), 
+                        base_samples=base_samples
+                    )
+
+            # condition model on new data
+            # get values of sample at train_x_i, if it does not exist then find the closest value
+            if i < 2:
+                train_y_arr_add[i + 1] = sample[
+                    np.searchsorted(test_x, train_x_arr_add[i + 1])
+                ][:, 0, :]
+
+                train_x_arr_wo_recon = torch.cat([train_x_arr_wo_recon, train_x_arr_add[i + 1]])
+                train_y_arr_wo_recon = torch.cat(
+                    [
+                        train_y_arr_wo_recon,
+                        train_y_arr_add[i + 1],
+                    ]
                 )
-        # Predictive mean as blue line
-        h_func = ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--")
-        h_mean = ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue")
-        h_samp = ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
-        data[i] = {
-            "mean": mean[:, 0].numpy(),
-            "sample": sample[:, 0].numpy(),
-            "train_x_arr_add": train_x_arr_add,
-            "train_y_arr_add": train_y_arr_add,
-            "lcb": mean[:, 0].numpy() - mean_lower[:, 0].numpy(),
-            "ucb": mean[:, 0].numpy() + mean_upper[:, 0].numpy(),
-        }
-        # Shade in confidence
-        # h_conf = ax[i].fill_between(
-        #     test_x.numpy(),
-        #     lower[:, 0].numpy(),
-        #     upper[:, 0].numpy(),
-        #     alpha=0.5,
-        #     color="tab:blue",
-        # )
-        h_conf = ax[i].fill_between(
-            test_x.numpy(),
-            mean[:, 0] - mean_lower[:, 0].numpy(),
-            mean[:, 0] + mean_upper[:, 0].numpy(),
-            alpha=0.5,
-            color="tab:blue",
-        )
+                if not ps["plot_without_reconditioning"]:
+                    train_x_arr = train_x_arr_wo_recon.clone()
+                    train_y_arr = train_y_arr_wo_recon.clone()
 
-        if i == 2 or plot_separate_figs:
-            ax[i].legend(
-                [h_func[0], h_samp[0], h_conf],
-                # ["True", "Mean", "Sample"],
-                [
-                    r"true function $g^{\mathrm{tr}}$",
-                    r"sampled function $g^n$",
-                    r"$\mathcal{GP}_{[\underline{g}, \overline{g}]}(0,k_{\mathrm{d}};\mathcal{D}^n_{0:j-1})$",
-                ],
-                # loc="lower left",
-            )
-        # ax[i].legend(["Observed Values", "Mean", "Confidence"])
-        # set title with current marker_symbols
+            if ps["plot_sample_from_data"][i]:
+                if torch.any(outside_confidence[:, 0]):
+                    h_sample_wo_recon_outside = ax[i].plot(
+                        test_x.numpy(),
+                        sample_wo_recon_outside[:, :, 0].numpy().T,
+                        "tab:red",
+                        alpha=0.5,
+                        linewidth=1,
+                    )
+                    h_sample_wo_recon_outside[0].set_label(
+                        r"$\mathrm{Samples} \notin [\underline{g}, \overline{g}]$"
+                    )
 
-        ax[i].set_title(f"$j = {i+1}$")
-        # remove tick labels
-        ax[i].set_yticklabels([])
-        ax[i].set_xticklabels([])
-        # remove ticks
-        ax[i].set_yticks([])
-        ax[i].set_xticks([])
-        ax[i].set_xlim([lb_plot, ub_plot])
-        ax[i].set_ylim([-3.2, 3.2])
+                if torch.any(~outside_confidence[:, 0]):
+                    h_sample_wo_recon_inside = ax[i].plot(
+                        test_x.numpy(),
+                        sample_wo_recon_inside[:, :, 0].numpy().T,
+                        "tab:blue",
+                        alpha=0.5,
+                        linewidth=1,
+                    )
+                    h_sample_wo_recon_inside[0].set_label(
+                        r"$\mathrm{Samples} \in [\underline{g}, \overline{g}]$"
+                    )
 
-    for i in range(3):
-        # Plot training data as black stars
-        for j in range(i + 1):
-            # for j in range(2 - i, -1, -1):
-            ax[i].plot(
-                train_x_arr_add[j].detach().numpy(),
-                train_y_arr_add[j][:, 0].detach().numpy(),
-                f"k{marker_symbols[j]}",
+            # Predictive mean as blue line
+            h_func = ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--")
+
+            if ps["plot_mean"]:
+                h_mean = ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue", label="Predictive mean")
+
+            data[i] = {
+                "mean": mean[:, 0].numpy(),
+                "sample": sample[:, 0].numpy(),
+                "train_x_arr_add": train_x_arr_add,
+                "train_y_arr_add": train_y_arr_add,
+                "lcb": mean[:, 0].numpy() - mean_lower[:, 0].numpy(),
+                "ucb": mean[:, 0].numpy() + mean_upper[:, 0].numpy(),
+            }
+            # Shade in confidence
+            # h_conf = ax[i].fill_between(
+            #     test_x.numpy(),
+            #     lower[:, 0].numpy(),
+            #     upper[:, 0].numpy(),
+            #     alpha=0.5,
+            #     color="tab:blue",
+            # )
+            h_conf = ax[i].fill_between(
+                test_x.numpy(),
+                mean[:, 0] - mean_lower[:, 0].numpy(),
+                mean[:, 0] + mean_upper[:, 0].numpy(),
+                alpha=0.3,
+                color="tab:blue",
+                label= r"Confidence bounds $\underline{g}, \overline{g}$",
             )
 
-    # with open("/home/manish/work/MPC_Dyn/slides_data.pickle", "wb") as handle:
-    #     pickle.dump(data, handle)
+        # for i in range(3):
+            # Plot training data as black stars
+            for j in range(i + 1):
+                # for j in range(2 - i, -1, -1):
+                h_data = ax[i].plot(
+                    train_x_arr_add[j].detach().numpy(),
+                    train_y_arr_add[j][:, 0].detach().numpy(),
+                    f"k{marker_symbols[j]}",
+                )
 
-    for i_f,f in enumerate(f_arr):
-        f.tight_layout(pad=0.5)
-        f.savefig(
-            os.path.join(workspace, "figures", f"{filename}_{i_f}.{file_format}"),
-            format=file_format,
-            dpi=600,
-            transparent=False,
-        )
-        print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}.{file_format}')}")
+                for h in h_data:
+                    h.set_zorder(10)
+
+            # ax[i].legend(["Observed Values", "Mean", "Confidence"])
+            # set title with current marker_symbols
+            ax[i].legend(loc="upper right")
+
+            ax[i].set_title(f"$j = {i+1}$")
+            # remove tick labels
+            ax[i].set_yticklabels([])
+            ax[i].set_xticklabels([])
+            # remove ticks
+            ax[i].set_yticks([])
+            ax[i].set_xticks([])
+            ax[i].set_xlim([lb_plot, ub_plot])
+            ax[i].set_ylim([-3.2, 3.2])
+
+            if plot_separate_figs:
+                i_f = i
+            else:
+                i_f = 0
+            f_i = f_arr[i_f]
+
+            f_i.tight_layout(pad=0.5)
+            filename_suffix = ps["filename_suffix"]
+            f_i.savefig(
+                os.path.join(workspace, "figures", f"{filename}_{i_f}_{filename_suffix}_1_samples.{file_format}"),
+                format=file_format,
+                dpi=600,
+                transparent=False,
+            )
+            print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}_{filename_suffix}.{file_format}')}")
+
+            # vlines at test_x_add
+            if i < 2 or True:
+                # if i < 2:
+                for x in train_x_arr_add[i + 1]:
+                    h_vlines = ax[i].axvline(
+                        x.numpy().flatten(),
+                        color="k",
+                        linestyle="solid",
+                        alpha=0.3,
+                        linewidth=3,
+                    )
+
+            f_i.tight_layout(pad=0.5)
+            filename_suffix = ps["filename_suffix"]
+            f_i.savefig(
+                os.path.join(workspace, "figures", f"{filename}_{i_f}_{filename_suffix}_2_vlines.{file_format}"),
+                format=file_format,
+                dpi=600,
+                transparent=False,
+            )
+            print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}_{filename_suffix}.{file_format}')}")
+
+            if ps["plot_sample"][i]:
+                h_samp = ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
+
+            f_i.tight_layout(pad=0.5)
+            filename_suffix = ps["filename_suffix"]
+            f_i.savefig(
+                os.path.join(workspace, "figures", f"{filename}_{i_f}_{filename_suffix}_3_final.{file_format}"),
+                format=file_format,
+                dpi=600,
+                transparent=False,
+            )
+            print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}_{filename_suffix}.{file_format}')}")
+
+        # with open("/home/manish/work/MPC_Dyn/slides_data.pickle", "wb") as handle:
+        #     pickle.dump(data, handle)
 
 def plot_GP_samples():
     model = new_model(train_x, train_y, likelihood, state_dict)
@@ -414,5 +538,5 @@ def plot_GP_samples():
 
 if __name__ == "__main__":
     plot_iterative_conditioning(plot_separate_figs=plot_separate_figs)
-    plot_GP_samples()
+    # plot_GP_samples()
     # plt.show()  # Uncomment to display the plot interactively
