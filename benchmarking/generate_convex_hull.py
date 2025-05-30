@@ -103,23 +103,25 @@ a_file = open(save_path + str(traj_iter) + "/data_convex_hull_N200.pkl", "wb")
 pickle.dump(hull_points, a_file)
 a_file.close()
 
-color = "powderblue" 
-for i in range(X_traj.shape[2] - 2):
-    hull = ConvexHull(np.concatenate([hull_points[i], hull_points[i + 1]]))
-    stack_vertices = np.hstack([hull.vertices, hull.vertices[0]])
-    plt.fill(
-        hull.points[stack_vertices, 0],
-        hull.points[stack_vertices, 1],
-        alpha=1,
-        color=color,
-        lw=0,
-    )
 
-# plt.plot(X_traj[:,0,:].T, X_traj[:,1,:].T)
-# Load trajectory data
-a_file = open(save_path + str(traj_iter) + "/data_feedback_1e-8.pkl", "rb")
-data_dict = pickle.load(a_file)
-state_traj = data_dict["state_traj"]
-a_file.close()
-plt.plot(state_traj[0][:-1,0], state_traj[0][1:,1], color="black", label="Trajectory", linewidth=0.2)
-plt.savefig("fs_60.png")
+if params["visu"]["show"]:
+    color = "powderblue" 
+    for i in range(X_traj.shape[2] - 2):
+        hull = ConvexHull(np.concatenate([hull_points[i], hull_points[i + 1]]))
+        stack_vertices = np.hstack([hull.vertices, hull.vertices[0]])
+        plt.fill(
+            hull.points[stack_vertices, 0],
+            hull.points[stack_vertices, 1],
+            alpha=1,
+            color=color,
+            lw=0,
+        )
+
+    # plt.plot(X_traj[:,0,:].T, X_traj[:,1,:].T)
+    # Load trajectory data
+    a_file = open(save_path + str(traj_iter) + "/data_feedback_1e-8.pkl", "rb")
+    data_dict = pickle.load(a_file)
+    state_traj = data_dict["state_traj"]
+    a_file.close()
+    plt.plot(state_traj[0][:-1,0], state_traj[0][1:,1], color="black", label="Trajectory", linewidth=0.2)
+    plt.savefig("fs_60.png")

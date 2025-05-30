@@ -60,6 +60,8 @@ agent:
     v_min : [-1000, -1000] # Minimum control input
     v_max : [1000, 1000] 
   input_generation: True
+  load_epistemic_rv: False # If True, specify the path to load the random vectors in the "simulate_forward_sampling_car.py"
+  save_data: True
 
 visu:
   show: False

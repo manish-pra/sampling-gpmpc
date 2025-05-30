@@ -13,7 +13,7 @@ from src.GP_model import BatchMultitaskGPModelWithDerivatives_fromParams
 import matplotlib.pyplot as plt
 
 torch.set_default_dtype(torch.float64)
-from src.utils.reachable_set import get_reachable_set_ball
+
 
 class Agent(object):
     def __init__(self, params, env_model) -> None:
@@ -69,6 +69,7 @@ class Agent(object):
         self.epistimic_random_vector = self.random_vector_within_bounds()
         # self.tilde_eps_list, self.ci_list = env_model.get_mpc_tightenings()
         if "terminal_tightening" in self.params["optimizer"]:
+            from src.utils.reachable_set import get_reachable_set_ball
             self.tilde_eps_list, self.ci_list = get_reachable_set_ball(params, np.ones(params["optimizer"]["H"]+1))
         # quit()
 

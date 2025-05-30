@@ -47,8 +47,10 @@ class DEMPC_solver(object):
             w = np.concatenate([a*np.ones(len_a), b*np.ones(len_b), a*np.ones(len_c)])
         else:
             w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
+        if self.params["agent"]["feedback"]["use"]:
+            K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
-        K = np.array(self.params["optimizer"]["terminal_tightening"]["K"])
+        
         x_equi = np.array(self.params["env"]["goal_state"])
         ns = self.params["agent"]["num_dyn_samples"]
         for sqp_iter in range(self.max_sqp_iter):

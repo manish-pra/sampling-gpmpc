@@ -4,6 +4,7 @@ env:
   dynamics: 'pendulum' # "pendulum"
   prior_dyn_meas: True 
   train_data_has_derivatives: True
+  use_model_without_derivatives: False
   n_data_x: 3
   n_data_u: 5
   params:
@@ -49,6 +50,11 @@ agent:
     Lipschitz: 1.015
     w_bound: 0.007
   shift_soln: True
+  feedback: 
+    use: False
+    v_min : [-1000] # Minimum control input
+    v_max : [1000] 
+  input_generation: False
 
 visu:
   show: True
@@ -59,7 +65,7 @@ common:
   dynamics_rejection: False
 
 optimizer:
-  H : 10 # horizon
+  H : 30 # horizon
   u_min : [-8] # Minimum control input
   u_max : [8]          
   # u_min : [-30, -30] # Minimum control input
@@ -83,9 +89,6 @@ optimizer:
   options: {
     levenberg_marquardt: 1.0
   }
-  terminal_tightening:
-    x_tight: [0.1, 0.1]
-    u_tight: [0.1]
 
 experiment:
   name: "DEMPC" #

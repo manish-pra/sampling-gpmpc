@@ -24,14 +24,10 @@ plt.rcParams["figure.figsize"] = [12, 6]
 workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
-parser.add_argument("-param", default="params_pendulum1D_samples")  # params
-# parser.add_argument("-param", default="params_car_residual")  # params
-
+# parser.add_argument("-param", default="params_pendulum1D_samples")  
+parser.add_argument("-param", default="params_car_residual")
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-env_model", type=str, default="pendulum")
 parser.add_argument("-i", type=int, default=42)  # initialized at origin
-parser.add_argument("-plot_koller", type=bool, default=False)
-parser.add_argument("-run_visu", type=bool, default=True)
 args = parser.parse_args()
 
 # 1) Load the config file
@@ -75,12 +71,6 @@ if not os.path.exists(save_path + str(traj_iter)):
     os.makedirs(save_path + str(traj_iter))
 
 env_model = globals()[params["env"]["dynamics"]](params)
-# if params["env"]["dynamics"] == "pendulum":
-#     env_model = Pendulum(params)
-# elif params["env"]["dynamics"] == "bicycle":
-#     env_model = CarKinematicsModel(params)
-# else:
-#     raise ValueError("Unknown dynamics model")
 
 agent = Agent(params, env_model)
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
@@ -88,10 +78,7 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 # 4) Set the initial state
 agent.update_current_state(np.array(params["env"]["start"]))
 
-
 de_mpc = DEMPC(params, visu, agent)
 de_mpc.dempc_main()
 print(np.average(visu.solver_time[1:]), np.std(visu.solver_time[1:]))
 visu.save_data()
-# dict_file = torch.cuda.memory._snapshot()
-# pickle.dump(dict_file, open(save_path + str(traj_iter) + "/memory_snapshot_1.pickle", "wb"))

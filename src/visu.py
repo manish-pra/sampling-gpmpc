@@ -129,33 +129,34 @@ class Visualizer:
             ax.set_xlim(0 - relax, x_max + relax)
             ax.set_ylim(0 - relax, y_max + relax)
 
-            if "P" in self.params["optimizer"]["terminal_tightening"]:
-                xf = np.array(self.params["env"]["goal_state"])
-                P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])
-                delta = self.params["optimizer"]["terminal_tightening"]["delta"]**2
-                L = np.linalg.cholesky(P / delta)
-                t = np.linspace(0, 2 * np.pi, 200)
-                z = np.vstack([np.cos(t), np.sin(t)])
-                ell = np.linalg.inv(L.T) @ z
+            if "terminal_tightening" in self.params["optimizer"]:
+                if "P" in self.params["optimizer"]["terminal_tightening"]:
+                    xf = np.array(self.params["env"]["goal_state"])
+                    P = np.array(self.params["optimizer"]["terminal_tightening"]["P"])
+                    delta = self.params["optimizer"]["terminal_tightening"]["delta"]**2
+                    L = np.linalg.cholesky(P / delta)
+                    t = np.linspace(0, 2 * np.pi, 200)
+                    z = np.vstack([np.cos(t), np.sin(t)])
+                    ell = np.linalg.inv(L.T) @ z
 
-                ax.plot(
-                    ell[0, :] + xf[0],
-                    ell[1, :] + xf[1],
-                    # "--",
-                    color="tab:green",
-                    label="Terminal set",
-                )
-                # L = np.linalg.cholesky(P)
-                # t = np.linspace(0, 2 * np.pi, 200)
-                # z = np.vstack([np.cos(t), np.sin(t)])
-                # ell = np.linalg.inv(L.T) @ z
+                    ax.plot(
+                        ell[0, :] + xf[0],
+                        ell[1, :] + xf[1],
+                        # "--",
+                        color="tab:green",
+                        label="Terminal set",
+                    )
+                    # L = np.linalg.cholesky(P)
+                    # t = np.linspace(0, 2 * np.pi, 200)
+                    # z = np.vstack([np.cos(t), np.sin(t)])
+                    # ell = np.linalg.inv(L.T) @ z
 
-                # ax.plot(
-                #     ell[0, :] + xf[0],
-                #     ell[1, :] + xf[1],
-                #     color="red",
-                #     label="Terminal set",
-                # )
+                    # ax.plot(
+                    #     ell[0, :] + xf[0],
+                    #     ell[1, :] + xf[1],
+                    #     color="red",
+                    #     label="Terminal set",
+                    # )
 
         # ax.set_yticklabels([])
         # ax.set_xticklabels([])

@@ -170,21 +170,6 @@ color_list = ["lightsalmon","deepskyblue", "lightgreen"]
 r_1 = np.sqrt([4.50618781e-01])/np.sqrt([4.28592943e-01])
 r_2 = np.sqrt([4.90922812e+00])/np.sqrt([4.28592943e-01])
 
-# def get_eps_vec(N):
-#     if N == 200:
-#         eps = 0.0012467938969720 #0.0008862126722769
-#     elif N == 2000:
-#         eps = 0.0008861463373472
-#     elif N == 20000:
-#         eps = 0.0007138872931322
-#     elif N == 200000:
-#         eps = 0.0006026153249353
-#     elif N == 2000000:
-#         eps = 0.0005213836197142
-#     elif N == 20000000:
-#         eps = 0.0004596721185586
-#     return np.array([eps/r_1, eps/np.ones(1), eps/r_2])
-
 def get_eps_vec(N):
     if N == 200:
         eps = 0.0011142622935513
@@ -249,18 +234,6 @@ plt.plot(propagated_state[:,0], propagated_state[:,1], ls='--',color="black", la
 
 # plot lines of tracks with fixed start and end locations
 w = 4.8
-# y_coord = -0.62
-# lw=1.25
-# plt.plot([0, 7],[y_coord, y_coord], color="black", linewidth=lw)
-# plt.plot([0, 7],[y_coord+w, y_coord+w], color="black", linewidth=lw)
-
-# y_coord = 8.6
-# plt.plot([13.5, 23.75],[y_coord, y_coord], color="black", linewidth=lw)
-# plt.plot([13.5, 23.75],[y_coord+w, y_coord+w], color="black", linewidth=lw)
-
-# y_coord = -0.62
-# plt.plot([32.75, 42],[y_coord, y_coord], color="black", linewidth=lw)
-# plt.plot([32.75, 42],[y_coord+w, y_coord+w], color="black", linewidth=lw)
 
 w = 3.9
 y_coord = -0.1
@@ -308,12 +281,3 @@ plt.savefig(
     dpi=300,
     transparent=True,
 )
-# eps4e_4_data_path = save_path + str(traj_iter)  + "/data_convex_hull_eps4e-4.pkl"
-# plot_reachable_eps(eps4e_4_data_path)
-
-# eps2e_4_data_path = save_path + str(traj_iter)  + "/data_convex_hull_eps2e-4.pkl"
-# plot_reachable_eps(eps2e_4_data_path)
-
-
-
-# plt.savefig(save_path + str(traj_iter) + "/true_reachable_set.png")
