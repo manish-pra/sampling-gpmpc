@@ -78,7 +78,10 @@ visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
 # 4) Set the initial state
 agent.update_current_state(np.array(params["env"]["start"]))
 
+# 5) MPC solver
 de_mpc = DEMPC(params, visu, agent)
 de_mpc.dempc_main()
 print(np.average(visu.solver_time[1:]), np.std(visu.solver_time[1:]))
+
+# 6) Save the data
 visu.save_data()
