@@ -64,7 +64,7 @@ class DEMPC:
             # check for uncertainity and online learn the data
             # Initialize the next state at the point nearest to the goal
             # propagate the trajectory
-            X_true_traj = self.agent.env_model.propagate_true_dynamics(X[0, 0:nx], U) + np.random.uniform(low=-1e-3, high=1e-3, size=(1, 2))
+            X_true_traj = self.agent.env_model.propagate_true_dynamics(X[0, 0:nx], U) #+ np.random.uniform(low=-1e-3, high=1e-3, size=(1, 2))
             # self.agent.get_posterior_uncertainity(X_true_traj, U)
             # let's jump twice
             jump_idx = 0
