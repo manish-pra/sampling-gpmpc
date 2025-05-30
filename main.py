@@ -23,14 +23,15 @@ import torch
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
-workspace = "sampling-gpmpc"
+workspace = "sage-dynx"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_pendulum1D_samples")  # params
 # parser.add_argument("-param", default="params_car_residual")  # params
 # parser.add_argument("-param", default="params_drone")  # params
-parser.add_argument("-param", default="params_pendulum_exploration")  # params
+# parser.add_argument("-param", default="params_pendulum_exploration")  # params
 # parser.add_argument("-param", default="params_car_racing_sagedynx")  # params
+parser.add_argument("-param", default="params_drone_sagedynx")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=0)  # initialized at origin
@@ -77,12 +78,6 @@ if not os.path.exists(save_path + str(traj_iter)):
     os.makedirs(save_path + str(traj_iter))
 
 env_model = globals()[params["env"]["dynamics"]](params)
-# if params["env"]["dynamics"] == "pendulum":
-#     env_model = Pendulum(params)
-# elif params["env"]["dynamics"] == "bicycle":
-#     env_model = CarKinematicsModel(params)
-# else:
-#     raise ValueError("Unknown dynamics model")
 
 agent = Agent(params, env_model)
 if params["agent"]["load_training_data"]:
@@ -102,6 +97,4 @@ de_mpc = DEMPC(params, visu, agent)
 de_mpc.dempc_main()
 print(np.average(visu.solver_time[1:]), np.std(visu.solver_time[1:]))
 visu.save_data()
-# dict_file = torch.cuda.memory._snapshot()
-# pickle.dump(dict_file, open(save_path + str(traj_iter) + "/memory_snapshot_1.pickle", "wb"))
 exit()
