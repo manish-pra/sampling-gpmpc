@@ -15,16 +15,16 @@ import torch
 workspace = "sampling-gpmpc"
 sys.path.append(workspace)
 
-workspace_plotting_utils = "plotting_utilities"
+workspace_plotting_utils = "plotting_tools"
 sys.path.append(workspace_plotting_utils)
 
-from plotting_tools import utilities as plt_utils
+from plotting_tools.plotting_utilities import utilities as plt_utils
 
 plot_GT = False
 plot_GT_sampling = True
 plot_sampling_MPC = True
-plot_cautious_MPC = True
-plot_safe_MPC = True
+plot_cautious_MPC = False
+plot_safe_MPC = False
 
 plot_cautious_mean = False
 plot_safe_mean = False
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("-param", default="params_pendulum")  # params
 
     parser.add_argument("-env", type=int, default=0)
-    parser.add_argument("-i", type=int, default=999)  # initialized at origin
+    parser.add_argument("-i", type=int, default=223)  # initialized at origin
     args = parser.parse_args()
 
     # 1) Load the config file
