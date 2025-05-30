@@ -1,33 +1,21 @@
-
-![iterative_gp_conditioning](https://github.com/user-attachments/assets/8c0ff769-a9e5-42f5-a49f-d1a9093c5323)
-
-# Sampling-based Gaussian Process Model Predictive Control
+# Safe Guaranteed Dynamics Exploration with Probabilistic Models
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repository contains code for the paper "[Towards safe and tractable Gaussian process-based MPC:
-Efficient sampling within a sequential quadratic programming framework](https://arxiv.org/abs/2409.08616)", accepted for publication at the 63rd IEEE Conference on Decision and Control (CDC 2024).
+This repository contains code for the paper "Safe Guaranteed Dynamics Exploration with Probabilistic Models".
 
 The code is licensed under the MIT license.
 
 ## Installation
 
 1. Create new `workspace` folder. This is used as a base directory for the following steps.
-2. Clone the main repository
-    ```bash
-        git clone https://github.com/manish-pra/sampling-gpmpc.git
-    ```
-3. Clone auxiliary repositories
-    ```bash
-        git clone https://github.com/manish-pra/safe-exploration-koller.git
-        git clone https://github.com/befelix/plotting_utilities.git
-    ```
+2. Place the main repository `sampling-gpmpc`
 3. Install dependencies
     1. Download and install [acados](https://docs.acados.org/installation/) (does not need to be in `workspace`).
     2. Install [acados Python interface](https://docs.acados.org/python_interface/index.html).
     3. Install Python requirements
         ```bash
-            cd sampling-gpmpc
+            cd sage-dynx
             pip install -r requirements.txt
         ```
 
@@ -36,101 +24,27 @@ The code is licensed under the MIT license.
 1. To run the code, run the following Python script from your base directory:
 
     ```
-        python sampling-gpmpc/main.py -i $i -param $param_file
+        python sage-dynx/main.py -param params_drone_sagedynx -i 3
+        python sage-dynx/main.py -param  -i $i
+
     ```
     where,
     ```
-        $param_file: Name of the param file, either "params_pendulum" or "params_car"
+        $param_file: Name of the param file, e.g. "params_drone_sagedynx" or "params_drone_opt"
         $i         : Experiment number, e.g. "1"
     ```
+    see params folder for other param file names.
 
 1. For visualizations/videos use the following script once the experiment is completed:
 
     ```
-        python sampling-gpmpc/visu_main.py -i $i -param $param_file
+        python sage-dynx/visu_main.py -param params_drone_sagedynx -i 3
+        python sage-dynx/visu_main.py -i $i -param $param_file
     ```
     This will generate a video of the simulation in the folder corresponding to the `$param_file` and the instance `$i`.
 
-## CDC 2024 Experiments
 
-### Pendulum example
-
-#### Instructions
-
-To simulate different reachable set approximations, run the following scripts (here we choose `$i=1`):
-
-1. Set experiment index and params file:
-    ```bash
-        param_file=params_pendulum
-        i=1
-    ```
-2. Generate control input sequence and sampling-based predictions (`data.pkl`) by running main script:
-    ```bash
-        python sampling-gpmpc/main.py -i $i -param $param_file
-    ```
-3. Generate linearization-based predictions (`cautious_ellipse_data.pkl`, `cautious_ellipse_center_data.pkl`), robust tube-based predictions (`koller_ellipse_data.pkl`, `koller_ellipse_center_data.pkl`) and true reachable set (`X_traj_list_0.pkl`, ..., `X_traj_list_<num_files>.pkl`):
-    ```bash
-        python sampling-gpmpc/benchmarking/linearization_based_predictions.py -i $i -param $param_file
-        python sampling-gpmpc/benchmarking/robust_tube_based_GPMPC_koller.py -i $i -param $param_file
-        python sampling-gpmpc/benchmarking/simulate_true_reachable_set.py -i $i -param $param_file
-    ```
-
-    Important script parameters:
-    - `simulate_true_reachable_set.py`: 
-        - number of samples per repeat is given by `num_samples` in `params_pendulum.yaml`
-        - number of repeats can be set by `num_repeat` in script file
-
-4. Run plotting script:
-    ```bash
-        python sampling-gpmpc/extra/cdc_plt.py -i $i -param $param_file
-    ```
-
-#### Result
-
-The final result should look similar to this:
-
-![Sampling-based-predictions-pendulum](https://github.com/user-attachments/assets/d52d4d3f-1ecd-4f78-8cbb-864297662579)
+1. For reference experiment videos, please refer to the folder "experiment/drone/env_0" and the files named "video_gp.mp4" contained within.
 
 
-### Car example
-
-#### Instructions
-
-1. Set experiment index and params file:
-    ```bash
-        param_file=params_car
-        i=1
-    ```
-2. Run closed-loop simulation by running main script:
-    ```bash
-        python sampling-gpmpc/main.py -i $i -param $param_file
-    ```
-3. Generate video by running visualizer script:
-    ```bash
-        python sampling-gpmpc/visu_main.py -i $i -param $param_file
-    ```
-
-#### Result
-
-The final result should look similar to this:
-
-![CDC_car_video](https://github.com/user-attachments/assets/de8b05e0-bf04-4bf4-9dbc-d51210cc9bec)
-
-## Citing us
-
-If you use results from the paper and/or code, please cite the following paper:
-
-```
-@online{prajapat_towards_2024,
-  title = {Towards Safe and Tractable {{Gaussian}} Process-Based {{MPC}}: {{Efficient}} Sampling within a Sequential Quadratic Programming Framework},
-  shorttitle = {Towards Safe and Tractable {{Gaussian}} Process-Based {{MPC}}},
-  author = {Prajapat, Manish and Lahr, Amon and Köhler, Johannes and Krause, Andreas and Zeilinger, Melanie N.},
-  date = {2024-09-13},
-  eprint = {2409.08616},
-  eprinttype = {arXiv},
-  eprintclass = {math},
-  doi = {10.48550/arXiv.2409.08616},
-  pubstate = {prepublished}
-}
-```
-
+1. The above commands will automatically create subfolders within the experiment directory, named according to the parameter file, environment number, and experiment number. Running the visualization script will generate videos for these experiments in the corresponding folders.
