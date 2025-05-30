@@ -61,10 +61,9 @@ visu:
   show: True
 
 common:
-  use_cuda : False
-  use_BLR : True
-  active_learning : False
-  num_MPC_itrs : 37
+  use_cuda : True
+  use_BLR : False
+  num_MPC_itrs : 53
   dynamics_rejection: False
 
 optimizer:
@@ -133,5 +132,5 @@ experiment:
   generate_regret_plot : True
   folder: "pendulum"
   rnd_seed: 
-    use: True
+    use: False
     value: 123456
