@@ -154,7 +154,9 @@ class DEMPC_solver(object):
 
     def solve(self, player, solver,  plot_pendulum=False):
         # w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
-        w = player.env_model.path_generator(player.mpc_iter)[:,:,0] #* self.params["optimizer"]["w"]
+        w = player.env_model.path_generator(player.mpc_iter)
+        if len(w.shape) > 2:
+            w = w[:,:,0] #* self.params["optimizer"]["w"]
         # w = np.vstack([[20.0,10.0]*(self.H+1)]).reshape(-1,2)
         if self.params["agent"]["run"]["variance_cost"]:
             w = np.random.rand(2*(self.H+1)).reshape(self.H+1,2)*10 - 5
@@ -172,7 +174,7 @@ class DEMPC_solver(object):
             for stage in range(self.H):
                 # current stage values
                 if self.params["agent"]["run"]["variance_cost"]:# and not self.params["agent"]["load_training_data"]:
-                    c = 1.0
+                    c = self.params["agent"]["run"]["scaling"]
                     if player.mpc_iter == 0:
                         c = 1.0e-2
                     self.x_h[stage, :] = solver.get(stage, "x") + np.random.rand(self.x_h[0,:].shape[0])*c

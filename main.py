@@ -23,7 +23,7 @@ import torch
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
-workspace = "sage-dynx"
+workspace = "sampling-gpmpc"
 
 parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_pendulum1D_samples")  # params
