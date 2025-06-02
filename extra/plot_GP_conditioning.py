@@ -50,7 +50,7 @@ plot_separate_figs = True  # Set to True to plot each iteration in a separate fi
 plot_without_reconditioning = True
 
 # sampling plot
-n_samples = 100
+n_samples = 200
 filename_sampling = "gp_samples"
 
 class GPModelWithDerivatives(gpytorch.models.ExactGP):
@@ -157,18 +157,19 @@ test_y = torch.stack(
 
 
 TEXTWIDTH = 16
-set_figure_params(serif=True, fontsize=10)
+FONTSIZE = 14
+set_figure_params(serif=True, fontsize=FONTSIZE)
 marker_symbols = ["*", "o", "x", "s", "D", "P", "v", "^", "<", ">", "1", "2", "3", "4"]
 
 def plot_iterative_conditioning(plot_separate_figs=False):
     plot_settings = []
-    plot_settings.append({
-        "filename_suffix": "without_reconditioning",
-        "plot_without_reconditioning": True,
-        "plot_sample": [True, True, True],
-        "plot_sample_from_data": [True, True, True],
-        "plot_mean": False,
-    })
+    # plot_settings.append({
+    #     "filename_suffix": "without_reconditioning",
+    #     "plot_without_reconditioning": True,
+    #     "plot_sample": [True, True, True],
+    #     "plot_sample_from_data": [True, True, True],
+    #     "plot_mean": False,
+    # })
     plot_settings.append({
         "filename_suffix": "with_reconditioning",
         "plot_without_reconditioning": False,
@@ -182,7 +183,7 @@ def plot_iterative_conditioning(plot_separate_figs=False):
             f_arr = []
             ax = []
             for i in range(3):
-                f, ax_i = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25))
+                f, ax_i = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.8, TEXTWIDTH * 0.25))
                 f_arr.append(f)
                 ax.append(ax_i)
         else:
@@ -300,17 +301,17 @@ def plot_iterative_conditioning(plot_separate_figs=False):
                     train_y_arr = train_y_arr_wo_recon.clone()
 
             if ps["plot_sample_from_data"][i]:
-                if torch.any(outside_confidence[:, 0]):
-                    h_sample_wo_recon_outside = ax[i].plot(
-                        test_x.numpy(),
-                        sample_wo_recon_outside[:, :, 0].numpy().T,
-                        "tab:red",
-                        alpha=0.5,
-                        linewidth=1,
-                    )
-                    h_sample_wo_recon_outside[0].set_label(
-                        r"$\mathrm{Samples} \notin [\underline{g}, \overline{g}]$"
-                    )
+                # if torch.any(outside_confidence[:, 0]):
+                #     h_sample_wo_recon_outside = ax[i].plot(
+                #         test_x.numpy(),
+                #         sample_wo_recon_outside[:, :, 0].numpy().T,
+                #         "tab:red",
+                #         alpha=0.5,
+                #         linewidth=1,
+                #     )
+                #     h_sample_wo_recon_outside[0].set_label(
+                #         r"$\mathrm{Samples} \notin [\underline{g}, \overline{g}]$"
+                #     )
 
                 if torch.any(~outside_confidence[:, 0]):
                     h_sample_wo_recon_inside = ax[i].plot(
@@ -324,8 +325,12 @@ def plot_iterative_conditioning(plot_separate_figs=False):
                         r"$\mathrm{Samples} \in [\underline{g}, \overline{g}]$"
                     )
 
+            if ps["plot_sample"][i]:
+                h_samp = ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange", label=r"Consistent $\mathrm{sample}$")
+
+
             # Predictive mean as blue line
-            h_func = ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--")
+            h_func = ax[i].plot(test_x.numpy(), test_y[:, 0].numpy(), "k--", label="True function $g^{\\mathrm{tr}}$")
 
             if ps["plot_mean"]:
                 h_mean = ax[i].plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue", label="Predictive mean")
@@ -355,6 +360,7 @@ def plot_iterative_conditioning(plot_separate_figs=False):
                 label= r"Confidence bounds $\underline{g}, \overline{g}$",
             )
 
+
         # for i in range(3):
             # Plot training data as black stars
             for j in range(i + 1):
@@ -363,6 +369,8 @@ def plot_iterative_conditioning(plot_separate_figs=False):
                     train_x_arr_add[j].detach().numpy(),
                     train_y_arr_add[j][:, 0].detach().numpy(),
                     f"k{marker_symbols[j]}",
+                    markersize=10,
+                    label=f"Training data iter. ${j}$",
                 )
 
                 for h in h_data:
@@ -370,9 +378,10 @@ def plot_iterative_conditioning(plot_separate_figs=False):
 
             # ax[i].legend(["Observed Values", "Mean", "Confidence"])
             # set title with current marker_symbols
-            ax[i].legend(loc="upper right")
+            # ax[i].legend(loc="upper right")
+            ax[i].legend(loc="upper left", bbox_to_anchor=(1.01, 1.0))
 
-            ax[i].set_title(f"$j = {i+1}$")
+            # ax[i].set_title(f"$j = {i+1}$")
             # remove tick labels
             ax[i].set_yticklabels([])
             ax[i].set_xticklabels([])
@@ -420,19 +429,6 @@ def plot_iterative_conditioning(plot_separate_figs=False):
             )
             print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}_{filename_suffix}.{file_format}')}")
 
-            if ps["plot_sample"][i]:
-                h_samp = ax[i].plot(test_x.numpy(), sample[:, 0].numpy(), "tab:orange")
-
-            f_i.tight_layout(pad=0.5)
-            filename_suffix = ps["filename_suffix"]
-            f_i.savefig(
-                os.path.join(workspace, "figures", f"{filename}_{i_f}_{filename_suffix}_3_final.{file_format}"),
-                format=file_format,
-                dpi=600,
-                transparent=False,
-            )
-            print(f"Figure saved to {os.path.join(workspace, 'figures', f'{filename}_{i_f}_{filename_suffix}.{file_format}')}")
-
         # with open("/home/manish/work/MPC_Dyn/slides_data.pickle", "wb") as handle:
         #     pickle.dump(data, handle)
 
@@ -467,6 +463,7 @@ def plot_GP_samples():
         "plot_samples_out": False,
         "color_samples_in": "tab:blue",
         "color_samples_out": "tab:red",
+        "plot_mean": True,
     })
     plot_settings.append({
         "filename_suffix": "samples",
@@ -474,6 +471,7 @@ def plot_GP_samples():
         "plot_samples_out": True,
         "color_samples_in": "tab:blue",
         "color_samples_out": "tab:blue",
+        "plot_mean": False,
     })
     plot_settings.append({
         "filename_suffix": "samples_outside",
@@ -481,6 +479,7 @@ def plot_GP_samples():
         "plot_samples_out": True,
         "color_samples_in": "tab:blue",
         "color_samples_out": "tab:red",
+        "plot_mean": False,
     })
     plot_settings.append({
         "filename_suffix": "samples_filtered",
@@ -488,11 +487,12 @@ def plot_GP_samples():
         "plot_samples_out": False,
         "color_samples_in": "tab:blue",
         "color_samples_out": "tab:red",
+        "plot_mean": False,
     })
 
     for ps in plot_settings:
-        f, ax = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.5 + 0.75, TEXTWIDTH * 0.25))
-        set_figure_params(serif=True, fontsize=10)
+        f, ax = plt.subplots(1, 1, figsize=(TEXTWIDTH * 0.4, TEXTWIDTH * 0.25))
+        set_figure_params(serif=True, fontsize=FONTSIZE)
         if ps["plot_samples_out"]:
             h_samp_outside = ax.plot(test_x.numpy(), sample[outside_confidence[:, 0], :, 0].numpy().T, ps["color_samples_out"],alpha=0.5, linewidth=1)
             h_samp_outside[0].set_label(r"$\mathrm{Samples} \notin [\underline{g}, \overline{g}]$")
@@ -501,7 +501,10 @@ def plot_GP_samples():
             h_samp_inside[0].set_label(r"$\mathrm{Samples} \in [\underline{g}, \overline{g}]$")
 
         h_func = ax.plot(test_x.numpy(), test_y[:, 0].numpy(), "k--", label="True function $g^{\\mathrm{tr}}$")
-        h_mean = ax.plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue", label="Predictive mean")
+
+        if ps["plot_mean"]:
+            h_mean = ax.plot(test_x.numpy(), mean[:, 0].numpy(), "tab:blue", label="Predictive mean")
+
         h_conf = ax.fill_between(
             test_x.numpy(),
             mean_lower[:, 0].numpy(),
@@ -537,6 +540,8 @@ def plot_GP_samples():
         )
 
 if __name__ == "__main__":
+    torch.manual_seed(0)
     plot_iterative_conditioning(plot_separate_figs=plot_separate_figs)
-    # plot_GP_samples()
+    torch.manual_seed(1234)
+    plot_GP_samples()
     # plt.show()  # Uncomment to display the plot interactively
