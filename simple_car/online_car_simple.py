@@ -3,7 +3,6 @@ import time
 import casadi as ca
 import matplotlib.pyplot as plt
 from scipy.linalg import cholesky
-from scipy.spatial.distance import cdist
 np.random.seed(5)  
 initial = 0
 
