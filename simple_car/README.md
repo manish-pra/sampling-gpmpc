@@ -15,6 +15,7 @@ The system implements a car control system using:
 ### Car Dynamics
 - State space: [x, y, θ, v] (position, heading angle, velocity)
 - Control inputs: [δ, a] (steering angle, acceleration)
+- Model: ... TODO
 
 ### MPC Implementation Details
 - **Objective Function**: 
@@ -37,12 +38,12 @@ The system implements a car control system using:
   - GP dynamics constraints for each sample
 
 - **Solver**:
-  - Uses IPOPT (Interior Point Optimizer)
+  - Uses IPOPT 
   - Maximum iterations: 1000
 
 ### GP-MPC Implementation
 Three variants are provided:
-1. **exact MPC, no learning** (`exactMPC.py`)
+1. **Exact MPC, no learning** (`exactMPC.py`)
    - Uses exact bicycle model dynamics without any learning
 
 2. **Offline Learning** (`offline_car_simple.py`)
