@@ -41,7 +41,6 @@ class RandomFourierFeatures:
         return ca.sqrt(2 * self.variance / self.num_features) * ca.vertcat(*features)
 
 class CarDynamicsGP:
-    # define params + init 3 RFF
     """
     Usage:
     One CarDynamicsGP instance

@@ -15,21 +15,50 @@ The system implements a car control system using:
 ### Car Dynamics
 - State space: [x, y, θ, v] (position, heading angle, velocity)
 - Control inputs: [δ, a] (steering angle, acceleration)
+- Uses a bicycle model with front and rear wheel distances (lf, lr)
+
+### MPC Implementation Details
+- **Objective Function**: 
+  - State cost: Quadratic cost on state error with diagonal Q matrix [2, 36, 0.07, 0.005]
+  - Control cost: Quadratic cost on control inputs with diagonal R matrix [2, 2]
+  - Slack cost: Quadratic penalty on obstacle avoidance slack variables (λ = 1e4)
+  - Cost is averaged over all GP function samples
+
+- **Constraints**:
+  - State bounds:
+    - x: [0, 100] 
+    - y: [0, 6] 
+    - θ: [-1.14, 1.14] 
+    - v: [-1, 15] 
+  - Control bounds:
+    - Steering angle δ: [-0.6, 0.6] 
+    - Acceleration a: [-2, 2] m/s²
+  - Obstacle avoidance: Elliptical constraints with slack variables
+  - Initial state constraint
+  - GP dynamics constraints for each sample
+
+- **Solver**:
+  - Uses IPOPT (Interior Point Optimizer)
+  - Maximum iterations: 1000
+  - Print level: 0 (minimal output)
 
 ### GP-MPC Implementation
-Two variants are provided:
+Three variants are provided:
+1. **exact MPC, no learning** (`exactMPC.py`)
+   - Uses exact bicycle model dynamics without any learning
 
-1. **Offline Learning** (`offline_car_simple.py`)
+2. **Offline Learning** (`offline_car_simple.py`)
    - Trains GP model once using initial data
 
-2. **Online Learning** (`online_car_simple.py`)
-   - Trains GP model once using initial data + continuously updates GP model at each MPC step 
-
-
+3. **Online Learning** (`online_car_simple.py`)
+   - Trains GP model once using initial data + continuously updates GP model at each MPC step
 
 ### Running the Simulation
 
 ```python
+# For exact MPC
+python exactMPC.py
+
 # For offline learning
 python offline_car_simple.py
 

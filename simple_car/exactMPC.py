@@ -33,8 +33,8 @@ class CarDynamics:
         return x_next
 
 class ExactMPC:
-    def __init__(self, model, horizon=20, lambda_slack=1000):
-        self.mdl, self.N, self.dt = model, horizon, model.dt
+    def __init__(self, model, horizon=20, lambda_slack=1e4):
+        self.mdl, self.H, self.dt = model, horizon, model.dt
         self.lambda_slack = lambda_slack
 
         self.Q = np.diag([ 2, 36, 0.07, 0.005])
@@ -51,14 +51,14 @@ class ExactMPC:
     def _build_optimizer(self):
         self.opti = ca.Opti()
 
-        self.X = self.opti.variable(4, self.N+1)
-        self.U = self.opti.variable(2, self.N)
-        self.s_obs = self.opti.variable(len(self.obstacles), self.N+1)  
+        self.X = self.opti.variable(4, self.H+1)
+        self.U = self.opti.variable(2, self.H)
+        self.s_obs = self.opti.variable(len(self.obstacles), self.H+1)  
 
         self.x0 = self.opti.parameter(4)
 
         cost = 0
-        for k in range(self.N):
+        for k in range(self.H):
             e = self.X[:,k] - ca.vertcat(self.x_ref, self.y_ref, 0, 0)
             cost += ca.mtimes([e.T, self.Q, e])
             cost += ca.mtimes([self.U[:,k].T, self.R, self.U[:,k]])
@@ -66,7 +66,7 @@ class ExactMPC:
         self.opti.minimize(cost)
 
         self.opti.subject_to(self.X[:,0] == self.x0)
-        for k in range(self.N):
+        for k in range(self.H):
             x_next = self.mdl.casadi_step(self.X[:,k], self.U[:,k])
             self.opti.subject_to(self.X[:,k+1] == x_next)
 
@@ -74,7 +74,7 @@ class ExactMPC:
         bth, bv = self.bounds_state['th'], self.bounds_state['v']
         bδ, ba  = self.bounds_ctrl['delta'], self.bounds_ctrl['a']
 
-        for k in range(self.N+1):
+        for k in range(self.H+1):
             self.opti.subject_to(self.X[0,k] >= bx[0]); self.opti.subject_to(self.X[0,k] <= bx[1])
             self.opti.subject_to(self.X[1,k] >= by[0]); self.opti.subject_to(self.X[1,k] <= by[1])
             self.opti.subject_to(self.X[2,k] >= bth[0]); self.opti.subject_to(self.X[2,k] <= bth[1])
@@ -82,7 +82,7 @@ class ExactMPC:
             for j,(ox,oy) in enumerate(self.obstacles):
                 dist = ((self.X[0,k]-ox)**2)/9 + (self.X[1,k]-oy)**2
                 self.opti.subject_to(dist + self.s_obs[j,k] >= 5.67)
-        for k in range(self.N):
+        for k in range(self.H):
             self.opti.subject_to(self.U[0,k] >= bδ[0]); self.opti.subject_to(self.U[0,k] <= bδ[1])
             self.opti.subject_to(self.U[1,k] >= ba[0]); self.opti.subject_to(self.U[1,k] <= ba[1])
 
