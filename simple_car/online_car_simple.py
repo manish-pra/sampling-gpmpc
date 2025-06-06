@@ -3,7 +3,7 @@ import time
 import casadi as ca
 import matplotlib.pyplot as plt
 from scipy.linalg import cholesky
-np.random.seed(5)  
+np.random.seed(42)  
 initial = 0
 
 class RandomFourierFeatures:
@@ -166,10 +166,7 @@ class CarDynamicsGP:
     
     # cubic complexity for cholesky decomposition -> can improve but it is not a bottleneck
     def _sequential_update(self, phi, y, dim,
-                           eta=1,         
-                           eps=1e-12,    
-                           max_jitter=1e-4): 
-
+                           eta=1): 
         L   = self.L_bank[dim]                 
         mu  = self.weights_posterior_mean[dim]
         sig2 = self.noise_var
@@ -182,33 +179,12 @@ class CarDynamicsGP:
 
         self.weights_posterior_cov[dim] = L @ L.T - eta * np.outer(w, w) / S
         Sigma_new = self.weights_posterior_cov[dim]
-
-        lam_min = np.min(np.linalg.eigvalsh(self.weights_posterior_cov[dim]))
-        jitter  = eps * np.trace(self.weights_posterior_cov[dim])
-        while lam_min < 0.0:
-            self.weights_posterior_cov[dim] += (-lam_min + jitter) * np.eye(L.shape[0])
-            try:
-                L_new = np.linalg.cholesky(Sigma_new)
-                break
-            except np.linalg.LinAlgError:
-                jitter *= 10
-                if jitter > max_jitter:
-                    raise RuntimeError(
-                        "Σ not pd even after jitter escalation."
-                    )
-            lam_min = np.min(np.linalg.eigvalsh(Sigma_new))
-        else:
-            L_new = np.linalg.cholesky(Sigma_new)
+        L_new = np.linalg.cholesky(Sigma_new)
 
         self.weights_posterior_mean[dim] = mu
         self.L_bank[dim]                 = L_new
         return L_new, mu
   
-
-
-
-
-
     # sequential update for all output dimensions
     def online_update(self, x_xy, x_th, y_vec):
         phi0 = self.rff_models[0].features(x_xy).ravel()   
@@ -436,7 +412,7 @@ def run_simulation():
     car_gp = CarDynamicsGP(num_features=[30,30,40])
     
     print("Generating training data...")
-    X_train_xy, X_train_theta, Y_train = car_gp.generate_training_data(num_trajectories=1, trajectory_length=45)
+    X_train_xy, X_train_theta, Y_train = car_gp.generate_training_data(num_trajectories=1, trajectory_length=40)
     print(f"Training data: {X_train_xy.shape[0]} points")
     
     print("Training GP...")

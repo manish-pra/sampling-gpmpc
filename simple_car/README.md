@@ -1,6 +1,6 @@
 # Simple Car Model with GP-MPC
 
-This directory contains implementations of a simple car model controlled using Gaussian Process Model Predictive Control (GP-MPC). The implementation includes both offline and online learning approaches.
+This directory contains the implementation of a simple car model controlled using Gaussian Process Model Predictive Control (GP-MPC). The implementation includes both offline and online learning approaches.
 
 ## Overview
 

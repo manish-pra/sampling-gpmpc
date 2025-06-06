@@ -3,7 +3,7 @@ import time
 import casadi as ca
 import matplotlib.pyplot as plt
 from scipy.linalg import cholesky
-np.random.seed(5)  
+np.random.seed(42)  
 
 
 class RandomFourierFeatures:
@@ -87,7 +87,7 @@ class CarDynamicsGP:
     
     # generate num_trajectories trajectories with initial state/input distribution taken from paper   
     # g_noisy = next_state_true - f_known + noise 
-    def generate_training_data(self, num_trajectories=1, trajectory_length=45):
+    def generate_training_data(self, num_trajectories=1, trajectory_length=40):
         X_train_xy = []
         X_train_theta = []
         Y_train = []
