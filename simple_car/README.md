@@ -54,7 +54,7 @@ Three variants are provided:
 ### Running the Simulation
 
 ```python
-# For exact MPC
+# For exact MPC 
 python exactMPC.py
 
 # For offline learning

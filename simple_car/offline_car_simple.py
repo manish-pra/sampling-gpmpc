@@ -147,9 +147,9 @@ class CarDynamicsGP:
                 w_sample = self.weights_posterior_mean[dim] + L @ z
                 weights_sample.append(w_sample)
             weight_samples.append(weights_sample)
-        obj = np.asarray(weight_samples, dtype=object)      # <-- key change
-        np.save("gp_weight_bank.npy", obj)      # ❶ binary .npy file
-        print("✓ saved weight bank to gp_weight_bank.npy") # ❷ confirmation
+        obj = np.asarray(weight_samples, dtype=object)      
+        np.save("gp_weight_bank.npy", obj)      
+        print("✓ saved weight bank to gp_weight_bank.npy") 
         
         return weight_samples
 
