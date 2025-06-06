@@ -31,7 +31,7 @@ The system implements a car control system using:
     - v: [-1, 15] 
   - Control bounds:
     - Steering angle δ: [-0.6, 0.6] 
-    - Acceleration a: [-2, 2] m/s²
+    - Acceleration a: [-2, 2] 
   - Obstacle avoidance: Elliptical constraints with slack variables
   - Initial state constraint
   - GP dynamics constraints for each sample
