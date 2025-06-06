@@ -15,7 +15,6 @@ The system implements a car control system using:
 ### Car Dynamics
 - State space: [x, y, θ, v] (position, heading angle, velocity)
 - Control inputs: [δ, a] (steering angle, acceleration)
-- Uses a bicycle model with front and rear wheel distances (lf, lr)
 
 ### MPC Implementation Details
 - **Objective Function**: 
@@ -40,7 +39,6 @@ The system implements a car control system using:
 - **Solver**:
   - Uses IPOPT (Interior Point Optimizer)
   - Maximum iterations: 1000
-  - Print level: 0 (minimal output)
 
 ### GP-MPC Implementation
 Three variants are provided:
