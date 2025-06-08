@@ -3,7 +3,7 @@ import time
 import casadi as ca
 import matplotlib.pyplot as plt
 from scipy.linalg import cholesky
-np.random.seed(42)  
+np.random.seed(43)  
 initial = 0
 
 class RandomFourierFeatures:
@@ -419,7 +419,7 @@ def run_simulation():
     car_gp.train_gp(X_train_xy, X_train_theta, Y_train)
     
     print("Sampling weight matrices...")
-    num_samples = 5
+    num_samples = 10
     weight_samples = car_gp.sample_weights(num_samples)
     
     print("Setting up MPC...")

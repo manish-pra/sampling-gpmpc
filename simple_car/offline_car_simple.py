@@ -14,7 +14,7 @@ class RandomFourierFeatures:
     features() -> enter input matrix to get feature matrix (number of input points x num_features) 
     features_casadi() -> enter one input -> feature vector in casadi
     """
-    def __init__(self, input_dim, num_features, lengthscale=10.0, variance=1.0):
+    def __init__(self, input_dim, num_features, lengthscale=100.0, variance=1.0):
         self.input_dim = input_dim
         self.num_features = num_features
         self.lengthscale = lengthscale
@@ -87,7 +87,7 @@ class CarDynamicsGP:
     
     # generate num_trajectories trajectories with initial state/input distribution taken from paper   
     # g_noisy = next_state_true - f_known + noise 
-    def generate_training_data(self, num_trajectories=1, trajectory_length=40):
+    def generate_training_data(self, num_trajectories=10, trajectory_length=40):
         X_train_xy = []
         X_train_theta = []
         Y_train = []
@@ -176,7 +176,7 @@ class SafeCarMPC:
         
         self.state_bounds = {
             'x_min': 0, 'x_max': 100,
-            'y_min': 0, 'y_max': 6, 
+            'y_min': -1, 'y_max': 6, 
             'theta_min': -1.14, 'theta_max': 1.14,
             'v_min': -1, 'v_max': 15
         }
@@ -338,14 +338,14 @@ def run_simulation():
     car_gp = CarDynamicsGP(num_features=[30, 30, 40])
     
     print("Generating training data...")
-    X_train_xy, X_train_theta, Y_train = car_gp.generate_training_data(num_trajectories=1, trajectory_length=45)
+    X_train_xy, X_train_theta, Y_train = car_gp.generate_training_data(num_trajectories=20, trajectory_length=50)
     print(f"Training data: {X_train_xy.shape[0]} points")
     
     print("Training GP...")
     car_gp.train_gp(X_train_xy, X_train_theta, Y_train)
     
     print("Sampling weight matrices...")
-    num_samples = 5
+    num_samples = 10
     weight_samples = car_gp.sample_weights(num_samples)
     
     print("Setting up MPC...")

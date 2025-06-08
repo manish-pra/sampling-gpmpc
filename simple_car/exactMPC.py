@@ -1,6 +1,5 @@
 import numpy as np, time, casadi as ca, matplotlib.pyplot as plt
 import matplotlib.patches as patches
-np.random.seed(42)
 
 class CarDynamics:
     def __init__(self, dt=0.06, lf=1.105, lr=1.738):
@@ -33,7 +32,7 @@ class CarDynamics:
         return x_next
 
 class ExactMPC:
-    def __init__(self, model, horizon=20, lambda_slack=1e4):
+    def __init__(self, model, horizon=8, lambda_slack=1e4):
         self.mdl, self.H, self.dt = model, horizon, model.dt
         self.lambda_slack = lambda_slack
 
@@ -44,7 +43,7 @@ class ExactMPC:
         self.bounds_state = dict(x=(0,100), y=(0,6),
                                  th=(-1.14,1.14), v=(-1,15))
         self.bounds_ctrl  = dict(delta=(-0.6,0.6), a=(-2,2))
-        self.obstacles = [(20,2), (40,2)]          
+        self.obstacles = [(15,1.9),(10,1.9),(20,2),(40,1.9)]          
 
         self._build_optimizer()
 
@@ -72,7 +71,7 @@ class ExactMPC:
 
         bx, by = self.bounds_state['x'], self.bounds_state['y']
         bth, bv = self.bounds_state['th'], self.bounds_state['v']
-        bδ, ba  = self.bounds_ctrl['delta'], self.bounds_ctrl['a']
+        bdelta, ba  = self.bounds_ctrl['delta'], self.bounds_ctrl['a']
 
         for k in range(self.H+1):
             self.opti.subject_to(self.X[0,k] >= bx[0]); self.opti.subject_to(self.X[0,k] <= bx[1])
@@ -83,15 +82,15 @@ class ExactMPC:
                 dist = ((self.X[0,k]-ox)**2)/9 + (self.X[1,k]-oy)**2
                 self.opti.subject_to(dist + self.s_obs[j,k] >= 5.67)
         for k in range(self.H):
-            self.opti.subject_to(self.U[0,k] >= bδ[0]); self.opti.subject_to(self.U[0,k] <= bδ[1])
+            self.opti.subject_to(self.U[0,k] >= bdelta[0]); self.opti.subject_to(self.U[0,k] <= bdelta[1])
             self.opti.subject_to(self.U[1,k] >= ba[0]); self.opti.subject_to(self.U[1,k] <= ba[1])
 
         self.opti.subject_to(ca.vec(self.s_obs) >= 0)
         opts = {'ipopt.print_level':0, 'print_time':0}
         self.opti.solver('ipopt', opts)
 
-    def solve(self, x_init, warm_u=None, warm_x=None):
-        self.opti.set_value(self.x0, x_init)
+    def solve(self, current_state, warm_u=None, warm_x=None):
+        self.opti.set_value(self.x0, current_state)
         if warm_u is not None:
             u_init = np.hstack([warm_u[:,1:], warm_u[:,-1:]])
             self.opti.set_initial(self.U, u_init)
@@ -111,11 +110,11 @@ def run():
     hist_x, hist_u, t_solve = [x.copy()], [], []
 
     warm_u = None; warm_X = None
-    print(f"{'k':<4} {'x':>6} {'y':>6} {'th':>7} {'v':>6} | δ  a  solve[ms]")
+    print(f"{'Step':<6} {'x [m]':<8} {'y [m]':<8} {'θ [rad]':<10} {'v [m/s]':<8} {'δ [rad]':<10} {'a [m/s²]':<10} {'Time [ms]':<10}")
     for k in range(Nsim):
-        tic = time.time()
+        start_time = time.time()
         Uopt, Xopt = mpc.solve(x, warm_u, warm_X)
-        t_solve.append((time.time()-tic)*1e3)   
+        t_solve.append((time.time()-start_time)*1e3)   
 
         u = Uopt[:,0]
         print(f"{k:<4} {x[0]:6.2f} {x[1]:6.2f} {x[2]:7.3f} {x[3]:6.2f} |"
@@ -149,9 +148,9 @@ def run():
     plt.subplot(232); plt.plot(t, hist_x[:,2]); plt.title('heading'); plt.grid()
     # speed
     plt.subplot(233); plt.plot(t, hist_x[:,3]); plt.title('speed'); plt.grid()
-    # steering
-    plt.subplot(234); plt.plot(t[:-1], hist_u[:,0]); plt.title('δ'); plt.grid()
-    # throttle
+    # steering angle
+    plt.subplot(234); plt.plot(t[:-1], hist_u[:,0]); plt.title('delta'); plt.grid()
+    # acceleration
     plt.subplot(235); plt.plot(t[:-1], hist_u[:,1]); plt.title('a'); plt.grid()
     # solve time
     plt.subplot(236); plt.plot(t_solve); plt.title('solve time [ms]'); plt.grid()
