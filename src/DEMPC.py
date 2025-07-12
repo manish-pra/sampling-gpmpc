@@ -83,7 +83,7 @@ class DEMPC:
                         self.agent.online_learnt_datapoints(state_input, Y_data)
 
             state_kp1 = self.agent.env_model.discrete_dyn(state_input)
-            self.agent.update_current_state(state_kp1)
+            self.agent.update_current_state(X[1, 0:nx])
             # propagate the agent to the next state
             # forward sampling and reject dynamics c_i away from the projection
             if self.params["common"]["dynamics_rejection"]:

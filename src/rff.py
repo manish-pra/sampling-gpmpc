@@ -49,7 +49,7 @@ def robot_dynamics(x0, u, dt):
 
 # generate data set
 def make_dataset(N=N_data, dt=0.05, rng=None):
-    x0 = np.random.uniform(-np.pi/2, np.pi/2, size=(N, 4)) # both position and velocity
+    x0 = np.random.uniform(-np.pi, np.pi, size=(N, 4)) # both position and velocity
     u = np.random.uniform(-1, 1, size=(N, 2)) # actuator on both the motors
     
     x1 = robot_dynamics(x0, u, dt)
@@ -62,7 +62,7 @@ X_train, y_train = X[:16000], y[:16000]
 X_test,  y_test  = X[16000:], y[16000:]
 
 # Fit RFF + ridge
-rff = RandomFourierFeatures(D=100, length_scale=2.0)
+rff = RandomFourierFeatures(D=2000, length_scale=2.0)
 Z_train = rff.fit_transform(X_train)
 Z_test = rff.transform(X_test)
 
