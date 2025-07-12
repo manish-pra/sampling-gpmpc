@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<robot name="one_dof_robot">
+
+  <!-- Base link (fixed) -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.2 0.2 0.05"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Rotating link -->
+  <link name="link1">
+    <visual>
+      <geometry>
+        <box size="0.4 0.05 0.05"/>
+      </geometry>
+      <origin xyz="0.2 0 0" rpy="0 0 0"/> <!-- Centered along X -->
+      <material name="blue">
+        <color rgba="0.2 0.2 1.0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Revolute joint: rotates link1 around Z-axis -->
+  <joint name="joint1" type="revolute">
+    <parent link="base_link"/>
+    <child link="link1"/>
+    <origin xyz="0 0 0.05" rpy="0 0 0"/> <!-- Slightly above ground -->
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="5.0" velocity="1.0"/>
+  </joint>
+
+</robot>

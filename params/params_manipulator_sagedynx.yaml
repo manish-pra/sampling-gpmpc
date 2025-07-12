@@ -1,0 +1,148 @@
+env:
+  start: [0.01, 0.01, 0.0, 0.0] # px, py, phi, vx, vy, phi_dot
+  goal_state: [-1.57, -1.57]
+  terminate_state: [0.0, 0.0] # px, py, phi, vx, vy, phi_dot
+  dynamics: 'manipulator' # "pendulum"
+  urdf_model: "2dof_robot"
+  prior_dyn_meas: True 
+  train_data_has_derivatives: False
+  num_features: 50
+  n_data_x: 6
+  n_data_u: 6
+  params:
+    m: 1.0
+    l: 0.25
+    g: 9.81
+    J: 0.00383
+    d: 0.1
+
+agent:
+  g_dim :
+    ny : 4
+    nx : 4
+    nu : 2
+  dim :
+    ny : 4
+    nx : 4
+    nu : 2
+  Dyn_gp_lengthscale :
+      y1 : [5.2649, 4.5967, 7.0177] # y1 : [5.2649, 4.5967, 7.0177] #[2.6384, 2.5857, 2.5669]
+      y2 : [3.9696, 2.1265, 6.6749] # y2 : [3.9696, 2.1265, 6.6749] #[2.1422, 2.7733, 2.1221]
+      val : 2.0
+  Dyn_gp_noise : 1.0e-6
+  Dyn_gp_outputscale : 
+    y1 : 0.1040 #0.3040 #0.75  #0.65
+    y2 : 0.1071 #0.3071 #0.65 #0.455, noise multiplier 3.0e-7 results in smooth trajectories
+    both : [0.65, 0.55] #[65,55] #[0.65, 0.55]
+  Dyn_gp_task_noises : 
+    val : [3.8, 1.27, 3.8, 1.27]
+    multiplier : 1.0e-5                     #1.0e-5 Low noise value make it crazy fast
+  Dyn_gp_beta : 3.5 # 1.5
+  mean_shift_val : 2
+  cov_module: 'Matern'     #'Matern', Sq_exp
+  num_dyn_samples: 1 
+  mean_as_dyn_sample: False
+  true_dyn_as_sample: True        # This is for debugging, set num_dyn_samples to 1
+  Dyn_gp_jitter: 1.0e-6
+  Dyn_gp_variance_is_zero: 1.1e-6
+  Dyn_gp_min_data_dist: 1.0e-4
+  tight:
+    use: False
+    dyn_eps: 0.001
+    Lipschitz: 1.015
+    w_bound: 0.007
+  shift_soln: True
+  load_training_data: False
+  run:
+    optimistic: False
+    pessimistic: True
+    true_param_as_sample: True # Debug mode
+    variance_cost: False
+  BLR:
+    lambda_reg: 1.0e-6
+    noise_var: 5.0e-5
+  feat_len: 21
+  
+visu:
+  show: True
+  traj_file_name: "data_lap1.pkl"
+  training_data_file_name: "training_data_lap1.pkl"
+
+common:
+  use_cuda : False
+  use_BLR : True
+  active_learning:
+    use: True
+    frequency: 2
+  num_MPC_itrs : 150
+  dynamics_rejection: False
+
+optimizer:
+  H : 100 # horizon
+  u_min : [-0.2, -0.2] # Minimum control input
+  u_max : [1, 1]          
+  # u_min : [-30, -30] # Minimum control input
+  # u_max : [30, 30] 
+  x_min : [-3.417, -3.1417, -1.0, -1.0] # Minimum state value
+  x_max : [ 3.417, 3.1417, 1.0, 1.0] # x,y,v,theta,theta_dot
+  linear_solver : 'ma57' #
+  oracle:
+    max_sqp_iter: 10
+    tol_nlp: 1.0e-6
+  SEMPC:
+    max_sqp_iter: 1
+    tol_nlp: 1.0e-4 
+  order: 2
+  x_dim: 2
+  dt: 0.02 # 0.010
+  w: 50
+  Qx: [500, 500] # [1.0, 1.0, 1.0, 1.0]  
+  Qu: [0.2, 0.2]
+  cost: "expected" 
+  options: {
+    levenberg_marquardt: 1.1e-8
+  }
+  terminal_tightening:
+    x_tight: [0.1, 0.1]
+    u_tight: [0.1]
+    # P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
+    P:  [[1.0, 0.0],[0.0, 1.0]]
+    delta: 1.0
+
+
+optimistic_optimizer:
+  H : 30 # horizon
+  u_min : [-5, -5, -0.3, -0.3, -0.3,-0.3, -0.3, -0.3] # Minimum control input
+  u_max : [5, 5, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]          
+  x_min : [-5, -5, -3.1417, -2, -2, -1] # Minimum state value
+  x_max : [ 5, 5, 3.1417, 2, 2, 1] # x,y,v,theta,theta_dot
+  linear_solver : 'ma57' #
+  oracle:
+    max_sqp_iter: 10
+    tol_nlp: 1.0e-6
+  SEMPC:
+    max_sqp_iter: 1
+    tol_nlp: 1.0e-4 
+  order: 2
+  x_dim: 2
+  dt: 0.1 # 0.010
+  w: 50
+  Qx: [5, 5] # [1.0, 1.0, 1.0, 1.0]  
+  Qu: [1, 1, 1, 1, 1, 1,1, 1]
+  cost: "expected" 
+  options: {
+    levenberg_marquardt: 10.0
+  }
+  terminal_tightening:
+    x_tight: [0.1, 0.1]
+    u_tight: [0.1]
+    P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
+    delta: 1.0
+
+experiment:
+  name: "DEMPC" #
+  generate_regret_plot : True
+  folder: "drone"
+  rnd_seed: 
+    use: False
+    value: 123456

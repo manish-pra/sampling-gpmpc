@@ -15,6 +15,7 @@ from src.environments.car_model import CarKinematicsModel as bicycle
 from src.environments.car_racing import CarKinematicsModel as car_racing
 from src.environments.pendulum1D import Pendulum as Pendulum1D
 from src.environments.drone import Drone as drone
+from src.environments.manipulator import Manipulator as manipulator
 import numpy as np
 import torch
 
@@ -31,7 +32,8 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_drone")  # params
 # parser.add_argument("-param", default="params_pendulum_exploration")  # params
 # parser.add_argument("-param", default="params_car_racing_sagedynx")  # params
-parser.add_argument("-param", default="params_drone_sagedynx")  # params
+# parser.add_argument("-param", default="params_drone_sagedynx")  # params
+parser.add_argument("-param", default="params_manipulator_sagedynx")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=0)  # initialized at origin

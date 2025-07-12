@@ -62,6 +62,9 @@ class Agent(object):
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
         self.f_list, self.f_jac_list, self.f_ujac_list,  self.f_batch_list, self.f_jac_batch_list, self.f_ujac_batch_list = self.env_model.BLR_features_casadi()
+        if self.env_model.tr_weights is None:
+            self.dyn_fg_jacobians_via_BLR()
+            self.env_model.tr_weights = self.mu_list
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling

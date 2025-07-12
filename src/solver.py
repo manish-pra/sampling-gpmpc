@@ -162,6 +162,7 @@ class DEMPC_solver(object):
             w = np.random.rand(2*(self.H+1)).reshape(self.H+1,2)*10 - 5
         w_e = w[-1]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
+        w = np.ones((self.H + 1, 2))*np.array(self.params["env"]["goal_state"]).reshape(-1)
         ns = self.params["agent"]["num_dyn_samples"]
         if self.params["common"]["use_BLR"]:
             # train the model with prio data
