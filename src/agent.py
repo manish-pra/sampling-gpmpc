@@ -770,7 +770,7 @@ class Agent(object):
         control_flat = control.reshape(X.shape[0], nu)
 
         # Now evaluate the mapped functions
-        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_list]
+        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_batch_list[-self.g_ny:]]
         feture_values_list = [np.array(f_values_flat).T.reshape(X.shape[0], -1) for f_values_flat in feature_value_flat_list] 
 
         y_list = [
@@ -778,7 +778,7 @@ class Agent(object):
         ]
 
         self.mu_list, self.Sigma_list = self.train_BLR_multioutput(
-            feture_values_list[-self.g_ny:], y_list, lambda_reg=self.params["agent"]["BLR"]["lambda_reg"], noise_var=self.params["agent"]["BLR"]["noise_var"]
+            feture_values_list, y_list, lambda_reg=self.params["agent"]["BLR"]["lambda_reg"], noise_var=self.params["agent"]["BLR"]["noise_var"]
         )
 
     def dyn_fg_jacobians_via_BLR_manual(self):
@@ -795,7 +795,51 @@ class Agent(object):
             phi_X_list, y_list, lambda_reg=1e-6, noise_var=5e-4
         )
 
-    def train_BLR_multioutput(self, Phi_list, y_list, lambda_reg=1e-3, noise_var=1.0):
+    def train_BLR_multioutput(self, Phi_list, y_list, lambda_reg=1e-3, noise_var=1.0, device='cuda'):
+        """
+        Trains multiple independent BLR models, one per output.
+        Phi_list: list of (N_i, D_i) feature matrices
+        y_list: list of (N_i, 1) target vectors
+        """
+        mu_list = []
+        Sigma_list = []
+        dtype = torch.float64 
+        for Phi_np, y_np in zip(Phi_list, y_list):
+            Phi = torch.tensor(Phi_np, dtype=dtype, device=device)
+            y = torch.tensor(y_np, dtype=dtype, device=device)
+
+            D = Phi.shape[1]
+            A = Phi.T @ Phi
+            A += lambda_reg * torch.eye(D, dtype=dtype, device=device)
+            # A.flat[::D+1] += lambda_reg  # Efficient way to add lambda_reg * I
+            # A = Phi.T @ Phi + lambda_reg * I   # (D, D)
+            rhs = Phi.T @ y                    # (D, 1)
+
+            # Solve A μ = rhs via Cholesky (faster & stabler than generic solve)
+            L = torch.linalg.cholesky(A, upper=False)
+            mu = torch.cholesky_solve(rhs, L, upper=False)   # (D, 1)
+
+            # Posterior covariance Σ = σ² A⁻¹ without forming the full inverse
+            #   Σ  = σ² (A⁻¹) = σ² (LLᵀ)⁻¹  ->   Σ = σ² (L⁻ᵀ L⁻¹)
+            # Use identity trick to get A⁻¹ columns efficiently
+            A_inv = torch.cholesky_inverse(L, upper=False)
+            Sigma = A_inv.mul_(noise_var)              # in-place scale
+
+            mu_list.append(mu.cpu().contiguous())
+            Sigma_list.append(Sigma.cpu().contiguous())
+
+            # mu = torch.linalg.solve(A, rhs)        # solve A mu = rhs
+            # # A_inv = np.linalg.inv(A)             # (optional if you want Sigma)
+            # A_inv = torch.linalg.solve(A, torch.eye(D, dtype=dtype, device=device))
+
+            # Sigma = noise_var * A_inv            # (D, D)
+
+            # mu_list.append(mu.cpu().numpy()) 
+            # Sigma_list.append(Sigma.cpu().numpy())  # Convert to numpy arrays
+        # print([np.sum(np.diag(sig)) for sig in Sigma_list])
+        return mu_list, Sigma_list
+
+    def train_BLR_multioutput_cpu(self, Phi_list, y_list, lambda_reg=1e-3, noise_var=1.0):
         """
         Trains multiple independent BLR models, one per output.
         Phi_list: list of (N_i, D_i) feature matrices
@@ -809,12 +853,15 @@ class Agent(object):
             # y = y[:64,:]
             n_features = Phi.shape[1]
             I = np.eye(n_features)
-
-            A = Phi.T @ Phi + lambda_reg * I   # (D, D)
+            D = Phi.shape[1]
+            A = Phi.T @ Phi
+            A.flat[::D+1] += lambda_reg  # Efficient way to add lambda_reg * I
+            # A = Phi.T @ Phi + lambda_reg * I   # (D, D)
             rhs = Phi.T @ y                    # (D, 1)
 
             mu = np.linalg.solve(A, rhs)        # solve A mu = rhs
-            A_inv = np.linalg.inv(A)             # (optional if you want Sigma)
+            # A_inv = np.linalg.inv(A)             # (optional if you want Sigma)
+            A_inv = np.linalg.solve(A, np.eye(D))
 
             Sigma = noise_var * A_inv            # (D, D)
 

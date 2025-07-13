@@ -64,7 +64,7 @@ agent:
   feat_len: 21
   
 visu:
-  show: True
+  show: False
   traj_file_name: "data_lap1.pkl"
   training_data_file_name: "training_data_lap1.pkl"
 
@@ -74,7 +74,7 @@ common:
   active_learning:
     use: False
     frequency: 2
-  num_MPC_itrs : 150
+  num_MPC_itrs : 120
   dynamics_rejection: False
 
 optimizer:

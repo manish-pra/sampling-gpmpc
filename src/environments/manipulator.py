@@ -369,9 +369,9 @@ class Manipulator(object):
         batch_2 = self.params["optimizer"]["H"]
         total_samples = batch_size * batch_1 * batch_2
 
-        f_batch_list = [f.map(total_samples, 'serial') for f in f_list]
-        f_jac_batch_list = [f_jac.map(total_samples, 'serial') for f_jac in f_jac_list]
-        f_ujac_batch_list = [f_ujac.map(total_samples, 'serial') for f_ujac in f_ujac_list]
+        f_batch_list = [f.map(total_samples, 'thread', 24) for f in f_list]
+        f_jac_batch_list = [f_jac.map(total_samples, 'thread', 24) for f_jac in f_jac_list]
+        f_ujac_batch_list = [f_ujac.map(total_samples, 'thread', 24) for f_ujac in f_ujac_list]
 
         return f_list, f_jac_list, f_ujac_list, f_batch_list, f_jac_batch_list, f_ujac_batch_list
 
