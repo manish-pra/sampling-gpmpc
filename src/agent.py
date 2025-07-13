@@ -864,17 +864,17 @@ class Agent(object):
 
             mu = torch.linalg.solve(A, rhs)        # solve A mu = rhs
             # A_inv = np.linalg.inv(A)             # (optional if you want Sigma)
-            A_inv = torch.linalg.solve(A, torch.eye(D, dtype=dtype, device=device))
+            # A_inv = torch.linalg.solve(A, torch.eye(D, dtype=dtype, device=device))
 
-            Sigma = noise_var * A_inv            # (D, D)
-            # inv_Sigma = A / noise_var
+            # Sigma = noise_var * A_inv            # (D, D)
+            inv_Sigma = A / noise_var
 
             mu_list.append(mu.cpu().numpy()) 
-            Sigma_list.append(Sigma.cpu().numpy())  # Convert to numpy arrays
+            Sigma_list.append(inv_Sigma.cpu().numpy())  # Convert to numpy arrays
         # print([np.sum(np.diag(sig)) for sig in Sigma_list])
         return mu_list, Sigma_list
     
-    def update_BLR(self,mu_prior, Sigma_prior, Phi_new, y_new, noise_var=1.0, device='cuda'):
+    def update_BLR(self,mu_prior, inv_Sigma_prior, Phi_new, y_new, noise_var=1.0, device='cuda'):
         """
         Online Bayesian Linear Regression update.
         Args:
@@ -888,12 +888,12 @@ class Agent(object):
             Sigma_post   : (D, D) updated covariance
         """
         dtype = torch.float64 
-        Sigma_prior = torch.tensor(Sigma_prior, dtype=dtype, device=device)
+        inv_Sigma_prior = torch.tensor(inv_Sigma_prior, dtype=dtype, device=device)
         mu_prior = torch.tensor(mu_prior, dtype=dtype, device=device)
         Phi_new = torch.tensor(Phi_new, dtype=dtype, device=device)  # (N, D)
         y_new = torch.tensor(y_new, dtype=dtype, device=device)      # (N, 1)
         # Compute inverse of prior covariance
-        Sigma_inv = torch.linalg.inv(Sigma_prior)  # (D, D)
+        # Sigma_inv = torch.linalg.inv(Sigma_prior)  # (D, D)
 
         # Efficient updates
         PhiT = Phi_new.T                           # (D, N)
@@ -901,8 +901,8 @@ class Agent(object):
         b = PhiT @ y_new                           # (D, 1)
 
         # Posterior precision and mean
-        Sigma_post_inv = Sigma_inv + A / noise_var  # (D, D)
-        rhs = Sigma_inv @ mu_prior + b / noise_var  # (D, 1)
+        Sigma_post_inv = inv_Sigma_prior + A / noise_var  # (D, D)
+        rhs = inv_Sigma_prior @ mu_prior + b / noise_var  # (D, 1)
 
         # # Solve for posterior
         # L = torch.linalg.cholesky(Sigma_post_inv, upper=False)
@@ -910,9 +910,9 @@ class Agent(object):
         # Sigma_post = torch.cholesky_inverse(L, upper=False)
 
         mu_post = torch.linalg.solve(Sigma_post_inv, rhs)
-        Sigma_post = torch.linalg.inv(Sigma_post_inv)
+        # Sigma_post = torch.linalg.inv(Sigma_post_inv)
 
-        return mu_post.cpu().contiguous(), Sigma_post.cpu().contiguous()
+        return mu_post.cpu().contiguous(), Sigma_post_inv.cpu().contiguous()
 
     def train_BLR_multioutput_cpu(self, Phi_list, y_list, lambda_reg=1e-3, noise_var=1.0):
         """
