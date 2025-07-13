@@ -59,7 +59,10 @@ class DEMPC:
                 X = X_opt
                 U = U_opt[:,:nu]
             if self.params["agent"]["run"]["pessimistic"]:
+                time_now = timeit.default_timer()
                 X, U = self.one_step_planner(st_curr)
+                end_time = timeit.default_timer()
+                print("Time taken to solve one step planner", end_time - time_now)
 
             # check for uncertainity and online learn the data
             # Initialize the next state at the point nearest to the goal
@@ -153,8 +156,8 @@ class DEMPC:
             X, U, Sl = self.dempc_solver.get_solution(solver)
         #
         self.visu.record(st_curr, X, U, dt, cost,solver_status, w, record_gp_model=False)
-        print("X", X)
-        print("U", U)
+        # print("X", X)
+        # print("U", U)
 
         # self.visu.plot_pendulum_traj(X,U)
         return torch.from_numpy(X).float(), torch.from_numpy(U).float()

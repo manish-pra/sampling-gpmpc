@@ -275,6 +275,8 @@ class Agent(object):
     def online_learnt_datapoints(self, X_data, Y_data):
         self.Dyn_gp_X_train = torch.cat([self.Dyn_gp_X_train, X_data], dim=0)
         self.Dyn_gp_Y_train = torch.cat([self.Dyn_gp_Y_train, Y_data], dim=1)
+        self.X_train_new = X_data
+        self.Y_train_new = Y_data
         self.real_data_batch()
 
     def train_real_data():
@@ -781,6 +783,38 @@ class Agent(object):
             feture_values_list, y_list, lambda_reg=self.params["agent"]["BLR"]["lambda_reg"], noise_var=self.params["agent"]["BLR"]["noise_var"]
         )
 
+    def online_model_update(self):
+
+        X = self.X_train_new
+        y = self.Y_train_new
+
+        state = X[:,:self.nx].numpy()  # shape (50, 1, 30, 2)
+        control = X[:,self.nx:].numpy()  # shape (50, 1, 30, 1)
+
+        state_flat = state.reshape(X.shape[0], self.nx)
+        control_flat = control.reshape(X.shape[0], self.nu)
+        
+        # Now evaluate the mapped functions
+        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_list[-self.g_ny:]]
+        feture_values_list = [np.array(f_values_flat).T.reshape(X.shape[0], -1) for f_values_flat in feature_value_flat_list] 
+
+        y_list = [
+            y[i, :, 0].numpy()[:, None] for i in range(y.shape[0])  # list of (N_i, 1)
+        ]
+
+        for idx in range(len(self.mu_list)):
+            mu_prior = self.mu_list[idx]
+            Sigma_prior = self.Sigma_list[idx]
+            mu_post, Sigma_post = self.update_BLR(
+                mu_prior,
+                Sigma_prior,
+                feture_values_list[idx],
+                y_list[idx],
+                noise_var=self.params["agent"]["BLR"]["noise_var"],
+            )
+            self.mu_list[idx] = mu_post
+            self.Sigma_list[idx] = Sigma_post
+
     def dyn_fg_jacobians_via_BLR_manual(self):
         X = self.Dyn_gp_X_train
         y = self.Dyn_gp_Y_train
@@ -815,29 +849,70 @@ class Agent(object):
             # A = Phi.T @ Phi + lambda_reg * I   # (D, D)
             rhs = Phi.T @ y                    # (D, 1)
 
-            # Solve A μ = rhs via Cholesky (faster & stabler than generic solve)
-            L = torch.linalg.cholesky(A, upper=False)
-            mu = torch.cholesky_solve(rhs, L, upper=False)   # (D, 1)
+            # # Solve A μ = rhs via Cholesky (faster & stabler than generic solve)
+            # L = torch.linalg.cholesky(A, upper=False)
+            # mu = torch.cholesky_solve(rhs, L, upper=False)   # (D, 1)
 
-            # Posterior covariance Σ = σ² A⁻¹ without forming the full inverse
-            #   Σ  = σ² (A⁻¹) = σ² (LLᵀ)⁻¹  ->   Σ = σ² (L⁻ᵀ L⁻¹)
-            # Use identity trick to get A⁻¹ columns efficiently
-            A_inv = torch.cholesky_inverse(L, upper=False)
-            Sigma = A_inv.mul_(noise_var)              # in-place scale
+            # # Posterior covariance Σ = σ² A⁻¹ without forming the full inverse
+            # #   Σ  = σ² (A⁻¹) = σ² (LLᵀ)⁻¹  ->   Σ = σ² (L⁻ᵀ L⁻¹)
+            # # Use identity trick to get A⁻¹ columns efficiently
+            # A_inv = torch.cholesky_inverse(L, upper=False)
+            # Sigma = A_inv.mul_(noise_var)              # in-place scale
 
-            mu_list.append(mu.cpu().contiguous())
-            Sigma_list.append(Sigma.cpu().contiguous())
+            # mu_list.append(mu.cpu().contiguous())
+            # Sigma_list.append(Sigma.cpu().contiguous())
 
-            # mu = torch.linalg.solve(A, rhs)        # solve A mu = rhs
-            # # A_inv = np.linalg.inv(A)             # (optional if you want Sigma)
-            # A_inv = torch.linalg.solve(A, torch.eye(D, dtype=dtype, device=device))
+            mu = torch.linalg.solve(A, rhs)        # solve A mu = rhs
+            # A_inv = np.linalg.inv(A)             # (optional if you want Sigma)
+            A_inv = torch.linalg.solve(A, torch.eye(D, dtype=dtype, device=device))
 
-            # Sigma = noise_var * A_inv            # (D, D)
+            Sigma = noise_var * A_inv            # (D, D)
+            # inv_Sigma = A / noise_var
 
-            # mu_list.append(mu.cpu().numpy()) 
-            # Sigma_list.append(Sigma.cpu().numpy())  # Convert to numpy arrays
+            mu_list.append(mu.cpu().numpy()) 
+            Sigma_list.append(Sigma.cpu().numpy())  # Convert to numpy arrays
         # print([np.sum(np.diag(sig)) for sig in Sigma_list])
         return mu_list, Sigma_list
+    
+    def update_BLR(self,mu_prior, Sigma_prior, Phi_new, y_new, noise_var=1.0, device='cuda'):
+        """
+        Online Bayesian Linear Regression update.
+        Args:
+            mu_prior     : (D, 1) prior mean
+            Sigma_prior  : (D, D) prior covariance
+            Phi_new      : (N, D) new features
+            y_new        : (N, 1) new targets
+            noise_var    : observation noise variance (scalar)
+        Returns:
+            mu_post      : (D, 1) updated mean
+            Sigma_post   : (D, D) updated covariance
+        """
+        dtype = torch.float64 
+        Sigma_prior = torch.tensor(Sigma_prior, dtype=dtype, device=device)
+        mu_prior = torch.tensor(mu_prior, dtype=dtype, device=device)
+        Phi_new = torch.tensor(Phi_new, dtype=dtype, device=device)  # (N, D)
+        y_new = torch.tensor(y_new, dtype=dtype, device=device)      # (N, 1)
+        # Compute inverse of prior covariance
+        Sigma_inv = torch.linalg.inv(Sigma_prior)  # (D, D)
+
+        # Efficient updates
+        PhiT = Phi_new.T                           # (D, N)
+        A = PhiT @ Phi_new                         # (D, D)
+        b = PhiT @ y_new                           # (D, 1)
+
+        # Posterior precision and mean
+        Sigma_post_inv = Sigma_inv + A / noise_var  # (D, D)
+        rhs = Sigma_inv @ mu_prior + b / noise_var  # (D, 1)
+
+        # # Solve for posterior
+        # L = torch.linalg.cholesky(Sigma_post_inv, upper=False)
+        # mu_post = torch.cholesky_solve(rhs, L, upper=False)
+        # Sigma_post = torch.cholesky_inverse(L, upper=False)
+
+        mu_post = torch.linalg.solve(Sigma_post_inv, rhs)
+        Sigma_post = torch.linalg.inv(Sigma_post_inv)
+
+        return mu_post.cpu().contiguous(), Sigma_post.cpu().contiguous()
 
     def train_BLR_multioutput_cpu(self, Phi_list, y_list, lambda_reg=1e-3, noise_var=1.0):
         """

@@ -164,9 +164,10 @@ class DEMPC_solver(object):
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
         w = np.ones((self.H + 1, 2))*np.array(self.params["env"]["goal_state"]).reshape(-1)
         ns = self.params["agent"]["num_dyn_samples"]
-        if self.params["common"]["use_BLR"] and self.params["common"]["active_learning"]["use"]:           
+        if self.params["common"]["use_BLR"] and self.params["common"]["active_learning"]["use"] and player.mpc_iter > 0:           
             # train the model with prio data
-            player.dyn_fg_jacobians_via_BLR()
+            # player.dyn_fg_jacobians_via_BLR()
+            player.online_model_update()
             # sample weights
             player.sample_weights()
         for sqp_iter in range(self.max_sqp_iter):

@@ -1,7 +1,7 @@
 env:
   start: [0.01, 0.01, 0.0, 0.0] # px, py, phi, vx, vy, phi_dot
-  # goal_state: [0.3, 0.3]
-  goal_state: [-0.27, -0.32]
+  goal_state: [0.3, 0.3] # angles: 4.1831e-02,  1.8727e+00
+  # goal_state: [-0.27, -0.32]
   terminate_state: [0.0, 0.0] # px, py, phi, vx, vy, phi_dot
   dynamics: 'manipulator' # "pendulum"
   urdf_model: "2dof_robot"
@@ -41,7 +41,7 @@ agent:
   Dyn_gp_beta : 3.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 10 
+  num_dyn_samples: 2 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -61,7 +61,7 @@ agent:
     variance_cost: False
   BLR:
     lambda_reg: 1.0e-6
-    noise_var: 5.0e-5
+    noise_var: 5.0e-4
   feat_len: 21
   
 visu:
@@ -73,8 +73,8 @@ common:
   use_cuda : False
   use_BLR : True
   active_learning:
-    use: False
-    frequency: 2
+    use: True
+    frequency: 1
   num_MPC_itrs : 120
   dynamics_rejection: False
 
