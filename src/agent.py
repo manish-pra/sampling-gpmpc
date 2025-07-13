@@ -770,7 +770,7 @@ class Agent(object):
         control_flat = control.reshape(X.shape[0], nu)
 
         # Now evaluate the mapped functions
-        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_batch_list[-self.g_ny:]]
+        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_list[-self.g_ny:]]
         feture_values_list = [np.array(f_values_flat).T.reshape(X.shape[0], -1) for f_values_flat in feature_value_flat_list] 
 
         y_list = [

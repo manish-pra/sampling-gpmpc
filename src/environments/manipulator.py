@@ -330,7 +330,7 @@ class Manipulator(object):
         elif idx==1:
             return ca.vertcat(state[1], state[3])
         else:
-            theta_ddot = self.parser.get_forward_dynamics_aba("base_link", "link2")(state[:2],state[2:4], control)
+            theta_ddot = self.parser.get_forward_dynamics_aba("base_link", "ee_link")(state[:2],state[2:4], control)
             if idx==2:
                 return ca.vertcat(state[2], theta_ddot[0])
             elif idx==3:
@@ -568,6 +568,7 @@ class Manipulator(object):
         w = self.params[optimizer_str]["w"]
         Qx = np.diag(np.array(self.params[optimizer_str]["Qx"]))
 
+        fk = self.parser.get_forward_kinematics("base_link", "ee_link")["T_fk"]
         # # cost
         # if self.params["optimizer"]["cost"] == "mean":
         #     ns = 1
@@ -577,18 +578,20 @@ class Manipulator(object):
         expr_e=0
         v_max = np.array([10,10])
         for i in range(ns):
+            # translation = model_x[nx * i : nx * (i + 1)][:xg_dim] #
+            translation = fk(model_x[nx * i : nx * (i + 1)][:xg_dim])[:2, 3:]
             expr += (
-                (model_x[nx * i : nx * (i + 1)][:xg_dim] - p).T
+                (translation - p).T
                 @ Qx
-                @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - p)
+                @ (translation - p)
                 # + (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max).T
                 # @ (Qx/50)
                 # @ (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max) 
             )
             expr_e += (
-                (model_x[nx * i : nx * (i + 1)][:xg_dim] - p).T
+                (translation - p).T
                 @ Qx
-                @ (model_x[nx * i : nx * (i + 1)][:xg_dim] - p)
+                @ (translation - p)
             )
         cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u
         cost_expr_ext_cost_e = expr_e / ns
