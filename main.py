@@ -99,4 +99,6 @@ de_mpc = DEMPC(params, visu, agent)
 de_mpc.dempc_main()
 print(np.average(visu.solver_time[1:]), np.std(visu.solver_time[1:]))
 visu.save_data()
+if params["visu"]["show"]:
+    env_model.stop_visu()
 exit()

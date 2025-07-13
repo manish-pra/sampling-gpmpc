@@ -6,7 +6,7 @@ env:
   urdf_model: "2dof_robot"
   prior_dyn_meas: True 
   train_data_has_derivatives: False
-  num_features: 2000
+  num_features: 1000
   n_data_x: 6
   n_data_u: 6
   params:
@@ -64,7 +64,7 @@ agent:
   feat_len: 21
   
 visu:
-  show: False
+  show: True
   traj_file_name: "data_lap1.pkl"
   training_data_file_name: "training_data_lap1.pkl"
 

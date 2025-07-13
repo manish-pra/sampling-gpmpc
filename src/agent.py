@@ -65,6 +65,7 @@ class Agent(object):
         if self.env_model.tr_weights is None:
             self.dyn_fg_jacobians_via_BLR()
             self.env_model.tr_weights = self.mu_list
+            self.sample_weights()
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling

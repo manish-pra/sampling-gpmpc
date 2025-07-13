@@ -32,7 +32,7 @@ class Manipulator(object):
             p.connect(p.GUI)
             p.setAdditionalSearchPath(pybullet_data.getDataPath())
             p.loadURDF("plane.urdf")
-
+            self.log_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "output_video.mp4")
             self.robot_id = p.loadURDF(urdf_path, basePosition=[0, 0, 0], useFixedBase=True)
 
             p.resetDebugVisualizerCamera(
@@ -109,6 +109,10 @@ class Manipulator(object):
         #         force=action[j].item()*10,
         #     )
         p.stepSimulation()
+    
+    def stop_visu(self):
+        p.stopStateLogging(self.log_id)
+        p.disconnect()
 
     def initial_training_data(self):
         # keep low output scale, TODO: check if variance on gradient output can be controlled Dyn_gp_task_noises
