@@ -27,6 +27,7 @@ class Agent(object):
         self.ns = self.params["agent"]["num_dyn_samples"]
         self.nx = params["agent"]["dim"]["nx"]
         self.nu = params["agent"]["dim"]["nu"]
+        self.ny = params["agent"]["dim"]["ny"]
 
         # TODO: (Manish) replace self.in_dim --> self.g_nx + self.g_nu
         self.in_dim = self.g_nx + self.g_nu
@@ -773,11 +774,11 @@ class Agent(object):
         feture_values_list = [np.array(f_values_flat).T.reshape(X.shape[0], -1) for f_values_flat in feature_value_flat_list] 
 
         y_list = [
-            y[i, :, 0].numpy()[:, None] for i in range(len(feture_values_list))  # list of (N_i, 1)
+            y[i, :, 0].numpy()[:, None] for i in range(y.shape[0])  # list of (N_i, 1)
         ]
 
         self.mu_list, self.Sigma_list = self.train_BLR_multioutput(
-            feture_values_list, y_list, lambda_reg=self.params["agent"]["BLR"]["lambda_reg"], noise_var=self.params["agent"]["BLR"]["noise_var"]
+            feture_values_list[-self.g_ny:], y_list, lambda_reg=self.params["agent"]["BLR"]["lambda_reg"], noise_var=self.params["agent"]["BLR"]["noise_var"]
         )
 
     def dyn_fg_jacobians_via_BLR_manual(self):
@@ -838,6 +839,9 @@ class Agent(object):
         # self.weights = np.zeros((self.ns, self.g_ny, feature_size))
         tr_weight = self.env_model.get_gt_weights()
         self.weights = []
+        for idx in range(self.params["agent"]["g_dim"]["ny"], self.params["agent"]["dim"]["nx"]):
+            samples = np.tile(tr_weight[idx-self.params["agent"]["g_dim"]["ny"]], (self.ns,1))
+            self.weights.append(samples)  # append samples for each output
         for i, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
             mu_flat = mu.squeeze()   # (D_i,)
             samples = np.random.multivariate_normal(mu_flat, Sigma, size=self.ns)  # (ns, D_i)
@@ -944,11 +948,11 @@ class Agent(object):
         f_ujac_values_list = [np.array(f_ujac_values_flat).T.reshape(ns*nH, nu,-1).reshape(ns, 1, nH, nu, -1) for f_ujac_values_flat in f_ujac_values_flat_list]  # (50,1,30,2)
         # f_theta_values = np.array(f_theta_values_flat).T.reshape(50, 1, 30, -1)  # (50,1,30,2)
         # f_omega_values = np.array(f_omega_values_flat).T.reshape(50, 1, 30, -1)  # (50,1,30,3)
-        model_val = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], 1))
-        y_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nx))
-        u_grad_mapped = np.zeros((X_test.shape[0], self.g_ny, X_test.shape[2], nu))
+        model_val = np.zeros((X_test.shape[0], self.ny, X_test.shape[2], 1))
+        y_grad_mapped = np.zeros((X_test.shape[0], self.ny, X_test.shape[2], nx))
+        u_grad_mapped = np.zeros((X_test.shape[0], self.ny, X_test.shape[2], nu))
 
-        for idx in range(self.g_ny):
+        for idx in range(self.ny):
             weight_feat = self.weights[idx]
             model_val[:,[idx],:,:] = np.sum(feture_values_list[idx]*weight_feat[:,np.newaxis,np.newaxis,:], axis=-1, keepdims=True)  # (50,1,30,2)
             y_grad_mapped[:,[idx],:,:] = np.sum(f_jac_values_list[idx]*weight_feat[:,np.newaxis,np.newaxis,np.newaxis,:], axis=-1)  # (50,1,30,2)

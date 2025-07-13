@@ -62,7 +62,7 @@ X_train, y_train = X[:16000], y[:16000]
 X_test,  y_test  = X[16000:], y[16000:]
 
 # Fit RFF + ridge
-rff = RandomFourierFeatures(D=2000, length_scale=2.0)
+rff = RandomFourierFeatures(D=800, length_scale=2.4)
 Z_train = rff.fit_transform(X_train)
 Z_test = rff.transform(X_test)
 
@@ -80,7 +80,7 @@ bias = ridge.intercept_
 
 # Evaluate the model
 from sklearn.metrics import mean_squared_error
-print("Test MSE:", mean_squared_error(y_test, y_pred))
+print("Test MSE:", mean_squared_error(y_test[:,2:], y_pred[:,2:]))
 
 # Visualize
 import matplotlib.pyplot as plt

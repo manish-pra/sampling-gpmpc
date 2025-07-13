@@ -151,16 +151,17 @@ class Manipulator(object):
         return Dyn_gp_X_train, Dyn_gp_Y_train
 
     def get_prior_data(self, x_hat):
-        N_data = x_hat.shape[0]
-        x_hat = x_hat.numpy()
-        dt = self.params["optimizer"]["dt"]
-        f_batch = self.forward_dyn.map(N_data)
+        # N_data = x_hat.shape[0]
+        # x_hat = x_hat.numpy()
+        # dt = self.params["optimizer"]["dt"]
+        # f_batch = self.forward_dyn.map(N_data)
         y_ret = torch.zeros((self.g_ny, x_hat.shape[0], 1 + self.g_nx + self.g_nu))
-        g_xu = np.zeros(( x_hat.shape[0],self.g_ny))
-        g_xu[:,:2] = x_hat[:,:2] + x_hat[:,2:4]*dt  
-        g_xu[:,2:4] = x_hat[:,2:4] + np.array(f_batch(x_hat[:,:2].T, x_hat[:,2:4].T, x_hat[:,4:6].T).T)*dt   
+        g_xu = self.unknown_dyn(x_hat)
+        # g_xu = np.zeros(( x_hat.shape[0],self.g_ny))
+        # g_xu[:,:2] = x_hat[:,:2] + x_hat[:,2:4]*dt  
+        # g_xu[:,:2] = x_hat[:,2:4] + np.array(f_batch(x_hat[:,:2].T, x_hat[:,2:4].T, x_hat[:,4:6].T).T)*dt   
 
-        y_ret[:, :, 0] = torch.from_numpy(g_xu).transpose(0, 1)
+        y_ret[:, :, 0] = g_xu.transpose(0, 1)
         return y_ret
 
     def continous_dyn(self, X1, X2, U):
@@ -192,15 +193,19 @@ class Manipulator(object):
         )
 
     def discrete_dyn(self, xu):
-        return self.unknown_dyn(xu)
+        dt = self.params["optimizer"]["dt"]
+        state_kp1 = torch.zeros((xu.shape[0], self.nx))
+        state_kp1[:,:2] = xu[:,:2] + xu[:,2:4]*dt  
+        state_kp1[:,2:4] = self.unknown_dyn(xu)
+        return state_kp1
 
     def unknown_dyn(self, xu):
         # use the same dynamics and propagate
         dt = self.params["optimizer"]["dt"]
         xu = xu.numpy()
-        state_kp1 = np.zeros((xu.shape[0], self.nx))
-        state_kp1[:,:2] = xu[:,:2] + xu[:,2:4]*dt  
-        state_kp1[:,2:4] = xu[:,2:4] + np.array(self.forward_dyn(xu[:,:2].T, xu[:,2:4].T, xu[:,4:6].T).T)*dt   
+        state_kp1 = np.zeros((xu.shape[0], self.g_ny))
+        # state_kp1[:,:2] = xu[:,:2] + xu[:,2:4]*dt  
+        state_kp1[:,:] = xu[:,2:4] + np.array(self.forward_dyn(xu[:,:2].T, xu[:,2:4].T, xu[:,4:6].T).T)*dt   
         # m = self.params["env"]["params"]["m"]
         # l = self.params["env"]["params"]["l"]
         # g = self.params["env"]["params"]["g"]
@@ -219,20 +224,21 @@ class Manipulator(object):
         return torch.from_numpy(state_kp1)
     
     def get_gt_weights(self):
+        dt = self.params["optimizer"]["dt"]
+        tr_weight = [[1.0, dt],
+            [1.0, dt],
+            [1.0, dt],
+            [1.0, dt]]
         if self.params["agent"]["run"]["true_param_as_sample"]:
-            dt = self.params["optimizer"]["dt"]
-            # m = self.params["env"]["params"]["m"]
-            # l = self.params["env"]["params"]["l"]
-            # g = self.params["env"]["params"]["g"]
-            # d = self.params["env"]["params"]["d"]
-            # J = self.params["env"]["params"]["J"]
-            tr_weight = [[1.0, dt],
-                        [1.0, dt],
-                        [1.0, dt],
-                        [1.0, dt]]
             return tr_weight
-        else:
+        elif self.params["agent"]["g_dim"]["ny"] == self.params["agent"]["dim"]["nx"]:
             return [weight.T for weight in self.tr_weights]
+        else:
+            # merge the above two in with remaining dim
+            # diff = self.params["agent"]["g_dim"]["nx"] - self.params["agent"]["dim"]["ny"]
+            for idx in range(self.params["agent"]["g_dim"]["ny"], self.params["agent"]["dim"]["nx"]):
+                tr_weight[idx] = self.tr_weights[idx-self.params["agent"]["g_dim"]["ny"]].T
+            return tr_weight
 
 
 
@@ -307,11 +313,16 @@ class Manipulator(object):
         return np.stack(state_list)
 
     def features_rff(self, state, control, idx):
-        omega = (1.0 / self.ls) * np.random.default_rng(idx).normal(size=(self.num_features, self.g_nx + self.g_nu))
-        phase = np.random.default_rng(idx).uniform(0, 2 * np.pi, size=self.num_features)
-        # create casadi features
-        proj = omega@ca.vertcat(state,control) + phase
-        return np.sqrt(2.0 / self.num_features) * ca.cos(proj)
+        if idx==0 :
+            return ca.vertcat(state[0], state[2])
+        elif idx==1:
+            return ca.vertcat(state[1], state[3])
+        else:
+            omega = (1.0 / self.ls) * np.random.default_rng(idx).normal(size=(self.num_features, self.g_nx + self.g_nu))
+            phase = np.random.default_rng(idx).uniform(0, 2 * np.pi, size=self.num_features)
+            # create casadi features
+            proj = omega@ca.vertcat(state,control) + phase
+            return np.sqrt(2.0 / self.num_features) * ca.cos(proj)
     
     def features_true(self, state, control, idx):
         if idx==0 :
