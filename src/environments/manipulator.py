@@ -140,7 +140,11 @@ class Manipulator(object):
             )
             # y1, y2 = self.get_prior_data(Dyn_gp_X_train)
             # Dyn_gp_Y_train = torch.stack((y1, y2), dim=0)
-            Dyn_gp_Y_train = self.get_prior_data(Dyn_gp_X_train)
+            # add noise
+            Dyn_gp_Y_train = self.get_prior_data(Dyn_gp_X_train) + torch.randn(
+                (self.g_ny, Dyn_gp_X_train.shape[0], 1 + self.g_nx + self.g_nu),
+                device=self.torch_device,
+            ) * torch.sqrt(torch.tensor(self.params["agent"]["BLR"]["noise_var"], dtype=torch.float32))
         else:
             Dyn_gp_X_train = torch.rand(1, self.in_dim)
             Dyn_gp_Y_train = torch.rand(2, 1, 1 + self.in_dim)

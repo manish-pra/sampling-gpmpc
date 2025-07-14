@@ -63,10 +63,12 @@ class Agent(object):
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
         self.f_list, self.f_jac_list, self.f_ujac_list,  self.f_batch_list, self.f_jac_batch_list, self.f_ujac_batch_list = self.env_model.BLR_features_casadi()
+        self.z = torch.randn(self.ns,self.params["env"]["num_features"])
         if self.env_model.tr_weights is None:
             self.dyn_fg_jacobians_via_BLR()
             self.env_model.tr_weights = self.mu_list
             self.sample_weights()
+        
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling
@@ -727,15 +729,32 @@ class Agent(object):
         return mu, L*np.sqrt(noise_var)
         # return mu, Sigma
     
-    def sample_Weights_cholesky(self, mu, L):
+    def sample_Weights_cholesky(self, mu, Sigma_post_inv, L_prec):
         # Sample from the posterior
         n_samples = self.ns
         n_features = mu.shape[0]
-        z = np.random.normal(size=(n_features, n_samples))
+        #@TODO: Generate this random vector ofline
+        self.z = torch.randn(n_samples,n_features)
         # y = scipy.linalg.solve_triangular(L, z*1e-4, lower=True)
         # weights = (mu[:,None] + y).T
-        weights = (mu[:,None] + L @ z).T
-        return weights
+        # weights = (mu[:,None] + L @ z).T
+        # L_prec = torch.linalg.cholesky(Sigma_post_inv, upper=False)
+        y = torch.linalg.solve_triangular(L_prec, self.z.T, upper=False).T
+        weights = (mu[:, None].T + y)
+        return weights.numpy()
+    
+    def sample_Weights_cholesky_via_inv(self, mu, Sigma_post_inv):
+        # Sample from the posterior
+        n_samples = self.ns
+        n_features = mu.shape[0]
+        z = torch.randn(n_samples,n_features)
+        Sigma = torch.linalg.inv(Sigma_post_inv) 
+        # y = scipy.linalg.solve_triangular(L, z*1e-4, lower=True)
+        # weights = (mu[:,None] + y).T
+        # weights = (mu[:,None] + L @ z).T
+        L = torch.linalg.cholesky(Sigma)
+        weights = (mu[:, None].T + z@L)
+        return weights.numpy()
 
     def train_BLR_model(self, X, y, lambda_reg=1e-3, noise_var=1.0):
         n_features = X.shape[1]
@@ -767,6 +786,7 @@ class Agent(object):
         state = X[:,:nx].numpy()  # shape (50, 1, 30, 2)
         control = X[:,nx:].numpy()  # shape (50, 1, 30, 1)
 
+        
         # Flatten only the batch dimensions for CasADi input
         state_flat = state.reshape(X.shape[0], nx)
         control_flat = control.reshape(X.shape[0], nu)
@@ -779,7 +799,7 @@ class Agent(object):
             y[i, :, 0].numpy()[:, None] for i in range(y.shape[0])  # list of (N_i, 1)
         ]
 
-        self.mu_list, self.Sigma_list = self.train_BLR_multioutput(
+        self.mu_list, self.Sigma_list, self.L_prec_list = self.train_BLR_multioutput(
             feture_values_list, y_list, lambda_reg=self.params["agent"]["BLR"]["lambda_reg"], noise_var=self.params["agent"]["BLR"]["noise_var"]
         )
 
@@ -793,9 +813,9 @@ class Agent(object):
 
         state_flat = state.reshape(X.shape[0], self.nx)
         control_flat = control.reshape(X.shape[0], self.nu)
-        
+         
         # Now evaluate the mapped functions
-        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_list[-self.g_ny:]]
+        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_list[-self.g_ny:]] 
         feture_values_list = [np.array(f_values_flat).T.reshape(X.shape[0], -1) for f_values_flat in feature_value_flat_list] 
 
         y_list = [
@@ -805,7 +825,7 @@ class Agent(object):
         for idx in range(len(self.mu_list)):
             mu_prior = self.mu_list[idx]
             Sigma_prior = self.Sigma_list[idx]
-            mu_post, Sigma_post = self.update_BLR(
+            mu_post, Sigma_post, L_post = self.update_BLR(
                 mu_prior,
                 Sigma_prior,
                 feture_values_list[idx],
@@ -814,6 +834,7 @@ class Agent(object):
             )
             self.mu_list[idx] = mu_post
             self.Sigma_list[idx] = Sigma_post
+            self.L_prec_list[idx] = L_post
 
     def dyn_fg_jacobians_via_BLR_manual(self):
         X = self.Dyn_gp_X_train
@@ -837,6 +858,7 @@ class Agent(object):
         """
         mu_list = []
         Sigma_list = []
+        L_prec_list = []  # Store Cholesky factors for sampling
         dtype = torch.float64 
         for Phi_np, y_np in zip(Phi_list, y_list):
             Phi = torch.tensor(Phi_np, dtype=dtype, device=device)
@@ -849,30 +871,31 @@ class Agent(object):
             # A = Phi.T @ Phi + lambda_reg * I   # (D, D)
             rhs = Phi.T @ y                    # (D, 1)
 
-            # # Solve A μ = rhs via Cholesky (faster & stabler than generic solve)
-            # L = torch.linalg.cholesky(A, upper=False)
-            # mu = torch.cholesky_solve(rhs, L, upper=False)   # (D, 1)
+            # Solve A μ = rhs via Cholesky (faster & stabler than generic solve)
+            L = torch.linalg.cholesky(A, upper=False)
+            mu = torch.cholesky_solve(rhs, L, upper=False)   # (D, 1)
 
-            # # Posterior covariance Σ = σ² A⁻¹ without forming the full inverse
-            # #   Σ  = σ² (A⁻¹) = σ² (LLᵀ)⁻¹  ->   Σ = σ² (L⁻ᵀ L⁻¹)
-            # # Use identity trick to get A⁻¹ columns efficiently
+            # Posterior covariance Σ = σ² A⁻¹ without forming the full inverse
+            #   Σ  = σ² (A⁻¹) = σ² (LLᵀ)⁻¹  ->   Σ = σ² (L⁻ᵀ L⁻¹)
+            # Use identity trick to get A⁻¹ columns efficiently
             # A_inv = torch.cholesky_inverse(L, upper=False)
             # Sigma = A_inv.mul_(noise_var)              # in-place scale
 
-            # mu_list.append(mu.cpu().contiguous())
-            # Sigma_list.append(Sigma.cpu().contiguous())
+            mu_list.append(mu.cpu().contiguous())
+            Sigma_list.append((A/noise_var).cpu().contiguous())
+            L_prec_list.append((L.cpu().contiguous()/np.sqrt(noise_var)))  # Store the Cholesky factor for sampling
 
-            mu = torch.linalg.solve(A, rhs)        # solve A mu = rhs
-            # A_inv = np.linalg.inv(A)             # (optional if you want Sigma)
-            # A_inv = torch.linalg.solve(A, torch.eye(D, dtype=dtype, device=device))
+            # mu = torch.linalg.solve(A, rhs)        # solve A mu = rhs
+            # # A_inv = np.linalg.inv(A)             # (optional if you want Sigma)
+            # # A_inv = torch.linalg.solve(A, torch.eye(D, dtype=dtype, device=device))
 
-            # Sigma = noise_var * A_inv            # (D, D)
-            inv_Sigma = A / noise_var
+            # # Sigma = noise_var * A_inv            # (D, D)
+            # inv_Sigma = A / noise_var
 
-            mu_list.append(mu.cpu().numpy()) 
-            Sigma_list.append(inv_Sigma.cpu().numpy())  # Convert to numpy arrays
+            # mu_list.append(mu.cpu().numpy()) 
+            # Sigma_list.append(inv_Sigma.cpu().numpy())  # Convert to numpy arrays
         # print([np.sum(np.diag(sig)) for sig in Sigma_list])
-        return mu_list, Sigma_list
+        return mu_list, Sigma_list, L_prec_list
     
     def update_BLR(self,mu_prior, inv_Sigma_prior, Phi_new, y_new, noise_var=1.0, device='cuda'):
         """
@@ -905,14 +928,14 @@ class Agent(object):
         rhs = inv_Sigma_prior @ mu_prior + b / noise_var  # (D, 1)
 
         # # Solve for posterior
-        # L = torch.linalg.cholesky(Sigma_post_inv, upper=False)
-        # mu_post = torch.cholesky_solve(rhs, L, upper=False)
+        L = torch.linalg.cholesky(Sigma_post_inv, upper=False)
+        mu_post = torch.cholesky_solve(rhs, L, upper=False)
         # Sigma_post = torch.cholesky_inverse(L, upper=False)
 
-        mu_post = torch.linalg.solve(Sigma_post_inv, rhs)
+        # mu_post = torch.linalg.solve(Sigma_post_inv, rhs)
         # Sigma_post = torch.linalg.inv(Sigma_post_inv)
 
-        return mu_post.cpu().contiguous(), Sigma_post_inv.cpu().contiguous()
+        return mu_post.cpu().contiguous(), Sigma_post_inv.cpu().contiguous(), L.cpu().contiguous()
 
     def train_BLR_multioutput_cpu(self, Phi_list, y_list, lambda_reg=1e-3, noise_var=1.0):
         """
@@ -964,9 +987,16 @@ class Agent(object):
         for idx in range(self.params["agent"]["g_dim"]["ny"], self.params["agent"]["dim"]["nx"]):
             samples = np.tile(tr_weight[idx-self.params["agent"]["g_dim"]["ny"]], (self.ns,1))
             self.weights.append(samples)  # append samples for each output
-        for i, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
+        for i, (mu, Sigma, L_prec) in enumerate(zip(self.mu_list, self.Sigma_list, self.L_prec_list)):
             mu_flat = mu.squeeze()   # (D_i,)
-            samples = np.random.multivariate_normal(mu_flat, Sigma, size=self.ns)  # (ns, D_i)
+            # samples =  np.tile(mu_flat, (self.ns,1)) #
+            samples = self.sample_Weights_cholesky(mu_flat, Sigma, L_prec)  # (D_i, D_i)
+            # samples = self.sample_Weights_cholesky_via_inv(mu_flat, Sigma)  # (D_i, D_i)
+            # samples = np.random.multivariate_normal(mu_flat, np.linalg.inv(Sigma), size=self.ns)  # (ns, D_i)
+            # torch
+            # Sigma = torch.tensor(Sigma, dtype=torch.float64)
+            # mvn = torch.distributions.MultivariateNormal(loc=mu_flat, covariance_matrix=torch.linalg.inv(Sigma+ 1e-6 * torch.eye(Sigma.shape[0])))
+            # samples = mvn.sample((self.ns,)).numpy()  
             if self.params["agent"]["run"]["true_param_as_sample"]:
                 samples = np.tile(tr_weight[i], (self.ns,1))
             # self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
