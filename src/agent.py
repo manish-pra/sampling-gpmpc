@@ -63,11 +63,12 @@ class Agent(object):
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
         self.f_list, self.f_jac_list, self.f_ujac_list,  self.f_batch_list, self.f_jac_batch_list, self.f_ujac_batch_list = self.env_model.BLR_features_casadi()
-        self.z = torch.randn(self.ns,self.params["env"]["num_features"])
+        self.z = torch.randn(self.ns,self.params["env"]["num_features"], self.g_ny)
         if self.env_model.tr_weights is None:
             self.dyn_fg_jacobians_via_BLR()
             self.env_model.tr_weights = self.mu_list
             self.sample_weights()
+            self.env_model.setup_manipulator_visu()
         
 
     def random_vector_within_bounds(self):
@@ -729,17 +730,17 @@ class Agent(object):
         return mu, L*np.sqrt(noise_var)
         # return mu, Sigma
     
-    def sample_Weights_cholesky(self, mu, Sigma_post_inv, L_prec):
+    def sample_Weights_cholesky(self, mu, Sigma_post_inv, L_prec, idx):
         # Sample from the posterior
         n_samples = self.ns
         n_features = mu.shape[0]
         #@TODO: Generate this random vector ofline
-        self.z = torch.randn(n_samples,n_features)
+        # self.z = torch.randn(n_samples,n_features)
         # y = scipy.linalg.solve_triangular(L, z*1e-4, lower=True)
         # weights = (mu[:,None] + y).T
         # weights = (mu[:,None] + L @ z).T
         # L_prec = torch.linalg.cholesky(Sigma_post_inv, upper=False)
-        y = torch.linalg.solve_triangular(L_prec, self.z.T, upper=False).T
+        y = torch.linalg.solve_triangular(L_prec, self.z[:,:,idx].T, upper=False).T
         weights = (mu[:, None].T + y)
         return weights.numpy()
     
@@ -990,7 +991,7 @@ class Agent(object):
         for i, (mu, Sigma, L_prec) in enumerate(zip(self.mu_list, self.Sigma_list, self.L_prec_list)):
             mu_flat = mu.squeeze()   # (D_i,)
             # samples =  np.tile(mu_flat, (self.ns,1)) #
-            samples = self.sample_Weights_cholesky(mu_flat, Sigma, L_prec)  # (D_i, D_i)
+            samples = self.sample_Weights_cholesky(mu_flat, Sigma, L_prec, i)  # (D_i, D_i)
             # samples = self.sample_Weights_cholesky_via_inv(mu_flat, Sigma)  # (D_i, D_i)
             # samples = np.random.multivariate_normal(mu_flat, np.linalg.inv(Sigma), size=self.ns)  # (ns, D_i)
             # torch

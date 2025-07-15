@@ -18,9 +18,9 @@ class Manipulator(object):
         self.pad_g = [0, 1, 2, 3]  # 0, self.g_nx + self.g_nu :
         self.datax_idx = [0,1,2,3]
         self.datau_idx = [0,1]
-        urdf_path = f"sampling-gpmpc/src/environments/urdf/{self.params['env']['urdf_model']}.urdf"
+        self.urdf_path = f"sampling-gpmpc/src/environments/urdf/{self.params['env']['urdf_model']}.urdf"
         self.parser = u2c.URDFparser()
-        self.parser.from_file(urdf_path)
+        self.parser.from_file(self.urdf_path)
         theta = ca.SX.sym("theta", 2)
         theta_dot = ca.SX.sym("theta_dot", 2)
         tau = ca.SX.sym("tau", 2)
@@ -28,12 +28,24 @@ class Manipulator(object):
         self.forward_dyn = ca.Function("forward_dynamics", [theta, theta_dot, tau], [self.theta_ddot_expr])
         self.tr_weights = None
 
+        if self.params["common"]["use_cuda"] and torch.cuda.is_available():
+            self.use_cuda = True
+            self.torch_device = torch.device("cuda")
+            torch.set_default_device(self.torch_device)
+        else:
+            self.use_cuda = False
+            self.torch_device = torch.device("cpu")
+            torch.set_default_device(self.torch_device)
+
+        self.B_d = torch.eye(self.nx, self.g_ny, device=self.torch_device)
+
+    def setup_manipulator_visu(self):
         if self.params["visu"]["show"]:
             p.connect(p.GUI)
             p.setAdditionalSearchPath(pybullet_data.getDataPath())
             p.loadURDF("plane.urdf")
             self.log_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "output_video.mp4")
-            self.robot_id = p.loadURDF(urdf_path, basePosition=[0, 0, 0], useFixedBase=True)
+            self.robot_id = p.loadURDF(self.urdf_path, basePosition=[0, 0, 0], useFixedBase=True)
 
             p.resetDebugVisualizerCamera(
                 cameraDistance=1.0,
@@ -64,18 +76,6 @@ class Manipulator(object):
             p.setPhysicsEngineParameter(fixedTimeStep=self.params["optimizer"]["dt"])
             p.setGravity(0, 0, -9.81)
             p.setRealTimeSimulation(0)
-
-
-        if self.params["common"]["use_cuda"] and torch.cuda.is_available():
-            self.use_cuda = True
-            self.torch_device = torch.device("cuda")
-            torch.set_default_device(self.torch_device)
-        else:
-            self.use_cuda = False
-            self.torch_device = torch.device("cpu")
-            torch.set_default_device(self.torch_device)
-
-        self.B_d = torch.eye(self.nx, self.g_ny, device=self.torch_device)
 
     def apply_action(self, state, action):
         p.setJointMotorControlArray(self.robot_id,
