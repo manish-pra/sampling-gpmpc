@@ -41,7 +41,7 @@ agent:
   Dyn_gp_beta : 3.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 5 
+  num_dyn_samples: 10 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -95,7 +95,7 @@ optimizer:
     tol_nlp: 1.0e-4 
   order: 2
   x_dim: 2
-  dt: 0.04 # 0.010
+  dt: 0.02 # 0.010
   w: 50
   Qx: [5, 5] # use 500,500 for angles [1.0, 1.0, 1.0, 1.0]  
   Qu: [0.2, 0.2]
@@ -143,7 +143,7 @@ optimistic_optimizer:
 experiment:
   name: "DEMPC" #
   generate_regret_plot : True
-  folder: "drone"
+  folder: "manipulator"
   rnd_seed: 
     use: False
     value: 123456

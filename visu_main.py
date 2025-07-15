@@ -13,6 +13,7 @@ from src.environments.car_model import CarKinematicsModel as bicycle
 from src.environments.car_racing import CarKinematicsModel as car_racing
 from src.environments.pendulum1D import Pendulum as Pendulum1D
 from src.environments.drone import Drone as drone
+from src.environments.manipulator import Manipulator as manipulator
 from src.agent import Agent
 
 warnings.filterwarnings("ignore")
@@ -26,7 +27,7 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 # parser.add_argument("-param", default="params_car_residual")  # params
 # parser.add_argument("-param", default="params_pendulum_exploration")
 # parser.add_argument("-param", default="params_drone_two_stage")
-parser.add_argument("-param", default="params_drone_sagedynx")  # params
+parser.add_argument("-param", default="params_manipulator_sagedynx")  # params
 
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=0)  # initialized at origin
@@ -83,6 +84,8 @@ a_file.close()
 
 params["visu"]["show"] = True
 env_model = globals()[params["env"]["dynamics"]](params)
+
+env_model.tr_weights = 1
 
 agent = Agent(params, env_model)
 visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
