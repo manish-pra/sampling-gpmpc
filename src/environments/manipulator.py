@@ -423,10 +423,10 @@ class Manipulator(object):
         f_list = [ca.Function(feat_name, [state, control], [feature_function(state, control, idx)]) for 
                  idx, feat_name in enumerate(features_name)]
         
-        f_jac_list = [ca.Function(feat_name + "_jac", [state, control], [ca.densify(ca.jacobian(f(state, control), state))]) for 
+        f_jac_list = [ca.Function(feat_name + "_jac", [state, control], [ca.jacobian(f(state, control), state)]) for 
                       idx, (f, feat_name) in enumerate(zip(f_list, features_name))]
         
-        f_ujac_list = [ca.Function(feat_name + "_ujac", [state, control], [ca.densify(ca.jacobian(f(state, control), control))]) for
+        f_ujac_list = [ca.Function(feat_name + "_ujac", [state, control], [ca.jacobian(f(state, control), control)]) for
                         idx, (f, feat_name) in enumerate(zip(f_list, features_name))]
 
 
@@ -649,7 +649,7 @@ class Manipulator(object):
             expr += (
                 (translation - p).T
                 @ Qx
-                @ (translation - p)
+                @ (translation - p) + model_x[nx * i : nx * (i + 1)][self.nu:].T@model_x[nx * i : nx * (i + 1)][self.nu:]
                 # + (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max).T
                 # @ (Qx/50)
                 # @ (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max) 
