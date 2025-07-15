@@ -16,16 +16,20 @@ class Manipulator(object):
         self.g_nx = self.params["agent"]["g_dim"]["nx"]
         self.g_nu = self.params["agent"]["g_dim"]["nu"]
         self.pad_g = [0, 1, 2, 3]  # 0, self.g_nx + self.g_nu :
-        self.datax_idx = [0,1,2,3]
-        self.datau_idx = [0,1]
-        self.urdf_path = f"sampling-gpmpc/src/environments/urdf/{self.params['env']['urdf_model']}.urdf"
+        self.datax_idx = self.params["env"]["datax_idx"]
+        self.datau_idx = self.params["env"]["datau_idx"]
+        self.urdf_path = f"{self.params['env']['urdf_model']}.urdf"
+        urdf_prefix = pybullet_data.getDataPath()
         self.parser = u2c.URDFparser()
-        self.parser.from_file(self.urdf_path)
-        theta = ca.SX.sym("theta", 2)
-        theta_dot = ca.SX.sym("theta_dot", 2)
-        tau = ca.SX.sym("tau", 2)
-        self.theta_ddot_expr = self.parser.get_forward_dynamics_aba("base_link", "ee_link")(theta, theta_dot, tau)
+        self.parser.from_file(urdf_prefix + '/' +self.urdf_path)
+        self.base_link = self.params["env"]["base_link"]
+        self.ee_link = self.params["env"]["ee_link"]
+        theta = ca.SX.sym("theta", self.nu)
+        theta_dot = ca.SX.sym("theta_dot", self.nu)
+        tau = ca.SX.sym("tau",self.nu)
+        self.theta_ddot_expr = self.parser.get_forward_dynamics_aba(self.base_link, self.ee_link)(theta, theta_dot, tau)
         self.forward_dyn = ca.Function("forward_dynamics", [theta, theta_dot, tau], [self.theta_ddot_expr])
+        self.fk = self.parser.get_forward_kinematics(self.base_link, self.ee_link)["T_fk"]
         self.tr_weights = None
 
         if self.params["common"]["use_cuda"] and torch.cuda.is_available():
@@ -45,7 +49,28 @@ class Manipulator(object):
             p.setAdditionalSearchPath(pybullet_data.getDataPath())
             p.loadURDF("plane.urdf")
             self.log_id = p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "output_video.mp4")
-            self.robot_id = p.loadURDF(self.urdf_path, basePosition=[0, 0, 0], useFixedBase=True)
+            self.robot_id = p.loadURDF(self.urdf_path, 
+                                       basePosition=[0, 0, 0.0],
+                                       baseOrientation=p.getQuaternionFromEuler([0, 0, 0]), 
+                                       useFixedBase=True,
+                                       flags=p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS)
+
+            for j in range(-1, p.getNumJoints(self.robot_id)):  # -1 is base
+                p.setCollisionFilterGroupMask(self.robot_id, j, 0, 0)
+
+
+
+            # # Draw XYZ axes at the base
+            # pos, orn = p.getBasePositionAndOrientation(self.robot_id)
+            # rot_matrix = p.getMatrixFromQuaternion(orn)
+            # x_axis = [rot_matrix[0], rot_matrix[3], rot_matrix[6]]
+            # y_axis = [rot_matrix[1], rot_matrix[4], rot_matrix[7]]
+            # z_axis = [rot_matrix[2], rot_matrix[5], rot_matrix[8]]
+
+            # scale = 0.1
+            # p.addUserDebugLine(pos, [pos[0] + scale * x_axis[0], pos[1] + scale * x_axis[1], pos[2] + scale * x_axis[2]], [1, 0, 0], 2)
+            # p.addUserDebugLine(pos, [pos[0] + scale * y_axis[0], pos[1] + scale * y_axis[1], pos[2] + scale * y_axis[2]], [0, 1, 0], 2)
+            # p.addUserDebugLine(pos, [pos[0] + scale * z_axis[0], pos[1] + scale * z_axis[1], pos[2] + scale * z_axis[2]], [0, 0, 1], 2)
 
             p.resetDebugVisualizerCamera(
                 cameraDistance=1.0,
@@ -63,6 +88,10 @@ class Manipulator(object):
             ]
             print("Revolute joints:", self.joint_indices)
 
+            initial_joint_positions = self.params["env"]["start"]  # example for 7-DOF Panda
+            for i, joint_index in enumerate(self.joint_indices):
+                p.resetJointState(self.robot_id, joint_index, initial_joint_positions[i])
+
             # -------------------------------
             # Disable default motor control
             # -------------------------------
@@ -77,12 +106,26 @@ class Manipulator(object):
             p.setGravity(0, 0, -9.81)
             p.setRealTimeSimulation(0)
 
+            # Get world pose of base_link in PyBullet
+            base_pos, base_orn = p.getBasePositionAndOrientation(self.robot_id)
+            # T_world_base = your_quat_pose_to_SE3(base_pos, base_orn)
+
+            # T_base_ee = self.fk(q)
+            # T_world_ee = T_world_base @ T_base_ee
+            # ee_pos = T_world_ee[:3, 3]
+
+            a=1
+
     def apply_action(self, state, action):
+        target_positions = [state[i].item() for i in range(self.nu)]
+        for i, joint_index in enumerate(self.joint_indices):
+            p.resetJointState(self.robot_id, joint_index, target_positions[i])
+
         p.setJointMotorControlArray(self.robot_id,
             self.joint_indices,
             controlMode=p.POSITION_CONTROL,
-            targetPositions= [state[0].item(), state[1].item()],
-            forces= [5.0, 5.0])  # Set target position and force for each joint
+            targetPositions= target_positions,
+            forces= [50.0 for _ in range(self.nu)])  # Set target position and force for each joint
         # p.setJointMotorControlArray(self.robot_id,
         #             self.joint_indices,
         #             controlMode=p.TORQUE_CONTROL,
@@ -108,11 +151,36 @@ class Manipulator(object):
         #         # targetPosition=qj,
         #         force=action[j].item()*10,
         #     )
-        p.stepSimulation()
+        ######################Simulation Step######################
+        # p.stepSimulation()
+        joint_positions = []
+        for j in self.joint_indices:
+            pos, _, _, _ = p.getJointState(self.robot_id, j)
+            joint_positions.append(pos)
+        joint_positions = np.array(joint_positions)
+        # past_joint_positions = joint_positions + 20
+        target_positions = np.array(target_positions)
+        # while np.linalg.norm(joint_positions - target_positions) > 0.01 and np.linalg.norm(joint_positions - past_joint_positions) > 0.001:
+        #     print("Waiting for joint positions to stabilize...")
+        #     p.stepSimulation()
+        #     past_joint_positions = joint_positions.copy()
+        #     joint_positions = []
+        #     for j in self.joint_indices:
+        #         pos, _, _, _ = p.getJointState(self.robot_id, j)
+        #         joint_positions.append(pos)
+        #     joint_positions = np.array(joint_positions) 
+        print("Target positions:", self.fk(target_positions.tolist())[:3,3])
+        print("Joint positions stabilized:", self.fk(joint_positions.tolist())[:3,3])
+
+        # a=1
     
     def stop_visu(self):
         p.stopStateLogging(self.log_id)
         p.disconnect()
+
+    def print_3d_state(self, state):
+        position = self.fk(state[:self.nu].tolist())
+        print("3D Position:", position[:3,3:])
 
     def initial_training_data(self):
         # keep low output scale, TODO: check if variance on gradient output can be controlled Dyn_gp_task_noises
@@ -207,9 +275,10 @@ class Manipulator(object):
         # use the same dynamics and propagate
         dt = self.params["optimizer"]["dt"]
         xu = xu.numpy()
+        nu = self.params["agent"]["dim"]["nu"]
         state_kp1 = np.zeros((xu.shape[0], self.g_ny))
         # state_kp1[:,:2] = xu[:,:2] + xu[:,2:4]*dt  
-        state_kp1[:,:] = xu[:,2:4] + np.array(self.forward_dyn(xu[:,:2].T, xu[:,2:4].T, xu[:,4:6].T).T)*dt   
+        state_kp1[:,:] = xu[:,nu:nu + self.g_ny] + np.array(self.forward_dyn(xu[:,:nu].T, xu[:,nu:2*nu].T, xu[:,2*nu:].T).T)[:,:self.g_ny]*dt   
         # m = self.params["env"]["params"]["m"]
         # l = self.params["env"]["params"]["l"]
         # g = self.params["env"]["params"]["g"]
@@ -229,10 +298,7 @@ class Manipulator(object):
     
     def get_gt_weights(self):
         dt = self.params["optimizer"]["dt"]
-        tr_weight = [[1.0, dt],
-            [1.0, dt],
-            [1.0, dt],
-            [1.0, dt]]
+        tr_weight = [[1.0, dt] for _ in range(self.params["agent"]["dim"]["nx"])]
         if self.params["agent"]["run"]["true_param_as_sample"]:
             return tr_weight
         elif self.params["agent"]["g_dim"]["ny"] == self.params["agent"]["dim"]["nx"]:
@@ -329,30 +395,26 @@ class Manipulator(object):
             return np.sqrt(2.0 / self.num_features) * ca.cos(proj)
     
     def features_true(self, state, control, idx):
-        if idx==0 :
-            return ca.vertcat(state[0], state[2])
-        elif idx==1:
-            return ca.vertcat(state[1], state[3])
+        dim_diff = self.params["agent"]["dim"]["nu"]
+        if idx<dim_diff:
+            return ca.vertcat(state[idx], state[idx+dim_diff])
         else:
-            theta_ddot = self.parser.get_forward_dynamics_aba("base_link", "ee_link")(state[:2],state[2:4], control)
-            if idx==2:
-                return ca.vertcat(state[2], theta_ddot[0])
-            elif idx==3:
-                return ca.vertcat(state[3], theta_ddot[1])
+            theta_ddot = self.parser.get_forward_dynamics_aba(self.base_link, self.ee_link)(state[:dim_diff],state[dim_diff:2*dim_diff], control)
+            return ca.vertcat(state[idx], theta_ddot[idx-dim_diff])
 
     def BLR_features_casadi(self):
         self.num_features = self.params["env"]["num_features"]
         self.ls = self.params["agent"]["Dyn_gp_lengthscale"]["val"]
 
 
-        theta = ca.SX.sym("theta", 2)
-        theta_dot = ca.SX.sym("theta_dot", 2)
-        tau = ca.SX.sym("tau", 2)
+        theta = ca.SX.sym("theta", self.nu)
+        theta_dot = ca.SX.sym("theta_dot", self.nu)
+        tau = ca.SX.sym("tau", self.nu)
 
         state = ca.vertcat(theta, theta_dot)
         control = ca.vertcat(tau)
 
-        features_name = ['f_theta1', 'f_theta2', 'f_dtheta1', 'f_dtheta2']
+        features_name = ['f_theta1', 'f_theta2', 'f_theta3', 'f_theta4', 'f_theta5', 'f_theta6', 'f_theta7', 'f_dtheta1', 'f_dtheta2', 'f_dtheta3', 'f_dtheta4', 'f_dtheta5', 'f_dtheta6', 'f_dtheta7']
 
         if self.params["agent"]["run"]["true_param_as_sample"]:
             feature_function = self.features_true
@@ -572,7 +634,7 @@ class Manipulator(object):
         w = self.params[optimizer_str]["w"]
         Qx = np.diag(np.array(self.params[optimizer_str]["Qx"]))
 
-        fk = self.parser.get_forward_kinematics("base_link", "ee_link")["T_fk"]
+        
         # # cost
         # if self.params["optimizer"]["cost"] == "mean":
         #     ns = 1
@@ -582,8 +644,8 @@ class Manipulator(object):
         expr_e=0
         v_max = np.array([10,10])
         for i in range(ns):
-            # translation = model_x[nx * i : nx * (i + 1)][:xg_dim] #
-            translation = fk(model_x[nx * i : nx * (i + 1)][:xg_dim])[:2, 3:]
+            translation = model_x[nx * i : nx * (i + 1)][:self.nu] #
+            # translation = self.fk(model_x[nx * i : nx * (i + 1)][:self.nu])[:3, 3:]
             expr += (
                 (translation - p).T
                 @ Qx
@@ -695,7 +757,7 @@ class Manipulator(object):
         x_min = self.params["optimizer"]["x_min"][0]
         x_max = self.params["optimizer"]["x_max"][0]
 
-        tracking_path = self.path_generator(0, 500)
+        # tracking_path = self.path_generator(0, 500)
         # ax.plot(
         #     tracking_path[:, 0],
         #     tracking_path[:, 1],

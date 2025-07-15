@@ -64,12 +64,18 @@ class Agent(object):
         self.epistimic_random_vector = self.random_vector_within_bounds()
         self.f_list, self.f_jac_list, self.f_ujac_list,  self.f_batch_list, self.f_jac_batch_list, self.f_ujac_batch_list = self.env_model.BLR_features_casadi()
         self.z = torch.randn(self.ns,self.params["env"]["num_features"], self.g_ny)
-        if self.env_model.tr_weights is None:
+        if self.env_model.tr_weights is None and not self.params["agent"]["run"]["true_param_as_sample"]:
             self.dyn_fg_jacobians_via_BLR()
             self.env_model.tr_weights = self.mu_list
             self.sample_weights()
-            self.env_model.setup_manipulator_visu()
-        
+            
+        elif self.params["agent"]["run"]["true_param_as_sample"]:
+            tr_weights = self.env_model.get_gt_weights()
+            self.weights = []
+            for tr_weight in tr_weights:
+                samples = np.tile(tr_weight, (self.ns,1))
+                self.weights.append(samples)
+        self.env_model.setup_manipulator_visu()
 
     def random_vector_within_bounds(self):
         # generate a normally distributed weight vector within bounds by continous respampling
@@ -1078,8 +1084,8 @@ class Agent(object):
         batch_1 = 1
         nH = self.params["optimizer"]["H"]
         total_samples = ns * batch_1 * nH
-        nx = self.g_nx
-        nu = self.g_nu
+        nx = self.nx
+        nu = self.nu
         # Extract state and control directly
         state_test = X_test[:,0,:, :nx]  # shape (50, 1, 30, 2)
         control_test = X_test[:,0,:, nx:]  # shape (50, 1, 30, 1)

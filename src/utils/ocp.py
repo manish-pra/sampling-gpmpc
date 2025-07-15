@@ -22,10 +22,10 @@ def export_dempc_ocp(params, env_ocp_handler=None):
     )
     n_order = params["optimizer"]["order"]
     x_dim = params["agent"]["dim"]["nx"]
-
+    pos_dim = len(params["env"]["goal_state"])
     xg = ca.SX.sym("xg", 1)
-    cw = ca.SX.sym("cw", 2)
-    we = ca.SX.sym("we", 2)
+    cw = ca.SX.sym("cw", pos_dim)
+    we = ca.SX.sym("we", pos_dim)
     tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
 
     p = ca.vertcat(xg, cw, we, tilde_eps_i)

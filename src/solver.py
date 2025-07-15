@@ -153,16 +153,17 @@ class DEMPC_solver(object):
                 break
 
     def solve(self, player, solver,  plot_pendulum=False):
-        # w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
-        w = player.env_model.path_generator(player.mpc_iter)
+        w = np.ones(self.H + 1) * self.params["optimizer"]["w"]
+        # w = player.env_model.path_generator(player.mpc_iter)
         if len(w.shape) > 2:
             w = w[:,:,0] #* self.params["optimizer"]["w"]
         # w = np.vstack([[20.0,10.0]*(self.H+1)]).reshape(-1,2)
         if self.params["agent"]["run"]["variance_cost"]:
             w = np.random.rand(2*(self.H+1)).reshape(self.H+1,2)*10 - 5
-        w_e = w[-1]
         xg = np.ones((self.H + 1, self.pos_dim)) * player.get_next_to_go_loc()
-        w = np.ones((self.H + 1, 2))*np.array(self.params["env"]["goal_state"]).reshape(-1)
+        pos_dim = len(self.params["env"]["goal_state"])
+        w = np.ones((self.H + 1, pos_dim))*np.array(self.params["env"]["goal_state"]).reshape(-1)
+        w_e = w[-1]
         ns = self.params["agent"]["num_dyn_samples"]
         # player.sample_weights()
         if self.params["common"]["use_BLR"] and self.params["common"]["active_learning"]["use"] and player.mpc_iter > 0:           

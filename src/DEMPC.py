@@ -100,6 +100,7 @@ class DEMPC:
                 " ",
                 bcolors.ENDC,
             )
+            self.agent.env_model.print_3d_state(X[0, 0:nx])
         return False
     
     def optimistic_planner(self, st_curr):
