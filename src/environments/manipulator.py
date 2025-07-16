@@ -73,7 +73,7 @@ class Manipulator(object):
             # p.addUserDebugLine(pos, [pos[0] + scale * z_axis[0], pos[1] + scale * z_axis[1], pos[2] + scale * z_axis[2]], [0, 0, 1], 2)
 
             p.resetDebugVisualizerCamera(
-                cameraDistance=1.0,
+                cameraDistance=2.0,
                 cameraYaw=00,
                 cameraPitch=-45,
                 cameraTargetPosition=[0.2, 0, 0.2]
@@ -399,7 +399,7 @@ class Manipulator(object):
         if idx<dim_diff:
             return ca.vertcat(state[idx], state[idx+dim_diff])
         else:
-            theta_ddot = self.parser.get_forward_dynamics_aba(self.base_link, self.ee_link)(state[:dim_diff],state[dim_diff:2*dim_diff], control)
+            theta_ddot = self.parser.get_forward_dynamics_aba(self.base_link, self.ee_link)(state[:dim_diff],state[dim_diff:2*dim_diff], control) 
             return ca.vertcat(state[idx], theta_ddot[idx-dim_diff])
 
     def BLR_features_casadi(self):
@@ -649,7 +649,7 @@ class Manipulator(object):
             expr += (
                 (translation - p).T
                 @ Qx
-                @ (translation - p) + model_x[nx * i : nx * (i + 1)][self.nu:].T@model_x[nx * i : nx * (i + 1)][self.nu:]
+                @ (translation - p) + model_x[nx * i : nx * (i + 1)][self.nu:].T@model_x[nx * i : nx * (i + 1)][self.nu:]/1000
                 # + (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max).T
                 # @ (Qx/50)
                 # @ (model_x[nx * i : nx * (i + 1)][3:3+xg_dim] - v_max) 
@@ -659,7 +659,7 @@ class Manipulator(object):
                 @ Qx
                 @ (translation - p)
             )
-        cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u
+        cost_expr_ext_cost = expr / ns + model_u.T @ (Qu) @ model_u/100
         cost_expr_ext_cost_e = expr_e / ns
         return cost_expr_ext_cost, cost_expr_ext_cost_e
     

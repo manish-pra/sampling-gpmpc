@@ -157,7 +157,7 @@ class DEMPC:
             X, U, Sl = self.dempc_solver.get_solution(solver)
         #
         self.visu.record(st_curr, X, U, dt, cost,solver_status, w, record_gp_model=False)
-        # print("X", X)
+        print("X", X)
         # print("U", U)
 
         # self.visu.plot_pendulum_traj(X,U)
