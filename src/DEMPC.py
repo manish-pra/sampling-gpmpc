@@ -79,11 +79,12 @@ class DEMPC:
 
             if self.params["common"]["active_learning"]["use"]:
                 if i % (self.params["common"]["active_learning"]["frequency"]) == 0:
-                    Y_data = self.agent.env_model.get_prior_data(state_input)
+                    g_state_input = state_input[:,self.agent.env_model.datax_idx + [self.nx + u_idx for u_idx in self.agent.env_model.datau_idx]]
+                    Y_data = self.agent.env_model.get_prior_data(g_state_input)
                     if self.params["common"]["use_cuda"]:
-                        self.agent.online_learnt_datapoints(state_input.cuda(), Y_data)
+                        self.agent.online_learnt_datapoints(g_state_input.cuda(), Y_data)
                     else:
-                        self.agent.online_learnt_datapoints(state_input, Y_data)
+                        self.agent.online_learnt_datapoints(g_state_input, Y_data)
 
             state_kp1 = self.agent.env_model.discrete_dyn(state_input)
             self.agent.update_current_state(X[1, 0:nx])
@@ -157,7 +158,7 @@ class DEMPC:
             X, U, Sl = self.dempc_solver.get_solution(solver)
         #
         self.visu.record(st_curr, X, U, dt, cost,solver_status, w, record_gp_model=False)
-        print("X", X)
+        # print("X", X)
         # print("U", U)
 
         # self.visu.plot_pendulum_traj(X,U)

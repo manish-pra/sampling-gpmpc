@@ -62,7 +62,7 @@ class Agent(object):
         self.real_data_batch()
         self.planned_measure_loc = np.array([2])
         self.epistimic_random_vector = self.random_vector_within_bounds()
-        self.f_list, self.f_jac_list, self.f_ujac_list,  self.f_batch_list, self.f_jac_batch_list, self.f_ujac_batch_list = self.env_model.BLR_features_casadi()
+        self.f_list, self.f_jac_list, self.f_ujac_list,  self.f_batch_list, self.f_jac_batch_list, self.f_ujac_batch_list, self.f_unknown_list = self.env_model.BLR_features_casadi()
         self.z = torch.randn(self.ns,self.params["env"]["num_features"], self.g_ny)
         if self.env_model.tr_weights is None and not self.params["agent"]["run"]["true_param_as_sample"]:
             self.dyn_fg_jacobians_via_BLR()
@@ -71,10 +71,10 @@ class Agent(object):
             
         elif self.params["agent"]["run"]["true_param_as_sample"]:
             tr_weights = self.env_model.get_gt_weights()
-            self.weights = []
+            self.mul_weights = []
             for tr_weight in tr_weights:
                 samples = np.tile(tr_weight, (self.ns,1))
-                self.weights.append(samples)
+                self.mul_weights.append(samples)
         self.env_model.setup_manipulator_visu()
 
     def random_vector_within_bounds(self):
@@ -799,7 +799,7 @@ class Agent(object):
         control_flat = control.reshape(X.shape[0], nu)
 
         # Now evaluate the mapped functions
-        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_list[-self.g_ny:]]
+        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_unknown_list]
         feture_values_list = [np.array(f_values_flat).T.reshape(X.shape[0], -1) for f_values_flat in feature_value_flat_list] 
 
         y_list = [
@@ -815,14 +815,14 @@ class Agent(object):
         X = self.X_train_new
         y = self.Y_train_new
 
-        state = X[:,:self.nx].numpy()  # shape (50, 1, 30, 2)
-        control = X[:,self.nx:].numpy()  # shape (50, 1, 30, 1)
+        state = X[:,:self.g_nx].numpy()  # shape (50, 1, 30, 2)
+        control = X[:,self.g_nx:].numpy()  # shape (50, 1, 30, 1)
 
-        state_flat = state.reshape(X.shape[0], self.nx)
-        control_flat = control.reshape(X.shape[0], self.nu)
+        state_flat = state.reshape(X.shape[0], self.g_nx)
+        control_flat = control.reshape(X.shape[0], self.g_nu)
          
         # Now evaluate the mapped functions
-        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_list[-self.g_ny:]] 
+        feature_value_flat_list = [feature_batch(state_flat.T, control_flat.T) for feature_batch in self.f_unknown_list] 
         feture_values_list = [np.array(f_values_flat).T.reshape(X.shape[0], -1) for f_values_flat in feature_value_flat_list] 
 
         y_list = [
@@ -988,29 +988,46 @@ class Agent(object):
         feature_size = max(mu.shape[0] for mu in self.mu_list)
 
         # Preallocate weight samples
-        # self.weights = np.zeros((self.ns, self.g_ny, feature_size))
+        # self.mul_weights = np.zeros((self.ns, self.g_ny, feature_size))
         tr_weight = self.env_model.get_gt_weights()
-        self.weights = []
-        for idx in range(self.params["agent"]["g_dim"]["ny"], self.params["agent"]["dim"]["nx"]):
-            samples = np.tile(tr_weight[idx-self.params["agent"]["g_dim"]["ny"]], (self.ns,1))
-            self.weights.append(samples)  # append samples for each output
-        for i, (mu, Sigma, L_prec) in enumerate(zip(self.mu_list, self.Sigma_list, self.L_prec_list)):
-            mu_flat = mu.squeeze()   # (D_i,)
-            # samples =  np.tile(mu_flat, (self.ns,1)) #
-            samples = self.sample_Weights_cholesky(mu_flat, Sigma, L_prec, i)  # (D_i, D_i)
-            # samples = self.sample_Weights_cholesky_via_inv(mu_flat, Sigma)  # (D_i, D_i)
-            # samples = np.random.multivariate_normal(mu_flat, np.linalg.inv(Sigma), size=self.ns)  # (ns, D_i)
-            # torch
-            # Sigma = torch.tensor(Sigma, dtype=torch.float64)
-            # mvn = torch.distributions.MultivariateNormal(loc=mu_flat, covariance_matrix=torch.linalg.inv(Sigma+ 1e-6 * torch.eye(Sigma.shape[0])))
-            # samples = mvn.sample((self.ns,)).numpy()  
+        # Create weights that actually multiply features. unknown weights are thus multiplied by dt
+        self.mul_weights = []
+        dof = self.params["agent"]["dim"]["nu"]
+        for idx in range(self.params["agent"]["dim"]["nx"]):
+            samples = np.tile(tr_weight[idx], (self.ns,1))
+            self.mul_weights.append(samples)
+        
+        dt = self.params["optimizer"]["dt"]
+        for i, fric_idx in enumerate(self.params["env"]["friction"]["dof_idx"]):
+            mu, Sigma, L_prec = self.mu_list[i], self.Sigma_list[i], self.L_prec_list[i]
+            mu_flat = mu.squeeze()
+            samples = self.sample_Weights_cholesky(mu_flat, Sigma, L_prec, i)
+            samples = np.hstack([np.tile(tr_weight[fric_idx+dof], (self.ns,1))[:,:2], samples*dt])  # add true weight to the sample
             if self.params["agent"]["run"]["true_param_as_sample"]:
                 samples = np.tile(tr_weight[i], (self.ns,1))
-            # self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
-            self.weights.append(samples)  # append samples for each output
+            self.mul_weights[fric_idx+dof] = samples  # replace samples with the 
+     
+
+        # for idx in range(self.params["agent"]["g_dim"]["ny"], self.params["agent"]["dim"]["nx"]):
+        #     samples = np.tile(tr_weight[idx-self.params["agent"]["g_dim"]["ny"]], (self.ns,1))
+        #     self.mul_weights.append(samples)  # append samples for each output
+        # for i, (mu, Sigma, L_prec) in enumerate(zip(self.mu_list, self.Sigma_list, self.L_prec_list)):
+        #     mu_flat = mu.squeeze()   # (D_i,)
+        #     # samples =  np.tile(mu_flat, (self.ns,1)) #
+        #     samples = self.sample_Weights_cholesky(mu_flat, Sigma, L_prec, i)  # (D_i, D_i)
+        #     # samples = self.sample_Weights_cholesky_via_inv(mu_flat, Sigma)  # (D_i, D_i)
+        #     # samples = np.random.multivariate_normal(mu_flat, np.linalg.inv(Sigma), size=self.ns)  # (ns, D_i)
+        #     # torch
+        #     # Sigma = torch.tensor(Sigma, dtype=torch.float64)
+        #     # mvn = torch.distributions.MultivariateNormal(loc=mu_flat, covariance_matrix=torch.linalg.inv(Sigma+ 1e-6 * torch.eye(Sigma.shape[0])))
+        #     # samples = mvn.sample((self.ns,)).numpy()  
+        #     if self.params["agent"]["run"]["true_param_as_sample"]:
+        #         samples = np.tile(tr_weight[i], (self.ns,1))
+        #     # self.mul_weights[:, i, :mu.shape[0]] = samples  # fill only available features
+        #     self.mul_weights.append(samples)  # append samples for each output
 
         
-        # self.weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
+        # self.mul_weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
 
     def sample_weights_pend(self):
         feature_size = max(self.mu_theta.shape[0], self.mu_omega.shape[0])
@@ -1019,12 +1036,12 @@ class Agent(object):
         # g = self.params["env"]["params"]["g"]
         # l = self.params["env"]["params"]["l"]
         # gt_weight = np.array([[1.0, dt, 0.0],[1.0,-g*dt/l, dt]])
-        # self.weights = np.tile(gt_weight, (self.ns, 1, 1))
-        self.weights = np.zeros((self.ns, self.g_ny, feature_size))
-        self.weights[:,0,:self.mu_theta.shape[0]] = np.random.multivariate_normal(self.mu_theta, self.Sigma_theta, size=(self.ns))
-        self.weights[:,1,:self.mu_omega.shape[0]] = np.random.multivariate_normal(self.mu_omega, self.Sigma_omega, size=(self.ns))
-        # self.weights[:,0,:self.mu_theta.shape[0]] = self.sample_Weights_cholesky(self.mu_theta, self.Sigma_theta)
-        # self.weights[:,1,:self.mu_omega.shape[0]] = self.sample_Weights_cholesky(self.mu_omega, self.Sigma_omega)
+        # self.mul_weights = np.tile(gt_weight, (self.ns, 1, 1))
+        self.mul_weights = np.zeros((self.ns, self.g_ny, feature_size))
+        self.mul_weights[:,0,:self.mu_theta.shape[0]] = np.random.multivariate_normal(self.mu_theta, self.Sigma_theta, size=(self.ns))
+        self.mul_weights[:,1,:self.mu_omega.shape[0]] = np.random.multivariate_normal(self.mu_omega, self.Sigma_omega, size=(self.ns))
+        # self.mul_weights[:,0,:self.mu_theta.shape[0]] = self.sample_Weights_cholesky(self.mu_theta, self.Sigma_theta)
+        # self.mul_weights[:,1,:self.mu_omega.shape[0]] = self.sample_Weights_cholesky(self.mu_omega, self.Sigma_omega)
 
     def get_optimistic_dynamics_grad(self, X_test):
         # shape
@@ -1112,7 +1129,7 @@ class Agent(object):
         u_grad_mapped = np.zeros((X_test.shape[0], self.ny, X_test.shape[2], nu))
 
         for idx in range(self.ny):
-            weight_feat = self.weights[idx]
+            weight_feat = self.mul_weights[idx]
             model_val[:,[idx],:,:] = np.sum(feture_values_list[idx]*weight_feat[:,np.newaxis,np.newaxis,:], axis=-1, keepdims=True)  # (50,1,30,2)
             y_grad_mapped[:,[idx],:,:] = np.sum(f_jac_values_list[idx]*weight_feat[:,np.newaxis,np.newaxis,np.newaxis,:], axis=-1)  # (50,1,30,2)
             u_grad_mapped[:,[idx],:,:] = np.sum(f_ujac_values_list[idx]*weight_feat[:,np.newaxis,np.newaxis,np.newaxis,:], axis=-1)  # (50,1,30,2)
@@ -1122,10 +1139,10 @@ class Agent(object):
     def get_dynamics_grad_manual(self, X_test):
         # Compute gradients
         Phi, _ = self.env_model.BLR_features_test(X_test) #phi_theta, phi_omega
-        weights_expanded = self.weights[:, :, np.newaxis, :]  # (50,2,1,3)
+        weights_expanded = self.mul_weights[:, :, np.newaxis, :]  # (50,2,1,3)
         model_val = np.sum(Phi * weights_expanded, axis=-1, keepdims=True)  # (50,2,30,1)
         Phi_grad = self.env_model.BLR_features_grad(X_test) #phi_theta_grad, phi_omega_grad
-        # weights_x = self.weights[:, :, np.newaxis, :self.g_nx]  # (50,2,1,2)
+        # weights_x = self.mul_weights[:, :, np.newaxis, :self.g_nx]  # (50,2,1,2)
         feature_grad = Phi_grad * weights_expanded  # (50,2,30,2)
         y_grad_mapped = self.apply_feature_mapping(feature_grad , [[[0],[1]], [[1],[0]]])
         u_grad_mapped = self.apply_feature_mapping(feature_grad , [[[2]], [[2]]])

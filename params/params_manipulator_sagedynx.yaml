@@ -14,13 +14,20 @@ env:
   urdf_model: "franka_panda/panda"
   base_link: "panda_link0"
   ee_link: "panda_link8" #"panda_link8"
-  datax_idx: [0, 1, 2,3,4,5,6,7,8,9,10,11,12,13] 
-  datau_idx: [0, 1, 2,3,4,5,6] # [0, 1] for pendulum
+  datax_idx: [5,6,12,13] 
+  datau_idx: [5,6] # [0, 1] for pendulum
   prior_dyn_meas: True 
   train_data_has_derivatives: False
-  num_features: 80
-  n_data_x: 1
-  n_data_u: 1
+  num_features: 2
+  n_data_x: 3
+  n_data_u: 3
+  friction:
+    use: True
+    dof_idx: [5,6]
+    damping_coeff: [20.0, 30.0] # [0.1, 0.1] for pendulum
+    mu: 0.5
+    mu_dot: 0.1
+    mu_ddot: 0.01
   params:
     m: 1.0
     l: 0.25
@@ -31,7 +38,7 @@ env:
 agent:
   g_dim :
     ny : 2
-    nx : 14
+    nx : 4
     nu : 2
   dim :
     ny : 14 # perhaps redundant?
@@ -52,7 +59,7 @@ agent:
   Dyn_gp_beta : 3.5 # 1.5
   mean_shift_val : 2
   cov_module: 'Matern'     #'Matern', Sq_exp
-  num_dyn_samples: 1 
+  num_dyn_samples: 5 
   mean_as_dyn_sample: False
   true_dyn_as_sample: False        # This is for debugging, set num_dyn_samples to 1
   Dyn_gp_jitter: 1.0e-6
@@ -68,7 +75,7 @@ agent:
   run:
     optimistic: False
     pessimistic: True
-    true_param_as_sample: True # Debug mode
+    true_param_as_sample: False # Debug mode
     variance_cost: False
   BLR:
     lambda_reg: 1.0e-6
@@ -84,7 +91,7 @@ common:
   use_cuda : False
   use_BLR : True
   active_learning:
-    use: False
+    use: True
     frequency: 1
   num_MPC_itrs : 50
   dynamics_rejection: False
