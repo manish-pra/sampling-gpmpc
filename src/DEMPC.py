@@ -79,7 +79,7 @@ class DEMPC:
 
             if self.params["common"]["active_learning"]["use"]:
                 if i % (self.params["common"]["active_learning"]["frequency"]) == 0:
-                    g_state_input = state_input[:,self.agent.env_model.datax_idx + [self.nx + u_idx for u_idx in self.agent.env_model.datau_idx]]
+                    g_state_input = state_input #[:,self.agent.env_model.datax_idx + [self.nx + u_idx for u_idx in self.agent.env_model.datau_idx]]
                     Y_data = self.agent.env_model.get_prior_data(g_state_input)
                     if self.params["common"]["use_cuda"]:
                         self.agent.online_learnt_datapoints(g_state_input.cuda(), Y_data)
@@ -87,7 +87,7 @@ class DEMPC:
                         self.agent.online_learnt_datapoints(g_state_input, Y_data)
 
             state_kp1 = self.agent.env_model.discrete_dyn(state_input)
-            self.agent.update_current_state(X[1, 0:nx])
+            self.agent.update_current_state(state_kp1) #(X[1, 0:nx])
             # propagate the agent to the next state
             # forward sampling and reject dynamics c_i away from the projection
             if self.params["common"]["dynamics_rejection"]:

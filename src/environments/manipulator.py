@@ -29,6 +29,8 @@ class Manipulator(object):
         tau = ca.SX.sym("tau",self.nu)
         self.theta_ddot_expr = self.parser.get_forward_dynamics_aba(self.base_link, self.ee_link)(theta, theta_dot, tau)
         self.forward_dyn = ca.Function("forward_dynamics", [theta, theta_dot, tau], [self.theta_ddot_expr])
+        self.theta_ddot_fric_expr = self.parser.get_forward_dynamics_friction_aba(self.base_link, self.ee_link)(theta, theta_dot, tau)
+        self.forward_dyn_fric = ca.Function("forward_dynamics", [theta, theta_dot, tau], [self.theta_ddot_fric_expr])
         self.fk = self.parser.get_forward_kinematics(self.base_link, self.ee_link)["T_fk"]
         self.tr_weights = None
 
@@ -188,24 +190,36 @@ class Manipulator(object):
         n_data_u = self.params["env"]["n_data_u"]
 
         if self.params["env"]["prior_dyn_meas"]:
-            mesh_list = []
-            for idx in self.datax_idx:
-                mesh_list.append(torch.linspace(
-                self.params["optimizer"]["x_min"][idx],
-                self.params["optimizer"]["x_max"][idx],
-                n_data_x,
-            ))
-            for idx in self.datau_idx:
-                mesh_list.append(torch.linspace(
-                self.params["optimizer"]["u_min"][idx],
-                self.params["optimizer"]["u_max"][idx],
-                n_data_u,
-            ))
-            XU_grid = torch.meshgrid(mesh_list)
+            if self.params["env"]["randomly_sample"]:
+                # randomly sample points in the state and control space
+                center = torch.Tensor(self.params["env"]["start"] + [0,0,0,0,0,0,0])
+                std = 1 
+                Dyn_gp_X_train = torch.rand(
+                    (n_data_x, self.g_nx + self.g_nu),
+                    device=self.torch_device,
+                )
+                # generate random controls
+                Dyn_gp_X_train = center + std * torch.randn(self.params["env"]["num_samples"], center.shape[0])
+            else:
+                # generate a grid of points in the state and control space
+                mesh_list = []
+                for idx in self.datax_idx:
+                    mesh_list.append(torch.linspace(
+                    self.params["optimizer"]["x_min"][idx],
+                    self.params["optimizer"]["x_max"][idx],
+                    n_data_x,
+                ))
+                for idx in self.datau_idx:
+                    mesh_list.append(torch.linspace(
+                    self.params["optimizer"]["u_min"][idx],
+                    self.params["optimizer"]["u_max"][idx],
+                    n_data_u,
+                ))
+                XU_grid = torch.meshgrid(mesh_list)
 
-            Dyn_gp_X_train = torch.hstack(
-                [XU.reshape(-1,1) for XU in XU_grid]
-            )
+                Dyn_gp_X_train = torch.hstack(
+                    [XU.reshape(-1,1) for XU in XU_grid]
+                )
             # y1, y2 = self.get_prior_data(Dyn_gp_X_train)
             # Dyn_gp_Y_train = torch.stack((y1, y2), dim=0)
             # add noise
@@ -276,8 +290,13 @@ class Manipulator(object):
         state_kp1[:,:dof] = xu[:,:dof] + xu[:,dof:2*dof]*dt  
         theta_ddot_dynamics = torch.from_numpy(np.array(self.forward_dyn(xu[:,:dof].T.numpy(), xu[:,dof:2*dof].T.numpy(), xu[:,2*dof:].T.numpy()).T)) 
         if self.params["env"]["friction"]["use"]:
-            idx = self.params["env"]["friction"]["dof_idx"]
-            theta_ddot_dynamics[:,idx] -=  self.unknown_dyn(xu)
+            theta_ddot_dynamics = torch.from_numpy(np.array(self.forward_dyn_fric(xu[:,:dof].T.numpy(), xu[:,dof:2*dof].T.numpy(), xu[:,2*dof:].T.numpy()).T)) 
+            # idx = self.params["env"]["friction"]["dof_idx"]
+            # if self.params["env"]["unknown"]["partial"]:
+            #     g_xu = xu[:,self.datax_idx + [self.nx + u_idx for u_idx in self.datau_idx]]
+            #     theta_ddot_dynamics[:,idx] -=  self.unknown_dyn(g_xu)
+            # else:
+            #     theta_ddot_dynamics[:,idx] = self.unknown_dyn(xu)
         #     # think of it as a residual model
         state_kp1[:,dof:2*dof] = xu[:,dof:2*dof] + theta_ddot_dynamics*dt
         return state_kp1
@@ -288,10 +307,25 @@ class Manipulator(object):
         dt = self.params["optimizer"]["dt"]
         xu = xu.numpy()
         # xu contains components relevant for friction model (not the full state)
-        residual_dyn = self.friction_model(xu[:,:self.g_nx], xu[:,self.g_nx:])
-
+        # residual_dyn = self.friction_model(xu[:,:self.g_nx], xu[:,self.g_nx:])
+        dof = self.params["agent"]["dim"]["nu"]
+        # len_fric = len(self.params["env"]["friction"]["dof_idx"])
+        # fric_q = xu[:, :len_fric]
+        # fric_q_dot = xu[:, len_fric:2*len_fric]
+        # fric_u = xu[:, 2*len_fric:]
+        # app_fric = np.hstack([fric_q, np.ones((fric_q.shape[0], dof-len_fric))])
+        # app_fric_dot = np.hstack([fric_q_dot, np.ones((fric_q_dot.shape[0], dof-len_fric))])
+        # app_fric_u = np.hstack([fric_u, np.ones((fric_u.shape[0], dof-len_fric))])
+        
+        idx = self.params["env"]["friction"]["dof_idx"]
+        if self.params["env"]["unknown"]["partial"]:
+            theta_ddot_dynamics_fric = np.array(self.forward_dyn_fric(xu[:,:dof].T, xu[:,dof:2*dof].T, xu[:,2*dof:].T).T)
+            theta_ddot_dynamics = np.array(self.forward_dyn(xu[:,:dof].T, xu[:,dof:2*dof].T, xu[:,2*dof:].T).T)
+            residual_dyn = theta_ddot_dynamics_fric - theta_ddot_dynamics
+        else:
+            theta_ddot_dynamics_fric = np.array(self.forward_dyn(xu[:,:dof].T, xu[:,dof:2*dof].T, xu[:,2*dof:].T).T)
+            residual_dyn = theta_ddot_dynamics_fric[:,idx]
         residual_state = residual_dyn* 1.0 # * dt
-
 
         # m = self.params["env"]["params"]["m"]
         # l = self.params["env"]["params"]["l"]
@@ -327,7 +361,10 @@ class Manipulator(object):
             dt = self.params["optimizer"]["dt"]
             for idx, mean_weights in enumerate(self.tr_weights):
                 mean_weights = dt * mean_weights
-                tr_weight[dof+fric_idx[idx]] += mean_weights.reshape(-1).tolist()
+                if self.params["env"]["unknown"]["partial"]:
+                    tr_weight[dof+idx] += mean_weights.reshape(-1).tolist()
+                else:                    # if partial unknown, add the friction model
+                    tr_weight[dof+idx] = mean_weights.reshape(-1).tolist()
             # ####
             # merge the above two in with remaining dim
             # for idx in range(self.params["agent"]["g_dim"]["ny"], self.params["agent"]["dim"]["nx"]):
@@ -417,8 +454,12 @@ class Manipulator(object):
         damping_coeff = self.params["env"]["friction"]["damping_coeff"]
         # returns damping_coeff * velocity
         if isinstance(state,np.ndarray):
-            return damping_coeff * (state[:,[idx for idx in range(len_fric, 2*len_fric)]]**2)
-        else:
+            if self.params["env"]["unknown"]["partial"]:
+                # numpy
+                return damping_coeff * (state[:,[idx for idx in range(len_fric, 2*len_fric)]]**2)
+            else:
+                return damping_coeff * (state[:,self.params["env"]["unknown"]["component_idx"]]**2)
+        else: # full state
             # casadi
             return damping_coeff * (state[[idx for idx in range(len_fric, 2*len_fric)]]**2)
 
@@ -427,9 +468,10 @@ class Manipulator(object):
         dof = self.params["agent"]["dim"]["nu"]
         theta_ddot = self.parser.get_forward_dynamics_aba(self.base_link, self.ee_link)(state[:dof], state[dof:2*dof], control)
         if self.params["env"]["friction"]["use"]:
-            dof = self.params["agent"]["dim"]["nu"]
-            friction_xv_idx = self.params["env"]["friction"]["dof_idx"] + [dof+idx for idx in self.params["env"]["friction"]["dof_idx"]]
-            theta_ddot[self.params["env"]["friction"]["dof_idx"]] -= self.friction_model(state[[idx for idx in friction_xv_idx]], control[[idx for idx in self.params["env"]["friction"]["dof_idx"]]])
+            theta_ddot = self.parser.get_forward_dynamics_friction_aba(self.base_link, self.ee_link)(state[:dof], state[dof:2*dof], control)
+            # dof = self.params["agent"]["dim"]["nu"]
+            # friction_xv_idx = self.params["env"]["friction"]["dof_idx"] + [dof+idx for idx in self.params["env"]["friction"]["dof_idx"]]
+            # theta_ddot[self.params["env"]["friction"]["dof_idx"]] -= self.friction_model(state[[idx for idx in friction_xv_idx]], control[[idx for idx in self.params["env"]["friction"]["dof_idx"]]])
         return theta_ddot
 
     def features_partial_rff(self, state, control, idx):
@@ -439,10 +481,14 @@ class Manipulator(object):
         else:
             theta_ddot = self.parser.get_forward_dynamics_aba(self.base_link, self.ee_link)(state[:dof], state[dof:2*dof], control)
             if self.params["env"]["friction"]["use"]:
-                if (idx-dof) in self.params["env"]["friction"]["dof_idx"]:
-                    friction_xv_idx = self.params["env"]["friction"]["dof_idx"] + [dof+idx for idx in self.params["env"]["friction"]["dof_idx"]]
-                    additional_features = self.feature_rff(state[[idx for idx in friction_xv_idx]], control[[idx for idx in self.params["env"]["friction"]["dof_idx"]]], idx)
+                # if (idx-dof) in self.params["env"]["friction"]["dof_idx"]:
+                #     friction_xv_idx = self.params["env"]["friction"]["dof_idx"] + [dof+idx for idx in self.params["env"]["friction"]["dof_idx"]]
+                if self.params["env"]["unknown"]["partial"]:
+                    additional_features = self.feature_rff(state, control, idx)
                     return ca.vertcat(state[idx], theta_ddot[idx-dof], additional_features)
+                else:
+                    additional_features = self.feature_rff(state, control, idx)
+                    return additional_features
             return ca.vertcat(state[idx], theta_ddot[idx-dof])
 
     def features_true(self, state, control, idx):
@@ -475,8 +521,12 @@ class Manipulator(object):
         dof = self.params["agent"]["dim"]["nu"]
         fric_xv_idx = self.params["env"]["friction"]["dof_idx"] + [dof+idx for idx in self.params["env"]["friction"]["dof_idx"]]
         fric_u_idx = self.params["env"]["friction"]["dof_idx"]
-        f_unknown_list = [ca.Function(features_name[dof+idx] + "_partial", [state[fric_xv_idx], control[fric_u_idx]], [self.feature_rff(state[fric_xv_idx], control[fric_u_idx], dof+idx)]) for 
-                 idx in self.params["env"]["friction"]["dof_idx"]]
+        # if self.params["env"]["unknown"]["partial"]:
+        #     f_unknown_list = [ca.Function(features_name[dof+idx] + "_partial", [state[fric_xv_idx], control[fric_u_idx]], [self.feature_rff(state[fric_xv_idx], control[fric_u_idx], dof+idx)]) for 
+        #          idx in self.params["env"]["friction"]["dof_idx"]]
+        # else:
+        f_unknown_list = [ca.Function(features_name[idx] + "_full", [state, control], [self.feature_rff(state, control, idx)]) for 
+                 idx, feat_name in enumerate(features_name)]
 
         f_list = [ca.Function(feat_name, [state, control], [feature_function(state, control, idx)]) for 
                  idx, feat_name in enumerate(features_name)]
