@@ -996,20 +996,25 @@ class Agent(object):
         for idx in range(self.params["agent"]["dim"]["nx"]):
             samples = np.tile(tr_weight[idx], (self.ns,1))
             self.mul_weights.append(samples)
-        
+        if self.params["env"]["unknown"]["partial"]:
+            component_idx = [dof + i in range(dof)]
+        else:
+            component_idx = self.params["env"]["unknown"]["component_idx"]
+            
+
         if self.params["env"]["friction"]["use"]:
             dt = self.params["optimizer"]["dt"]
-            for i in range(dof):
+            for i, idx in enumerate(component_idx):
                 mu, Sigma, L_prec = self.mu_list[i], self.Sigma_list[i], self.L_prec_list[i]
                 mu_flat = mu.squeeze()
                 samples = self.sample_Weights_cholesky(mu_flat, Sigma, L_prec, i)
                 if self.params["env"]["unknown"]["partial"]:
-                    samples = np.hstack([np.tile(tr_weight[i+dof], (self.ns,1))[:,:2], samples*dt])  # add true weight to the sample
+                    samples = np.hstack([np.tile(tr_weight[idx], (self.ns,1))[:,:2], samples*dt])  # add true weight to the sample
                 else:
                     samples =  samples*dt
                 if self.params["agent"]["run"]["true_param_as_sample"]:
                     samples = np.tile(tr_weight[i], (self.ns,1))
-                self.mul_weights[i+dof] = samples  # replace samples with the 
+                self.mul_weights[idx] = samples  # replace samples with the 
      
 
         # for idx in range(self.params["agent"]["g_dim"]["ny"], self.params["agent"]["dim"]["nx"]):

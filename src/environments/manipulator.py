@@ -486,9 +486,12 @@ class Manipulator(object):
                 if self.params["env"]["unknown"]["partial"]:
                     additional_features = self.feature_rff(state, control, idx)
                     return ca.vertcat(state[idx], theta_ddot[idx-dof], additional_features)
-                else:
-                    additional_features = self.feature_rff(state, control, idx)
-                    return additional_features
+                else: # complete unknown
+                    if (idx) in self.params["env"]["unknown"]["component_idx"]:
+                        additional_features = self.feature_rff(state, control, idx)
+                        return additional_features
+                    else: # return the true unknwon dynamics
+                        theta_ddot = self.parser.get_forward_dynamics_friction_aba(self.base_link, self.ee_link)(state[:dof], state[dof:2*dof], control)
             return ca.vertcat(state[idx], theta_ddot[idx-dof])
 
     def features_true(self, state, control, idx):
@@ -521,12 +524,12 @@ class Manipulator(object):
         dof = self.params["agent"]["dim"]["nu"]
         fric_xv_idx = self.params["env"]["friction"]["dof_idx"] + [dof+idx for idx in self.params["env"]["friction"]["dof_idx"]]
         fric_u_idx = self.params["env"]["friction"]["dof_idx"]
-        # if self.params["env"]["unknown"]["partial"]:
-        #     f_unknown_list = [ca.Function(features_name[dof+idx] + "_partial", [state[fric_xv_idx], control[fric_u_idx]], [self.feature_rff(state[fric_xv_idx], control[fric_u_idx], dof+idx)]) for 
-        #          idx in self.params["env"]["friction"]["dof_idx"]]
-        # else:
-        f_unknown_list = [ca.Function(features_name[idx] + "_full", [state, control], [self.feature_rff(state, control, idx)]) for 
+        if self.params["env"]["unknown"]["partial"]:
+            f_unknown_list = [ca.Function(features_name[idx] + "_partial", [state, control], [self.feature_rff(state, control, idx)]) for 
                  idx, feat_name in enumerate(features_name)]
+        else:
+            f_unknown_list = [ca.Function(features_name[idx] + "_full", [state, control], [self.feature_rff(state, control, idx)]) for 
+                 idx in self.params["env"]["unknown"]["component_idx"]]
 
         f_list = [ca.Function(feat_name, [state, control], [feature_function(state, control, idx)]) for 
                  idx, feat_name in enumerate(features_name)]
