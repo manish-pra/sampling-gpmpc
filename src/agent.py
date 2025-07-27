@@ -839,6 +839,8 @@ class Agent(object):
             samples = np.random.multivariate_normal(mu_flat, Sigma, size=self.ns)  # (ns, D_i)
             if self.params["agent"]["run"]["true_param_as_sample"]:
                 samples = np.tile(tr_weight[i], (self.ns,1))
+            elif self.params["agent"]["mean_as_dyn_sample"]:
+                samples = np.tile(mu_flat, (self.ns,1))
             # self.weights[:, i, :mu.shape[0]] = samples  # fill only available features
             self.weights.append(samples)  # append samples for each output
 
