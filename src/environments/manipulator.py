@@ -317,14 +317,14 @@ class Manipulator(object):
         # app_fric_dot = np.hstack([fric_q_dot, np.ones((fric_q_dot.shape[0], dof-len_fric))])
         # app_fric_u = np.hstack([fric_u, np.ones((fric_u.shape[0], dof-len_fric))])
         
-        idx = self.params["env"]["friction"]["dof_idx"]
+        idx_list = [comp_idx - dof for comp_idx in self.params["env"]["unknown"]["component_idx"]]
         if self.params["env"]["unknown"]["partial"]:
             theta_ddot_dynamics_fric = np.array(self.forward_dyn_fric(xu[:,:dof].T, xu[:,dof:2*dof].T, xu[:,2*dof:].T).T)
             theta_ddot_dynamics = np.array(self.forward_dyn(xu[:,:dof].T, xu[:,dof:2*dof].T, xu[:,2*dof:].T).T)
-            residual_dyn = theta_ddot_dynamics_fric - theta_ddot_dynamics
+            residual_dyn = theta_ddot_dynamics_fric[:,idx_list] - theta_ddot_dynamics[:,idx_list]
         else:
             theta_ddot_dynamics_fric = np.array(self.forward_dyn(xu[:,:dof].T, xu[:,dof:2*dof].T, xu[:,2*dof:].T).T)
-            residual_dyn = theta_ddot_dynamics_fric[:,idx]
+            residual_dyn = theta_ddot_dynamics_fric[:,idx_list]
         residual_state = residual_dyn* 1.0 # * dt
 
         # m = self.params["env"]["params"]["m"]
@@ -359,12 +359,12 @@ class Manipulator(object):
             fric_idx = self.params["env"]["friction"]["dof_idx"]
             dof = self.params["agent"]["dim"]["nu"]
             dt = self.params["optimizer"]["dt"]
-            for idx, mean_weights in enumerate(self.tr_weights):
-                mean_weights = dt * mean_weights
+            for i, unknown_idx in enumerate(self.params["env"]["unknown"]["component_idx"]):
+                mean_weights = dt * self.tr_weights[i]
                 if self.params["env"]["unknown"]["partial"]:
-                    tr_weight[dof+idx] += mean_weights.reshape(-1).tolist()
+                    tr_weight[unknown_idx] += mean_weights.reshape(-1).tolist()
                 else:                    # if partial unknown, add the friction model
-                    tr_weight[dof+idx] = mean_weights.reshape(-1).tolist()
+                    tr_weight[unknown_idx] = mean_weights.reshape(-1).tolist()
             # ####
             # merge the above two in with remaining dim
             # for idx in range(self.params["agent"]["g_dim"]["ny"], self.params["agent"]["dim"]["nx"]):
@@ -481,17 +481,14 @@ class Manipulator(object):
         else:
             theta_ddot = self.parser.get_forward_dynamics_aba(self.base_link, self.ee_link)(state[:dof], state[dof:2*dof], control)
             if self.params["env"]["friction"]["use"]:
-                # if (idx-dof) in self.params["env"]["friction"]["dof_idx"]:
-                #     friction_xv_idx = self.params["env"]["friction"]["dof_idx"] + [dof+idx for idx in self.params["env"]["friction"]["dof_idx"]]
-                if self.params["env"]["unknown"]["partial"]:
+                if idx in self.params["env"]["unknown"]["component_idx"]:
                     additional_features = self.feature_rff(state, control, idx)
-                    return ca.vertcat(state[idx], theta_ddot[idx-dof], additional_features)
-                else: # complete unknown
-                    if (idx) in self.params["env"]["unknown"]["component_idx"]:
-                        additional_features = self.feature_rff(state, control, idx)
+                    if self.params["env"]["unknown"]["partial"]:
+                        return ca.vertcat(state[idx], theta_ddot[idx-dof], additional_features)
+                    else: 
                         return additional_features
-                    else: # return the true unknwon dynamics
-                        theta_ddot = self.parser.get_forward_dynamics_friction_aba(self.base_link, self.ee_link)(state[:dof], state[dof:2*dof], control)
+                else: # idx is not in the unknown component
+                    theta_ddot = self.parser.get_forward_dynamics_friction_aba(self.base_link, self.ee_link)(state[:dof], state[dof:2*dof], control)                        
             return ca.vertcat(state[idx], theta_ddot[idx-dof])
 
     def features_true(self, state, control, idx):

@@ -147,10 +147,10 @@ class DEMPC:
 
         # set objective as per desired goal
         t_0 = timeit.default_timer()
-        solver_status, cost, w = self.dempc_solver.solve(self.agent, solver)
+        solver_status, cost, w, dt = self.dempc_solver.solve(self.agent, solver)
         t_1 = timeit.default_timer()
-        dt = t_1 - t_0
-        print("Time to solve", dt)
+        dt_total = t_1 - t_0
+        print("Time to solve", dt_total)
 
         if self.params["agent"]["shift_soln"]:
             X, U, Sl = self.dempc_solver.get_and_shift_solution(solver)

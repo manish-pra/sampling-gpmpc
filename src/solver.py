@@ -166,7 +166,7 @@ class DEMPC_solver(object):
         w_e = w[-1]
         ns = self.params["agent"]["num_dyn_samples"]
         # player.sample_weights()
-        if self.params["common"]["use_BLR"] and self.params["common"]["active_learning"]["use"] and player.mpc_iter > 0:           
+        if self.params["common"]["use_BLR"] and self.params["common"]["active_learning"]["use"] and player.mpc_iter > 0 and not self.params["agent"]["run"]["true_param_as_sample"]:           
             # train the model with prio data
             # player.dyn_fg_jacobians_via_BLR()
             player.online_model_update()
@@ -293,7 +293,7 @@ class DEMPC_solver(object):
             if plot_pendulum:
                 self.plot_iterates_pendulum(sqp_iter, player, self.x_h, x_h_e, self.u_h)
 
-        return status, cost, w
+        return status, cost, w, t_1-t_0
     
     def get_optimistic_solution(self):
         nx = self.optimistic_ocp_solver.acados_ocp.model.x.size()[0]

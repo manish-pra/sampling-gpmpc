@@ -996,10 +996,10 @@ class Agent(object):
         for idx in range(self.params["agent"]["dim"]["nx"]):
             samples = np.tile(tr_weight[idx], (self.ns,1))
             self.mul_weights.append(samples)
-        if self.params["env"]["unknown"]["partial"]:
-            component_idx = [dof + i in range(dof)]
-        else:
-            component_idx = self.params["env"]["unknown"]["component_idx"]
+        # if self.params["env"]["unknown"]["partial"]:
+        #     component_idx = [dof + i for i in range(dof)]
+        # else:
+        component_idx = self.params["env"]["unknown"]["component_idx"]
             
 
         if self.params["env"]["friction"]["use"]:
