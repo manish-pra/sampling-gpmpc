@@ -54,6 +54,8 @@ def load_data(file_name):
 # read data
 param_list = ["params_car_racing_no_learning", "params_car_racing_two_stage","params_car_racing_sagedynx"]
 legend_list = ["No learning",  "Two-stage","SAGE-DynX"]
+# line_style_list = ["--", "-", "-."]
+line_style_list = ["-", "-", "-"]
 
 save_path = workspace + "/experiments/car/env_0/params_car_racing_opt/"
 traj_iter = 1
@@ -121,7 +123,7 @@ for idx, param in enumerate(regret_dict):
     #     alpha = 0.2
     mean_regret = np.mean(np.vstack(regret_dict[param]), axis=0)
     std_regret = np.std(np.vstack(regret_dict[param]), axis=0)/np.sqrt(len(regret_dict[param]))
-    ax.plot(mean_regret, label=legend_list[idx])
+    ax.plot(mean_regret, label=legend_list[idx], linestyle=line_style_list[idx])
     ax.fill_between(
         np.arange(0, len(mean_regret)), mean_regret - std_regret, mean_regret + std_regret, alpha = alpha
     )
