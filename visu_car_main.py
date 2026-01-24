@@ -29,7 +29,7 @@ parser = argparse.ArgumentParser(description="A foo that bars")
 parser.add_argument("-param", default="params_drone_sagedynx")  # params
 
 parser.add_argument("-env", type=int, default=0)
-parser.add_argument("-i", type=int, default=0)  # initialized at origin
+parser.add_argument("-i", type=int, default=1)  # initialized at origin
 args = parser.parse_args()
 
 # 1) Load the config file

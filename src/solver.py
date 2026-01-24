@@ -263,7 +263,7 @@ class DEMPC_solver(object):
                         ]
                     )
                 solver.set(stage, "p", p_lin)
-
+            solver.set(self.H, "p", p_lin)
             residuals = solver.get_residuals(recompute=True)
             print("residuals (before solve)", residuals)
 

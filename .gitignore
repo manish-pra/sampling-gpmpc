@@ -7,6 +7,16 @@ src/__pycache__/
 # C extensions
 *.so
 
+# Generated files
+*.gif
+*.mp4
+*.png
+*.json
+c_generated_code/
+env_*_i_*_dempc*/
+env_*_i_*_ocp_initialization*.json
+libacados_ocp_solver_*.so
+
 experiments/
 meeting/
 openweathermap/

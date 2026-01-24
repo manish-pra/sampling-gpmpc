@@ -473,6 +473,20 @@ class Drone(object):
         const_expr = []
         nx = self.params["agent"]["dim"]["nx"]
         v_dim=3
+        
+        # Add obstacle avoidance constraints if obstacles are defined
+        if "obstacles" in self.params["env"] and self.params["env"]["obstacles"]:
+            for i in range(num_dyn):
+                px = model_x[nx * i]
+                py = model_x[nx * i + 1]
+                for obs_name, obs_params in self.params["env"]["obstacles"].items():
+                    cx, cy, r = obs_params[0], obs_params[1], obs_params[2]
+                    # Constraint: (px - cx)^2 + (py - cy)^2 >= r^2
+                    obs_constraint = (px - cx)**2 + (py - cy)**2
+                    const_expr = ca.vertcat(const_expr, obs_constraint)
+        
+        # Terminal constraint
+        const_expr_e = []
         for i in range(num_dyn):
             xf = np.array(self.params["env"]["terminate_state"])
             xf_dim = xf.shape[0]
@@ -481,12 +495,23 @@ class Drone(object):
                 @ np.array(self.params["optimizer"]["terminal_tightening"]["P"])
                 @ (model_x[nx * i : nx * (i + 1)][v_dim:v_dim+xf_dim] - xf)
             )
-            const_expr = ca.vertcat(const_expr, expr)
-        return None, const_expr
+            const_expr_e = ca.vertcat(const_expr_e, expr)
+        
+        return const_expr if const_expr.size1() > 0 else None, const_expr_e
     
     def const_value(self, num_dyn):
         lh = np.empty((0,), dtype=np.float64)
         uh = np.empty((0,), dtype=np.float64)
+        
+        # Add obstacle constraint bounds if obstacles are defined
+        if "obstacles" in self.params["env"] and self.params["env"]["obstacles"]:
+            num_obstacles = len(self.params["env"]["obstacles"])
+            for obs_name, obs_params in self.params["env"]["obstacles"].items():
+                r = obs_params[2]
+                # Lower bound: distance^2 >= r^2
+                lh = np.hstack([lh, [r**2] * num_dyn])
+                uh = np.hstack([uh, [1e8] * num_dyn])
+        
         delta = self.params["optimizer"]["terminal_tightening"]["delta"]
         lh_e = np.hstack([[0] * num_dyn])
         uh_e = np.hstack([[delta] * num_dyn])
@@ -593,11 +618,7 @@ class Drone(object):
         if length is None:
             length = self.params["optimizer"]["H"] + 1
         s = np.linspace(0, 4 * np.pi, 1000)
-        t = s[st:st+length] #np.linspace(st + 0, st + 2 * np.pi/100*length, )
-
-        # # Parametric equations for heart
-        # x = 16 * np.sin(t)**3
-        # y = 10 * np.cos(t) - 5 * np.cos(2*t) - 2 * np.cos(3*t) - np.cos(4*t)
+        t = s[st:st+length]
 
         # Parametric equations for heart
         x = 8 * np.sin(t)**3 / 1.5 + 1
@@ -613,7 +634,6 @@ class Drone(object):
         ax.set_ylim(-6, 6)
 
         ax.grid(which="both", axis="both")
-        # ax.minorticks_on()
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         y_min = self.params["optimizer"]["x_min"][1]
@@ -621,13 +641,21 @@ class Drone(object):
         x_min = self.params["optimizer"]["x_min"][0]
         x_max = self.params["optimizer"]["x_max"][0]
 
-        tracking_path = self.path_generator(0, 500)
-        # ax.plot(
-        #     tracking_path[:, 0],
-        #     tracking_path[:, 1],
-        #     color="blue",
-        #     label="Tracking path",
-        # )
+        # Plot obstacles if they exist
+        if "obstacles" in self.params["env"] and self.params["env"]["obstacles"]:
+            for obs_name, obs_params in self.params["env"]["obstacles"].items():
+                cx, cy, r = obs_params[0], obs_params[1], obs_params[2]
+                circle = plt.Circle((cx, cy), r, color='red', alpha=0.3, label='Obstacle')
+                ax.add_patch(circle)
+                # Add obstacle boundary
+                theta = np.linspace(0, 2*np.pi, 100)
+                ax.plot(cx + r*np.cos(theta), cy + r*np.sin(theta), 'r-', linewidth=2)
+            
+            # Plot start and goal
+            start = self.params["env"]["start"][:2]
+            goal = self.params["env"]["goal_state"]
+            ax.plot(start[0], start[1], 'go', markersize=10, label='Start')
+            ax.plot(goal[0], goal[1], 'b*', markersize=15, label='Goal')
 
         y_min = self.params["optimizer"]["x_min"][1]
         y_max = self.params["optimizer"]["x_max"][1]
@@ -635,16 +663,16 @@ class Drone(object):
         x_max = self.params["optimizer"]["x_max"][0]
 
         ax.add_line(
-            plt.Line2D([x_min, x_max], [y_max, y_max], color="red", linestyle="--")
+            plt.Line2D([x_min, x_max], [y_max, y_max], color="black", linestyle="--", alpha=0.5)
         )
         ax.add_line(
-            plt.Line2D([x_max, x_max], [y_min, y_max], color="red", linestyle="--")
+            plt.Line2D([x_max, x_max], [y_min, y_max], color="black", linestyle="--", alpha=0.5)
         )
         ax.add_line(
-            plt.Line2D([x_min, x_min], [y_min, y_max], color="red", linestyle="--")
+            plt.Line2D([x_min, x_min], [y_min, y_max], color="black", linestyle="--", alpha=0.5)
         )
         ax.add_line(
-            plt.Line2D([x_min, x_max], [y_min, y_min], color="red", linestyle="--")
+            plt.Line2D([x_min, x_max], [y_min, y_min], color="black", linestyle="--", alpha=0.5)
         )
 
         if "P" in self.params["optimizer"]["terminal_tightening"]:
