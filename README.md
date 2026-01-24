@@ -26,6 +26,7 @@ The code is licensed under the MIT license.
     ```
 3. Install dependencies
     1. Download and install [acados](https://docs.acados.org/installation/) (does not need to be in `workspace`).
+        - **Required acados commit**: `0b5161f012bebc8f05f307cd138e3f037568288`
     2. Install [acados Python interface](https://docs.acados.org/python_interface/index.html).
     3. Install Python requirements
         ```bash

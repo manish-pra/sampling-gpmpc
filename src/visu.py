@@ -24,6 +24,8 @@ class Visualizer:
         self.gp_model_after_solve_train_X = []
         self.gp_model_after_solve_train_Y = []
         self.solver_time = []
+        self.tilde_eps_list = None
+        self.ci_list = None
         self.save_path = path
         self.agent = agent
         self.nx = self.params["agent"]["dim"]["nx"]
