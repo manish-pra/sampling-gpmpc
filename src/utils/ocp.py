@@ -26,7 +26,7 @@ def export_dempc_ocp(params, env_ocp_handler=None):
     xg = ca.SX.sym("xg", 1)
     cw = ca.SX.sym("cw", 2)
     we = ca.SX.sym("we", 2)
-    tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
+    tilde_eps_i = ca.SX.sym("tilde_eps_i", x_dim, 1)
 
     p = ca.vertcat(xg, cw, we, tilde_eps_i)
     if params["agent"]["run"]["variance_cost"]:
@@ -65,7 +65,7 @@ def dempc_const_expr(x_dim, n_order, params):
     xg = ca.SX.sym("xg", 1)
     we = ca.SX.sym("we", 1, 1)
     cw = ca.SX.sym("cw", 1, 1)
-    tilde_eps_i = ca.SX.sym("tilde_eps_i", 1, 1)
+    tilde_eps_i = ca.SX.sym("tilde_eps_i", x_dim, 1)
 
     p_lin = ca.vertcat(xg, cw, tilde_eps_i)
     return 1, p_lin
@@ -103,15 +103,19 @@ def dempc_cost_expr(ocp, model_x, model_u, x_dim, p, params):
 
 
 def dempc_const_val(ocp, params, x_dim, n_order, p, env_ocp_handler):
-    tilde_eps_i = p[2]
+    print(p)
     ns = params["agent"]["num_dyn_samples"]
     # constraints
     ocp.constraints.lbu = np.array(params["optimizer"]["u_min"])
     ocp.constraints.ubu = np.array(params["optimizer"]["u_max"])
     ocp.constraints.idxbu = np.arange(ocp.constraints.ubu.shape[0])
 
-    lbx = np.array(params["optimizer"]["x_min"] * ns)
-    ubx = np.array(params["optimizer"]["x_max"] * ns)
+    # Initialize with nominal bounds (tightening will be applied at runtime via parameter updates)
+    x_min_list = params["optimizer"]["x_min"]
+    x_max_list = params["optimizer"]["x_max"]
+
+    lbx = np.array(x_min_list * ns)
+    ubx = np.array(x_max_list * ns)
 
     x0 = np.zeros(ocp.model.x.shape[0])
     x0 = np.array(params["env"]["start"] * ns)  # np.ones(x_dim)*0.72

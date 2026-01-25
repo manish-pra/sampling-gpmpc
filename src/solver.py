@@ -74,6 +74,66 @@ class DEMPC_solver(object):
                 self.ci_list.append(c_i)
             print(f"tilde_eps_{stage} = {self.tilde_eps_list[-1]}")
 
+    def compute_approx_tightening(self, player):
+        """Compute tightening by propagating sampled dynamics"""
+        import casadi as ca
+        
+        # Get control inputs from optimized trajectory
+        U_opt = np.zeros((self.H, self.nu))
+        for stage in range(self.H):
+            U_opt[stage, :] = self.ocp_solver.get(stage, "u")
+        
+        # Propagate MEAN trajectory using MEAN GP weights
+        X_mean = np.zeros((self.H + 1, self.nx))
+        X_mean[0, :] = player.current_state[:self.nx]
+        
+        for stage in range(self.H):
+            # Prepare inputs for mean trajectory
+            x_mean_batch = X_mean[stage, :].reshape(-1, 1)  # (nx, 1)
+            u_mean_batch = U_opt[stage, :].reshape(-1, 1)  # (nu, 1)
+            
+            # Compute next state using MEAN GP weights
+            for idx in range(self.nx):
+                # Evaluate features at mean state
+                feat_mean = np.array(player.f_list[idx](x_mean_batch, u_mean_batch)).flatten()  # (feat_dim,)
+                
+                # Use mean weight (first row or average of sampled weights)
+                weight_mean = np.mean(player.weights_tightening_approx[idx], axis=0)  # (feat_dim,)
+                
+                # Next state dimension = feature @ mean_weight
+                X_mean[stage + 1, idx] = np.dot(feat_mean, weight_mean)
+        
+        # Propagate samples using sampled GP weights
+        n_samples = self.params["agent"]["num_samples_tightening"]
+        X_samples = np.zeros((self.H + 1, n_samples, self.nx))
+        X_samples[0, :, :] = np.tile(player.current_state[:self.nx], (n_samples, 1))
+        
+        for stage in range(self.H):
+            # Prepare batch inputs
+            x_batch = X_samples[stage, :, :].T  # (nx, n_samples)
+            u_batch = np.tile(U_opt[stage, :], (n_samples, 1)).T  # (nu, n_samples)
+            
+            # Compute next state using sampled GP weights (full dynamics, not residual)
+            for idx in range(self.nx):
+                # Evaluate features for all samples
+                feat_batch = np.array(player.f_list[idx].map(n_samples)(x_batch, u_batch)).T  # (n_samples, feat_dim)
+                
+                # For each sample, compute next state using its sampled weight
+                for sample_idx in range(n_samples):
+                    weight = player.weights_tightening_approx[idx][sample_idx, :]  # (feat_dim,)
+                    feat = feat_batch[sample_idx, :]  # (feat_dim,)
+                    
+                    # Next state dimension = feature @ weight (full dynamics)
+                    X_samples[stage + 1, sample_idx, idx] = np.dot(feat, weight)
+        
+        # Compute max deviation per state dimension
+        diffs = X_samples - X_mean[:, np.newaxis, :]  # (H+1, n_samples, nx)
+        tilde_eps = np.max(np.abs(diffs), axis=1)  # (H+1, nx)
+        
+        print(f"\nApprox tightening: max={np.max(tilde_eps):.4f}, mean={np.mean(tilde_eps):.4f}")
+        print(f"Per dimension max: {np.max(tilde_eps, axis=0)}")
+        return tilde_eps
+
     def solve_optimistic_problem(self, player, solver, plot_pendulum=False):
         w = player.env_model.path_generator(player.mpc_iter) #* self.params["optimizer"]["w"]
         w_e = w[-1]
@@ -168,6 +228,15 @@ class DEMPC_solver(object):
             player.dyn_fg_jacobians_via_BLR()
             # sample weights
             player.sample_weights()
+            # sample weights for tightening approximation
+            if self.params["agent"].get("use_approx_tightening", True):
+                player.sample_weights_tightening_approx()
+        
+        # Compute tightening if using approx method
+        tilde_eps_approx = None
+        if self.params["agent"].get("use_approx_tightening", True):
+            tilde_eps_approx = self.compute_approx_tightening(player)
+        
         for sqp_iter in range(self.max_sqp_iter):
             x_h_old = self.x_h.copy()
             u_h_old = self.u_h.copy()
@@ -243,13 +312,20 @@ class DEMPC_solver(object):
 
                 #     tilde_eps_i += c_i
                 #     print(f"tilde_eps_{stage} = {tilde_eps_i}")
+                
+                # Get tightening for this stage
+                if tilde_eps_approx is not None:
+                    tilde_eps_stage = tilde_eps_approx[stage]
+                else:
+                    tilde_eps_stage = self.tilde_eps_list[stage]
+                
                 p_lin = np.hstack(
                     [
                         p_lin,
                         self.u_h[stage],
                         xg[stage],
                         w[stage], w_e,
-                        self.tilde_eps_list[stage],
+                        tilde_eps_stage,
                     ]
                 )
                 # variance cost
@@ -263,6 +339,55 @@ class DEMPC_solver(object):
                         ]
                     )
                 solver.set(stage, "p", p_lin)
+            
+            # Apply constraint tightening after setting all parameters
+            if self.params["agent"].get("use_approx_tightening", True):
+                x_min = np.array(self.params["optimizer"]["x_min"])
+                x_max = np.array(self.params["optimizer"]["x_max"])
+                
+                for stage in range(1,self.H):
+                    if tilde_eps_approx is not None:
+                        tilde_eps_stage = tilde_eps_approx[stage]
+                    else:
+                        tilde_eps_stage = self.tilde_eps_list[stage]
+                    
+                    if isinstance(tilde_eps_stage, np.ndarray):
+                        tilde_eps_vec = tilde_eps_stage
+                    else:
+                        tilde_eps_vec = np.ones(self.nx) * tilde_eps_stage
+                    
+                    # Tighten state bounds
+                    lbx_tight = np.tile(x_min + tilde_eps_vec, ns)
+                    ubx_tight = np.tile(x_max - tilde_eps_vec, ns)
+                    solver.set(stage, "lbx", lbx_tight)
+                    solver.set(stage, "ubx", ubx_tight)
+                    
+                    # Tighten obstacle constraints
+                    if "obstacles" in self.params["env"] and self.params["env"]["obstacles"]:
+                        pos_tightening = np.linalg.norm(tilde_eps_vec[:2])
+                        lh_obs = []
+                        for obs_name, obs_params in self.params["env"]["obstacles"].items():
+                            r = obs_params[2]
+                            r_tight = r + pos_tightening
+                            lh_obs.extend([r_tight**2] * ns)
+                        solver.constraints_set(stage, "lh", np.array(lh_obs))
+                        solver.constraints_set(stage, "uh", np.ones(len(lh_obs)) * 1e8)
+                
+                # Also update terminal stage
+                if tilde_eps_approx is not None:
+                    tilde_eps_stage = tilde_eps_approx[self.H]
+                else:
+                    tilde_eps_stage = self.tilde_eps_list[self.H]
+                
+                if isinstance(tilde_eps_stage, np.ndarray):
+                    tilde_eps_vec = tilde_eps_stage
+                else:
+                    tilde_eps_vec = np.ones(self.nx) * tilde_eps_stage
+                
+                lbx_tight = np.tile(x_min + tilde_eps_vec, ns)
+                ubx_tight = np.tile(x_max - tilde_eps_vec, ns)
+                solver.constraints_set(self.H, "lbx", lbx_tight)
+                solver.constraints_set(self.H, "ubx", ubx_tight)
             solver.set(self.H, "p", p_lin)
             residuals = solver.get_residuals(recompute=True)
             print("residuals (before solve)", residuals)

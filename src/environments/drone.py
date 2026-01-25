@@ -508,8 +508,18 @@ class Drone(object):
             num_obstacles = len(self.params["env"]["obstacles"])
             for obs_name, obs_params in self.params["env"]["obstacles"].items():
                 r = obs_params[2]
-                # Lower bound: distance^2 >= r^2
-                lh = np.hstack([lh, [r**2] * num_dyn])
+                # Tighten obstacle radius to account for position uncertainty
+                # Get max tightening for position states (px, py)
+                if self.params["agent"].get("use_approx_tightening", False):
+                    # Will be updated at runtime with actual tightening values
+                    # For now, use conservative estimate
+                    tightening_margin = 0.1  # placeholder, will be updated
+                else:
+                    tightening_margin = 0.0
+                
+                # Lower bound: distance^2 >= (r + tightening)^2
+                r_tight = r + tightening_margin
+                lh = np.hstack([lh, [r_tight**2] * num_dyn])
                 uh = np.hstack([uh, [1e8] * num_dyn])
         
         delta = self.params["optimizer"]["terminal_tightening"]["delta"]

@@ -847,6 +847,28 @@ class Agent(object):
         
         # self.weights = [np.tile(weight, (self.ns,1)) for weight in tr_weight]
 
+    def sample_weights_tightening_approx(self):
+        """
+        Samples random BLR weights for each output dimension.
+
+        self.mu_list: list of (D_i, 1) mean vectors
+        self.Sigma_list: list of (D_i, D_i) covariance matrices
+        self.g_ny: number of outputs (e.g., 6 for drone)
+        self.ns: number of samples
+        """
+        # Find max feature dimension across all outputs
+        feature_size = max(mu.shape[0] for mu in self.mu_list)
+
+        # Preallocate weight samples
+        # self.weights = np.zeros((self.ns, self.g_ny, feature_size))
+        tr_weight = self.env_model.get_gt_weights()
+        self.weights_tightening_approx = []
+        for i, (mu, Sigma) in enumerate(zip(self.mu_list, self.Sigma_list)):
+            mu_flat = mu.squeeze()   # (D_i,)
+            samples = np.random.multivariate_normal(mu_flat, Sigma, size=self.params["agent"]["num_samples_tightening"])  # (ns, D_i)
+            # samples = np.tile(tr_weight[i], (self.params["agent"]["num_samples_tightening"],1))
+            self.weights_tightening_approx.append(samples)  # append samples for each output
+
     def sample_weights_pend(self):
         feature_size = max(self.mu_theta.shape[0], self.mu_omega.shape[0])
         # Sample from the posterior

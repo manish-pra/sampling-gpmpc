@@ -11,7 +11,7 @@ env:
   obstacles:
     obs1: [1.3, 2.4, 0.6]
     obs2: [2.7, 4.6, 0.6]
-    obs3: [5.0, 4.8, 0.6]
+    obs3: [5.0, 5.0, 0.6]
     obs4: [3.5, 2.75, 0.6]
   params:
     m: 1.0
@@ -21,8 +21,6 @@ env:
     d: 0.1
 
 agent:
-  use_approx_tightening: True  # Use approximate tightening based on sampled dynamics
-  num_samples_tightening: 50  # Number of samples for tightening computation
   g_dim :
     ny : 6
     nx : 6
@@ -46,8 +44,10 @@ agent:
   Dyn_gp_beta : 3.5
   mean_shift_val : 2
   cov_module: 'Matern'
-  num_dyn_samples: 15 
-  mean_as_dyn_sample: False
+  num_dyn_samples: 1
+  use_approx_tightening: True  # Use approximate tightening based on sampled dynamics
+  num_samples_tightening: 50  # Number of samples for tightening computation
+  mean_as_dyn_sample: True
   true_dyn_as_sample: False
   Dyn_gp_jitter: 1.0e-6
   Dyn_gp_variance_is_zero: 1.1e-6
@@ -93,17 +93,17 @@ optimizer:
     max_sqp_iter: 10
     tol_nlp: 1.0e-6
   SEMPC:
-    max_sqp_iter: 1
+    max_sqp_iter: 2
     tol_nlp: 1.0e-4 
   order: 2
   x_dim: 2
   dt: 0.1
   w: 50
-  Qx: [3, 3]
+  Qx: [1.5, 1.5]
   Qu: [0.1, 0.1]
   cost: "expected" 
   options: {
-    levenberg_marquardt: 0.5
+    levenberg_marquardt: 5.0
   }
   terminal_tightening:
     x_tight: [0.1, 0.1]

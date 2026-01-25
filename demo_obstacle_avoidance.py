@@ -21,15 +21,18 @@ from src.environments.drone import Drone as drone
 warnings.filterwarnings("ignore")
 plt.rcParams["figure.figsize"] = [12, 6]
 
+# Get script directory
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Parse arguments
 parser = argparse.ArgumentParser(description="Drone Obstacle Avoidance Demo")
-parser.add_argument("-param", default="params_drone_obstacles")
+parser.add_argument("-param", default="params_drone_obstacles_approx")
 parser.add_argument("-env", type=int, default=0)
 parser.add_argument("-i", type=int, default=1)
 args = parser.parse_args()
 
 # Load configuration
-with open("params/" + args.param + ".yaml") as file:
+with open(os.path.join(SCRIPT_DIR, "params", args.param + ".yaml")) as file:
     params = yaml.load(file, Loader=yaml.FullLoader)
 
 params["env"]["i"] = args.i
@@ -51,15 +54,14 @@ if params["experiment"]["rnd_seed"]["use"]:
 
 # Setup paths
 exp_name = params["experiment"]["name"]
-env_load_path = (
-    "experiments/"
-    + params["experiment"]["folder"]
-    + "/env_"
-    + str(args.env)
-    + "/"
+env_load_path = os.path.join(
+    SCRIPT_DIR,
+    "experiments",
+    params["experiment"]["folder"],
+    f"env_{args.env}"
 )
 
-save_path = env_load_path + "/" + args.param + "/"
+save_path = os.path.join(env_load_path, args.param)
 
 if not os.path.exists(save_path):
     try:
@@ -69,8 +71,9 @@ if not os.path.exists(save_path):
             raise
 
 traj_iter = args.i
-if not os.path.exists(save_path + str(traj_iter)):
-    os.makedirs(save_path + str(traj_iter))
+traj_path = os.path.join(save_path, str(traj_iter))
+if not os.path.exists(traj_path):
+    os.makedirs(traj_path)
 
 # Initialize environment and agent
 env_model = drone(params)
@@ -79,7 +82,7 @@ agent = Agent(params, env_model)
 print(f"Training data shape: {agent.Dyn_gp_X_train.shape}, {agent.Dyn_gp_Y_train.shape}")
 
 # Initialize visualizer
-visu = Visualizer(params=params, path=save_path + str(traj_iter), agent=agent)
+visu = Visualizer(params=params, path=traj_path, agent=agent)
 
 # Set initial state
 agent.update_current_state(np.array(params["env"]["start"]))
@@ -95,7 +98,7 @@ print("SIMULATION COMPLETE")
 print("="*60)
 print(f"Average solve time: {np.average(visu.solver_time[1:]):.4f} s")
 print(f"Std solve time: {np.std(visu.solver_time[1:]):.4f} s")
-print(f"Results saved to: {save_path + str(traj_iter)}")
+print(f"Results saved to: {traj_path}")
 print("="*60)
 
 # Save data
@@ -104,7 +107,7 @@ visu.save_data()
 # Generate animation
 print("\nGenerating animation...")
 import subprocess
-data_file = save_path + str(traj_iter) + "/data_obstacles.pkl"
-params_file = "params/" + args.param + ".yaml"
-output_dir = save_path + str(traj_iter)
-subprocess.run(["python3", "create_animation.py", data_file, params_file, output_dir])
+data_file = os.path.join(traj_path, "data_obstacles.pkl")
+params_file = os.path.join(SCRIPT_DIR, "params", args.param + ".yaml")
+output_dir = traj_path
+subprocess.run(["python3", os.path.join(SCRIPT_DIR, "create_animation.py"), data_file, params_file, output_dir])
