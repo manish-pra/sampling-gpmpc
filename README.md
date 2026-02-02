@@ -115,6 +115,12 @@ The final result should look similar to this:
 
 ![Sampling-based-predictions-pendulum](https://github.com/user-attachments/assets/caea45b5-6f76-4ea8-bd35-790c13c6afd4)
 
+## Efficient approximation scheme for sampling-based GPMPC
+
+The state space of the resulting sampling-based GP-MPC grows linearly with the number of samples. Here, we present results using an approximate formulation that can be solved using a single nominal dynamics model with conservatively tightened the constraints to ensure feasibility across all sampled dynamics. **[See documentation →](extra/approx_sampling_mpc/README.md)**
+
+[![Watch Demo Video](https://img.youtube.com/vi/rZLKAjjUxPY/maxresdefault.jpg)](https://youtu.be/rZLKAjjUxPY)
+
 ## CDC 2024 Experiments
 
 ### Pendulum example

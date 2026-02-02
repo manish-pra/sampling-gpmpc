@@ -133,3 +133,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Generated code and outputs
+c_generated_code/
+*.gif
+*.json
+*.mp4
+*.png
