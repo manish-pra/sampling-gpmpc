@@ -437,7 +437,7 @@ class Visualizer:
         self.mean_state_traj.append(pred_mean_state)
         self.reference_cost.append(reference)
 
-    def record(self, x_curr, X, U, time, cost, status, w, record_gp_model=True):
+    def record(self, x_curr, X, U, time, cost, status, w, record_gp_model=True, X_samples=None):
         self.physical_state_traj.append(x_curr)
         self.state_traj.append(X)
         self.input_traj.append(U)
@@ -445,6 +445,10 @@ class Visualizer:
         self.solver_cost.append(cost)
         self.solver_status.append(status)
         self.reference_cost.append(w)
+        if X_samples is not None:
+            if not hasattr(self, 'sample_predictions'):
+                self.sample_predictions = []
+            self.sample_predictions.append(X_samples)
 
         if record_gp_model:
             # self.gp_model_after_solve.append(copy.deepcopy(self.agent.model_i))
@@ -468,7 +472,6 @@ class Visualizer:
         data_dict["true_state_traj"] = self.true_state_traj
         data_dict["physical_state_traj"] = self.physical_state_traj
         data_dict["solver_time"] = self.solver_time
-        # data_dict["gp_model_after_solve"] = self.gp_model_after_solve
         data_dict["gp_model_after_solve_train_X"] = self.gp_model_after_solve_train_X
         data_dict["gp_model_after_solve_train_Y"] = self.gp_model_after_solve_train_Y
         data_dict["tilde_eps_list"] = self.tilde_eps_list
@@ -476,6 +479,8 @@ class Visualizer:
         data_dict["solver_cost"] = self.solver_cost
         data_dict["solver_status"] = self.solver_status
         data_dict["reference_cost"] = self.reference_cost
+        if hasattr(self, 'sample_predictions'):
+            data_dict["sample_predictions"] = self.sample_predictions
         a_file = open(self.save_path + "/" + self.params["visu"]["traj_file_name"], "wb")
         # data_dict["meas_traj"] = self.meas_traj
         # data_dict["player_train_pts"] = self.player_train_pts

@@ -32,19 +32,15 @@ state_samples = np.array(data['state_traj'])  # (time, horizon, state_dim)
 reference_traj = np.array(data['reference_cost'])  # Reference trajectory
 nx = 6
 
-# Detect number of samples from state_samples shape
-if len(state_samples.shape) == 3:
-    # state_samples shape: (time, horizon, state_dim)
-    # state_dim could be nx*num_samples or just nx
-    state_dim = state_samples.shape[2]
-    if state_dim % nx == 0:
-        num_samples = state_dim // nx
-    else:
-        num_samples = 1
+# Check if sample predictions are available
+if 'sample_predictions' in data and data['sample_predictions']:
+    sample_preds = data['sample_predictions']
+    num_samples = sample_preds[0].shape[1] if len(sample_preds) > 0 else 1
+    print(f"Using {num_samples} sample predictions from data")
 else:
     num_samples = 1
-
-print(f"Detected {num_samples} samples in data")
+    sample_preds = None
+    print("No sample predictions found, using mean trajectory only")
 
 # Generate full heart reference path for visualization
 s = np.linspace(0, 4 * np.pi, 500)
@@ -93,9 +89,10 @@ ax.plot(traj[:, 0], traj[:, 1], 'b--', alpha=0.3, linewidth=1, label='Actual Pat
 # Animated elements
 drone, = ax.plot([], [], 'bo', markersize=12, zorder=10, label='Drone')
 trail, = ax.plot([], [], 'b-', linewidth=2, alpha=0.7)
-# Create prediction lines based on detected number of samples
-prediction_lines = [ax.plot([], [], 'c-', alpha=0.15, linewidth=0.5)[0] for _ in range(max(1, num_samples))]
-prediction_points = [ax.plot([], [], 'c.', alpha=0.3, markersize=2)[0] for _ in range(max(1, num_samples))]
+# Create prediction lines for all samples
+prediction_lines = [ax.plot([], [], 'c-', alpha=0.2, linewidth=1)[0] for _ in range(num_samples)]
+if num_samples > 1:
+    ax.plot([], [], 'c-', alpha=0.2, linewidth=1, label=f'{num_samples} Prediction Samples')
 
 ax.legend(loc='upper left', fontsize=12)
 
@@ -104,34 +101,20 @@ def init():
     trail.set_data([], [])
     for line in prediction_lines:
         line.set_data([], [])
-    for pts in prediction_points:
-        pts.set_data([], [])
-    return [drone, trail] + prediction_lines + prediction_points
+    return [drone, trail] + prediction_lines
 
 def animate(i):
-    # Update drone position
     drone.set_data([traj[i, 0]], [traj[i, 1]])
-    # Update trail
     trail.set_data(traj[:i+1, 0], traj[:i+1, 1])
     
-    # Update prediction samples
-    if i < len(state_samples) and num_samples > 1:
+    if sample_preds and i < len(sample_preds):
+        X_samples = sample_preds[i]  # (H+1, n_samples, nx)
         for s in range(num_samples):
-            # Extract prediction for this sample
-            pred_x = state_samples[i, :, s*nx + 0]  # px for sample s
-            pred_y = state_samples[i, :, s*nx + 1]  # py for sample s
-            
-            # Plot prediction trajectory
+            pred_x = X_samples[:, s, 0]  # px for sample s
+            pred_y = X_samples[:, s, 1]  # py for sample s
             prediction_lines[s].set_data(pred_x, pred_y)
-            prediction_points[s].set_data(pred_x, pred_y)
-    elif i < len(state_samples) and num_samples == 1:
-        # Single sample case - just show the mean prediction
-        pred_x = state_samples[i, :, 0]  # px
-        pred_y = state_samples[i, :, 1]  # py
-        prediction_lines[0].set_data(pred_x, pred_y)
-        prediction_points[0].set_data(pred_x, pred_y)
     
-    return [drone, trail] + prediction_lines + prediction_points
+    return [drone, trail] + prediction_lines
 
 # Create animation
 anim = animation.FuncAnimation(fig, animate, init_func=init,

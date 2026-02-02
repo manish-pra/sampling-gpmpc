@@ -132,7 +132,7 @@ class DEMPC_solver(object):
         
         print(f"\nApprox tightening: max={np.max(tilde_eps):.4f}, mean={np.mean(tilde_eps):.4f}")
         print(f"Per dimension max: {np.max(tilde_eps, axis=0)}")
-        return tilde_eps
+        return tilde_eps, X_samples
 
     def solve_optimistic_problem(self, player, solver, plot_pendulum=False):
         w = player.env_model.path_generator(player.mpc_iter) #* self.params["optimizer"]["w"]
@@ -234,8 +234,9 @@ class DEMPC_solver(object):
         
         # Compute tightening if using approx method
         tilde_eps_approx = None
+        X_samples_for_viz = None
         if self.params["agent"].get("use_approx_tightening", True):
-            tilde_eps_approx = self.compute_approx_tightening(player)
+            tilde_eps_approx, X_samples_for_viz = self.compute_approx_tightening(player)
         
         for sqp_iter in range(self.max_sqp_iter):
             x_h_old = self.x_h.copy()
@@ -413,7 +414,7 @@ class DEMPC_solver(object):
             if plot_pendulum:
                 self.plot_iterates_pendulum(sqp_iter, player, self.x_h, x_h_e, self.u_h)
 
-        return status, cost, w
+        return status, cost, w, X_samples_for_viz
     
     def get_optimistic_solution(self):
         nx = self.optimistic_ocp_solver.acados_ocp.model.x.size()[0]

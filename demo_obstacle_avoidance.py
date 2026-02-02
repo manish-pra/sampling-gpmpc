@@ -89,6 +89,7 @@ agent.update_current_state(np.array(params["env"]["start"]))
 
 # Run MPC
 print("\nStarting MPC controller...")
+print(f"Using {params['agent']['num_dyn_samples']} samples for predictions")
 de_mpc = DEMPC(params, visu, agent)
 de_mpc.dempc_main()
 
