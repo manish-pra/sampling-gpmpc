@@ -119,7 +119,7 @@ The final result should look similar to this:
 
 The state space of the sampling-based GP-MPC grows linearly with the number of samples. Hence, we also present an approximate sampling based formulation that can be solved using a single nominal dynamics model with conservatively tightened the constraints to ensure feasibility across all sampled dynamics. **[See documentation →](extra/approx_sampling_mpc/README.md)**
 
-[![Watch Demo Video](https://img.youtube.com/vi/rZLKAjjUxPY/maxresdefault.jpg)](https://youtu.be/rZLKAjjUxPY)
+<video src="extra/approx_sampling_mpc/sampling_GPMPC_on_CRS.mp4" controls></video>
 
 ## CDC 2024 Experiments
 
