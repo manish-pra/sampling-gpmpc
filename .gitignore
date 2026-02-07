@@ -138,5 +138,4 @@ dmypy.json
 c_generated_code/
 *.gif
 *.json
-*.mp4
 *.png

@@ -117,7 +117,7 @@ The final result should look similar to this:
 
 ## Efficient approximation scheme for sampling-based GPMPC
 
-The state space of the resulting sampling-based GP-MPC grows linearly with the number of samples. Here, we present results using an approximate formulation that can be solved using a single nominal dynamics model with conservatively tightened the constraints to ensure feasibility across all sampled dynamics. **[See documentation →](extra/approx_sampling_mpc/README.md)**
+The state space of the sampling-based GP-MPC grows linearly with the number of samples. Hence, we also present an approximate sampling based formulation that can be solved using a single nominal dynamics model with conservatively tightened the constraints to ensure feasibility across all sampled dynamics. **[See documentation →](extra/approx_sampling_mpc/README.md)**
 
 [![Watch Demo Video](https://img.youtube.com/vi/rZLKAjjUxPY/maxresdefault.jpg)](https://youtu.be/rZLKAjjUxPY)
 
