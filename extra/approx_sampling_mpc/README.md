@@ -27,6 +27,9 @@ This folder contains code for the approximate sampling-based Gaussian Process Mo
 ```bash
 python demo_obstacle_avoidance.py -param params_drone_obstacles_approx
 ```
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/f45fc828-ba8e-421f-8b87-5bb6491bc29b" width="600" controls></video>
+</p>
 
 ## Parameters
 
