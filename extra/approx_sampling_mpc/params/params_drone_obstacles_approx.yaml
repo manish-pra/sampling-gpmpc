@@ -1,0 +1,149 @@
+env:
+  start: [1.0, 1.0, 0.0, 0.0, 0.0, 0.0] # px, py, phi, vx, vy, phi_dot
+  goal_state: [4.0, 1.0]
+  terminate_state: [0.0, 0.0] # vx, vy
+  dynamics: 'drone'
+  prior_dyn_meas: True 
+  train_data_has_derivatives: False
+  n_data_x: 3
+  n_data_u: 3
+  # Circular obstacles on heart path - placed at start
+  obstacles:
+    obs1: [1.3, 2.4, 0.6]
+    obs2: [2.7, 4.6, 0.6]
+    obs3: [5.0, 5.0, 0.6]
+    obs4: [3.5, 2.75, 0.6]
+  params:
+    m: 1.0
+    l: 0.25
+    g: 9.81
+    J: 0.00383
+    d: 0.1
+
+agent:
+  g_dim :
+    ny : 6
+    nx : 6
+    nu : 2
+  dim :
+    ny : 6
+    nx : 6
+    nu : 2
+  Dyn_gp_lengthscale :
+      y1 : [5.2649, 4.5967, 7.0177]
+      y2 : [3.9696, 2.1265, 6.6749]
+      both : [[[5.2649, 4.5967, 7.0177]], [[3.9696, 2.1265, 6.6749]] ]
+  Dyn_gp_noise : 1.0e-6
+  Dyn_gp_outputscale : 
+    y1 : 0.1040
+    y2 : 0.1071
+    both : [0.65, 0.55]
+  Dyn_gp_task_noises : 
+    val : [3.8, 1.27, 3.8, 1.27]
+    multiplier : 1.0e-5
+  Dyn_gp_beta : 3.5
+  mean_shift_val : 2
+  cov_module: 'Matern'
+  num_dyn_samples: 1
+  use_approx_tightening: True  # Use approximate tightening based on sampled dynamics
+  num_samples_tightening: 100  # Number of samples for tightening computation
+  mean_as_dyn_sample: True
+  true_dyn_as_sample: False
+  Dyn_gp_jitter: 1.0e-6
+  Dyn_gp_variance_is_zero: 1.1e-6
+  Dyn_gp_min_data_dist: 1.0e-4
+  tight:
+    use: False
+    dyn_eps: 0.001
+    Lipschitz: 1.015
+    w_bound: 0.007
+  shift_soln: True
+  load_training_data: False
+  run:
+    optimistic: False
+    pessimistic: True
+    true_param_as_sample: False
+    variance_cost: False
+  BLR:
+    lambda_reg: 1.0e-7
+    noise_var: 2.0e-7
+
+visu:
+  show: True
+  traj_file_name: "data_obstacles.pkl"
+  training_data_file_name: "training_data_obstacles.pkl"
+
+common:
+  use_cuda : False
+  use_BLR : True
+  active_learning :
+    use: False
+    frequency: 1
+  num_MPC_itrs : 100
+  dynamics_rejection: False
+
+optimizer:
+  H : 30
+  u_min : [-1, -1]
+  u_max : [5, 5]          
+  x_min : [-5, -5, -3.1417, -2, -2, -1]
+  x_max : [ 5, 5, 3.1417, 2, 2, 1]
+  linear_solver : 'ma57'
+  oracle:
+    max_sqp_iter: 10
+    tol_nlp: 1.0e-6
+  SEMPC:
+    max_sqp_iter: 2
+    tol_nlp: 1.0e-4 
+  order: 2
+  x_dim: 2
+  dt: 0.1
+  w: 50
+  Qx: [1.5, 1.5]
+  Qu: [0.1, 0.1]
+  cost: "expected" 
+  options: {
+    levenberg_marquardt: 20.0
+  }
+  terminal_tightening:
+    x_tight: [0.1, 0.1]
+    u_tight: [0.1]
+    P:  [[1.0, 0.0],[0.0, 1.0]]
+    delta: 1.0
+
+optimistic_optimizer:
+  H : 30
+  u_min : [-5, -5, -0.3, -0.3, -0.3,-0.3, -0.3, -0.3]
+  u_max : [5, 5, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]          
+  x_min : [-5, -5, -3.1417, -2, -2, -1]
+  x_max : [ 5, 5, 3.1417, 2, 2, 1]
+  linear_solver : 'ma57'
+  oracle:
+    max_sqp_iter: 10
+    tol_nlp: 1.0e-6
+  SEMPC:
+    max_sqp_iter: 1
+    tol_nlp: 1.0e-4 
+  order: 2
+  x_dim: 2
+  dt: 0.1
+  w: 50
+  Qx: [5, 5]
+  Qu: [1, 1, 1, 1, 1, 1,1, 1]
+  cost: "expected" 
+  options: {
+    levenberg_marquardt: 10.0
+  }
+  terminal_tightening:
+    x_tight: [0.1, 0.1]
+    u_tight: [0.1]
+    P:  [[2.48651083, 1.48325991],[1.48325991, 2.65037241]]
+    delta: 1.0
+
+experiment:
+  name: "DEMPC_Obstacles"
+  generate_regret_plot : True
+  folder: "drone"
+  rnd_seed: 
+    use: False
+    value: 123456
