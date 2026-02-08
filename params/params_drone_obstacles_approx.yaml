@@ -46,7 +46,7 @@ agent:
   cov_module: 'Matern'
   num_dyn_samples: 1
   use_approx_tightening: True  # Use approximate tightening based on sampled dynamics
-  num_samples_tightening: 50  # Number of samples for tightening computation
+  num_samples_tightening: 100  # Number of samples for tightening computation
   mean_as_dyn_sample: True
   true_dyn_as_sample: False
   Dyn_gp_jitter: 1.0e-6
@@ -66,7 +66,7 @@ agent:
     variance_cost: False
   BLR:
     lambda_reg: 1.0e-7
-    noise_var: 5.0e-7
+    noise_var: 2.0e-7
 
 visu:
   show: True

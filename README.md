@@ -46,5 +46,9 @@ The code is licensed under the MIT license.
 
 1. For reference experiment videos, please refer to the folder "experiment/drone/env_0" and the files named "video_gp.mp4" contained within.
 
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/f45fc828-ba8e-421f-8b87-5bb6491bc29b" width="600" controls></video>
+</p>
+
 
 1. The above commands will automatically create subfolders within the experiment directory, named according to the parameter file, environment number, and experiment number. Running the visualization script will generate videos for these experiments in the corresponding folders.
