@@ -12,10 +12,22 @@ This folder contains code for the approximate sampling-based Gaussian Process Mo
 
 ## Method
 
-1. **Sample GP Weights**: Sample dynamics models from the learned GP posterior
+1. **GP Sampling**: Sample multiple dynamics models from the learned GP posterior
 2. **Propagate Samples**: Forward propagate all sampled dynamics using the nominal control sequence
-3. **Compute Tightening**: Calculate maximum deviation across samples to determine constraint tightening
-4. **Solve Nominal MPC**: Solve a single MPC problem with tightened constraints
+3. **Compute Tightening**: Calculate maximum deviation across sampled trajectories $x^n_k$ and the mean predictions $x_k^{\mu}$ to determine constraint tightening as shown below (illustrated for box state constraints):
+
+$$
+\mathcal{X}_k^{\mathrm{tight}} = \mathcal{X} \ominus \Delta_k
+$$
+
+$$
+\Delta_k = \max_{n=1,\dots,N} \left| x_k^{n} - x_k^{\mu} \right|
+$$
+
+4. **Solve Nominal MPC**: Solve the nominal MPC problem (mean dynamics model) with tightened constraints
+5. **Iterate within SQP**: The above steps (1-4) are iterated in each SQP iteration
+
+
 
 ## Files
 
@@ -23,6 +35,8 @@ This folder contains code for the approximate sampling-based Gaussian Process Mo
 - `create_animation.py`: Generates visualization videos showing all sample predictions
 
 ## Usage
+
+Run the following command from within the folder `extra/approx_sampling_mpc`:
 
 ```bash
 python demo_obstacle_avoidance.py -param params_drone_obstacles_approx
